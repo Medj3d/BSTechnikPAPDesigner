@@ -39,7 +39,7 @@ AUTO_SAVE_DEFAULT = True
 
 # Updates: GitHub-Projekt ("Besitzer/Name"), dessen neueste Veröffentlichung das
 # fertige Programm beim Start prüft. Leer = keine Update-Prüfung.
-UPDATE_REPOSITORY = ""
+UPDATE_REPOSITORY = "Medj3d/BSTechnikPAPDesigner"
 UPDATE_MANIFEST_NAME = "version.json"
 UPDATE_PACKAGE_NAME = "BSTechnikPAPDesigner.zip"
 EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe"
