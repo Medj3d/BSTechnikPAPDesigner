@@ -41,7 +41,7 @@ from app import config, resources
 
 log = logging.getLogger(__name__)
 
-APPLY_FLAG = "--apply-update"
+APPLY_FLAG = config.UPDATE_APPLY_FLAG
 STAGING_DIRECTORY = "_update"
 BACKUP_SUFFIX = ".alt"
 MANIFEST_MAX_BYTES = 64 * 1024

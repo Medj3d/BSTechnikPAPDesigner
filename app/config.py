@@ -7,13 +7,13 @@ hier definiert, damit sie später an genau einer Stelle geändert werden können
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.5.1"
 APP_RELEASE_DATE = "Oktober 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Text auf dem Ladebildschirm
 SPLASH_CREDIT = "A product for BS Technik from Are Schäfer and Linus Twardzik"
 # So lange bleibt der Ladebildschirm mindestens sichtbar (Millisekunden)
-SPLASH_MIN_DURATION_MS = 1800
+SPLASH_MIN_DURATION_MS = 6000
 ORGANIZATION_NAME = "BS Technik"
 ORGANIZATION_DOMAIN = "bstechnik.local"
 # Kennung für QSettings (Registry-Schlüssel unter HKCU\Software\<ORG>\<SETTINGS_APP>)
@@ -43,6 +43,8 @@ UPDATE_REPOSITORY = "Medj3d/BSTechnikPAPDesigner"
 UPDATE_MANIFEST_NAME = "version.json"
 UPDATE_PACKAGE_NAME = "BSTechnikPAPDesigner.zip"
 EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe"
+# Mit diesem Aufruf installiert die neue Programmdatei ein Update (siehe app/updater.py)
+UPDATE_APPLY_FLAG = "--apply-update"
 
 # Raster
 DEFAULT_GRID_SIZE = 20

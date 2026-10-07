@@ -11,7 +11,7 @@ from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
 from PySide6.QtWidgets import QSplashScreen
 
-from app import config, icons, resources
+from app import config, resources
 
 LOGO_FILE = "bs_technik_logo.png"
 SPLASH_WIDTH = 560
@@ -29,11 +29,19 @@ def version_text() -> str:
 def load_logo() -> QPixmap:
     """Das Schullogo; fehlt die Datei, ersatzweise das Programmsymbol."""
     logo = QPixmap(resources.asset_path(LOGO_FILE))
-    return logo if not logo.isNull() else icons.render_app_icon(200)
+    if not logo.isNull():
+        return logo
+    from app import icons  # erst hier laden: der Ladebildschirm soll so früh wie möglich erscheinen
+    return icons.render_app_icon(200)
 
 
-def render_splash(device_pixel_ratio: float = 1.0, message: str = "") -> QPixmap:
-    """Zeichnet den Ladebildschirm (``message``: zusätzliche Zeile, z. B. beim Aktualisieren)."""
+def render_splash(device_pixel_ratio: float = 1.0, message: str = "", with_text: bool = True) -> QPixmap:
+    """Zeichnet den Ladebildschirm (``message``: zusätzliche Zeile, z. B. beim Aktualisieren).
+
+    ``with_text=False`` zeichnet nur das Logo. Das geht sofort; die Schrift
+    braucht beim ersten Mal spürbar länger, weil Windows erst alle Schriften
+    bereitstellen muss.
+    """
     ratio = max(1.0, float(device_pixel_ratio))
     pixmap = QPixmap(int(SPLASH_WIDTH * ratio), int(SPLASH_HEIGHT * ratio))
     pixmap.setDevicePixelRatio(ratio)
@@ -50,6 +58,9 @@ def render_splash(device_pixel_ratio: float = 1.0, message: str = "") -> QPixmap
     logo_width = logo_height * logo.width() / max(1, logo.height())
     logo_rect = QRectF((SPLASH_WIDTH - logo_width) / 2, 36, logo_width, logo_height)
     painter.drawPixmap(logo_rect, logo, QRectF(logo.rect()))
+    if not with_text:
+        painter.end()
+        return pixmap
 
     font = QFont()
     font.setFamilies(config.ITEM_FONT_FAMILIES)
@@ -73,10 +84,17 @@ def render_splash(device_pixel_ratio: float = 1.0, message: str = "") -> QPixmap
 
 
 class SplashScreen(QSplashScreen):
+    """Zeigt zuerst nur das Logo (sofort da) und nach ``complete()`` auch die Schrift."""
+
     def __init__(self, message: str = ""):
-        screen = self.primary_screen_ratio()
-        super().__init__(render_splash(screen, message))
+        self._message = message
+        self._ratio = self.primary_screen_ratio()
+        super().__init__(render_splash(self._ratio, with_text=False))
         self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+
+    def complete(self) -> None:
+        """Ergänzt Urheberzeile und Version."""
+        self.setPixmap(render_splash(self._ratio, self._message))
 
     @staticmethod
     def primary_screen_ratio() -> float:

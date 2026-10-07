@@ -100,10 +100,31 @@ def test_splash_shows_logo_credit_and_version(monkeypatch):
     assert not splash.render_splash(1.0).isNull()
 
 
-def test_splash_screen_can_be_created():
-    screen = splash.SplashScreen("Update wird installiert …")
-    assert not screen.pixmap().isNull()
+def test_splash_screen_shows_the_logo_at_once_and_the_text_right_after():
+    def has_text(pixmap) -> bool:
+        image = pixmap.toImage()
+        ratio = pixmap.devicePixelRatio()
+        return any(image.pixelColor(int(x * ratio), int(338 * ratio)).lightness() > 150 for x in range(60, 500))
+
+    screen = splash.SplashScreen()
+    first = screen.pixmap()
+    center = first.toImage().pixelColor(first.width() // 2, int((36 + 135) * first.devicePixelRatio()))
+    assert center.blue() > center.red() + 40 and not has_text(first)  # nur das Logo – ohne Wartezeit
+    screen.complete()
+    assert has_text(screen.pixmap())
     screen.deleteLater()
+    # der Ladebildschirm bleibt 5 bis 7 Sekunden stehen
+    assert 5000 <= config.SPLASH_MIN_DURATION_MS <= 7000
+
+
+def test_start_shows_the_splash_before_loading_the_program():
+    """In main.py steht der Ladebildschirm vor allem, was Zeit kostet."""
+    with open(os.path.join(ROOT, "main.py"), encoding="utf-8") as handle:
+        source = handle.read()
+    body = source[source.index("def main()"):]
+    shown = body.index("_show_splash(app)")
+    assert shown < body.index("_apply_look(app)") < body.index("from app.main_window import MainWindow")
+    assert "main_window" not in body[:shown] and "updater" not in body[:shown]
 
 
 # ------------------------------------------------------ Automatisches Speichern

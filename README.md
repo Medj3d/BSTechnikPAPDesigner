@@ -39,7 +39,7 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Automatisch speichern | ein Projekt, das einmal gespeichert wurde, wird rund 2 Sekunden nach jeder Änderung von selbst in seine Datei geschrieben (spätestens nach 10 Sekunden, nie mitten in einer Texteingabe); abschaltbar unter **Datei → Automatisch speichern** |
 | Sichern | noch nie gespeicherte Projekte werden jede Minute gesichert; nach einem Absturz bietet das Programm beim nächsten Start die Wiederherstellung an („Später“ behält die Sicherungen für den nächsten Start) |
 | Updates | das fertige Programm prüft beim Start, ob eine neuere Version veröffentlicht wurde, und aktualisiert sich nach Rückfrage selbst (auch über **Hilfe → Nach Updates suchen**) |
-| Ladebildschirm / Über | beim Start erscheint das Schullogo mit Urheberzeile und Version; **Hilfe → Über das Programm** nennt Urheber, Version und Erscheinungsmonat |
+| Ladebildschirm / Über | beim Start erscheint als Erstes für 6 Sekunden das Schullogo mit Urheberzeile und Version; **Hilfe → Über das Programm** nennt Urheber, Version und Erscheinungsmonat |
 | Farbschema | **Ansicht → Farbschema**: dunkel oder hell (z. B. für Beamer), wird gespeichert |
 | PapDesigner-Dateien | `.pap`-Dateien aus dem alten PapDesigner werden wie jedes andere Projekt geöffnet (**Datei → Öffnen** oder ins Fenster ziehen), auch mit mehreren Diagrammen/Unterprogrammen; die Anordnung wird aus dem Raster der Datei übernommen. Vor dem ersten Überschreiben einer solchen Datei fragt das Programm nach |
 | Robustheit | verständliche Fehlermeldungen statt Tracebacks, Fehlerprotokoll unter `%LOCALAPPDATA%\BSTechnik\PAPDesigner\logs` |
@@ -351,7 +351,8 @@ Zuordnung: `.pap`-Dateien öffnen sich danach mit diesem Programm.
 
 ## Versionen
 
-Die Zahl nach dem Punkt zählt die Erweiterungen seit dem Grundprogramm.
+Die Zahl nach dem Punkt zählt die Erweiterungen seit dem Grundprogramm, die
+dritte Zahl kleine Nachbesserungen.
 
 | Version | Zeitraum | Inhalt |
 |---|---|---|
@@ -361,6 +362,7 @@ Die Zahl nach dem Punkt zählt die Erweiterungen seit dem Grundprogramm.
 | 1.3 | 01.–06.10.2026 | erzeugter Java-Code wird übersetzt, ausgeführt und mit Schreibtischtest und Python verglichen; rund 75 Fehler behoben |
 | 1.4 | 07.10.2026 | `.pap` als einziges Projektformat |
 | 1.5 | 07.10.2026 | Urheber und Version im Über-Dialog, Ladebildschirm, automatisches Speichern, Updates |
+| 1.5.1 | 07.10.2026 | Ladebildschirm erscheint früher und bleibt 6 Sekunden stehen |
 
 ---
 
