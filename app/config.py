@@ -7,7 +7,7 @@ hier definiert, damit sie später an genau einer Stelle geändert werden können
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.5.2"
+APP_VERSION = "1.5.3"
 APP_RELEASE_DATE = "Oktober 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Text auf dem Ladebildschirm

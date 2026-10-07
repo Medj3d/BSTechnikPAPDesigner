@@ -515,6 +515,7 @@ def test_update_dialogs(window, qapp, monkeypatch):
     monkeypatch.setattr(QMessageBox, "information", lambda _p, title, text, *a, **k: shown.append(text))
     monkeypatch.setattr(QMessageBox, "warning", lambda _p, title, text, *a, **k: shown.append(text))
     controller = window.updates
+    monkeypatch.setattr(controller, "install_blocker", lambda: "")  # hier darf installiert werden
     monkeypatch.setattr(controller, "ask_install", lambda info: asked.append(info.version) or True)
     monkeypatch.setattr(controller, "install", lambda info: installed.append(info.version))
     newer = updater.UpdateInfo("99.0.0", "https://github.com/a/b/releases/download/v99.0.0/p.zip", "ab" * 32)
@@ -538,6 +539,71 @@ def test_update_dialogs(window, qapp, monkeypatch):
     monkeypatch.setattr(updater, "fetch_update_info", lambda: newer)
     controller.check(manual=True)
     assert wait_until(qapp, lambda: len(asked) == 2) and installed == ["99.0.0", "99.0.0"]
+
+
+def newer_version(**changes) -> updater.UpdateInfo:
+    values = {"version": "99.0.0", "package_url": "https://github.com/a/b/releases/download/v99.0.0/p.zip",
+              "sha256": "ab" * 32, "released": "Mai 2030", "notes": "Neu: alles"}
+    values.update(changes)
+    return updater.UpdateInfo(**values)
+
+
+def test_write_protected_program_folder_gets_a_quiet_hint_instead_of_a_question(window, monkeypatch, tmp_path):
+    """Für alle Benutzer installiert (z. B. in der Schule): Der Programmordner ist nicht beschreibbar."""
+    monkeypatch.setattr(config, "UPDATE_REPOSITORY", "schule/pap")
+    monkeypatch.setattr(updater, "application_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(updater, "can_write", lambda directory: False)
+    asked, installed, shown = [], [], []
+    controller = window.updates
+    monkeypatch.setattr(controller, "ask_install", lambda info: asked.append(info.version) or True)
+    monkeypatch.setattr(controller, "install", lambda info: installed.append(info.version))
+    monkeypatch.setattr(QMessageBox, "information", lambda _p, title, text, *a, **k: shown.append(text))
+    monkeypatch.setattr(QMessageBox, "warning", lambda _p, title, text, *a, **k: shown.append(text))
+    assert controller.install_blocker() == "rights"
+
+    # beim Start: keine Frage, kein Fenster – nur ein Hinweis in der Statuszeile
+    controller._on_checked(newer_version(), None, False)
+    assert asked == [] and installed == [] and shown == []
+    message = window.statusBar().currentMessage()
+    assert "Neue Version 99.0.0 verfügbar" in message and "Administrator" in message
+
+    # über das Menü: eine Auskunft mit dem Link zur Setup-Datei, ebenfalls ohne Frage
+    controller._on_checked(newer_version(), None, True)
+    assert asked == [] and installed == [] and len(shown) == 1
+    text = shown[0]
+    assert "99.0.0" in text and "Mai 2030" in text and config.APP_VERSION in text
+    assert "Administrator" in text and "Neu: alles" in text
+    assert f"https://github.com/schule/pap/releases/latest/download/{config.SETUP_FILE_NAME}" in text
+
+    # nichts Neues: auch hier weder Hinweis noch Fenster
+    window.statusBar().clearMessage()
+    controller._on_checked(newer_version(version=config.APP_VERSION), None, False)
+    assert window.statusBar().currentMessage() == "" and len(shown) == 1
+
+
+def test_writable_program_folder_still_asks_before_updating(window, monkeypatch, tmp_path):
+    monkeypatch.setattr(updater, "application_directory", lambda: str(tmp_path))
+    monkeypatch.setattr(updater, "can_write", lambda directory: True)
+    asked, installed = [], []
+    controller = window.updates
+    monkeypatch.setattr(controller, "ask_install", lambda info: asked.append(info.version) or True)
+    monkeypatch.setattr(controller, "install", lambda info: installed.append(info.version))
+    assert controller.install_blocker() == ""
+    window.statusBar().clearMessage()
+    controller._on_checked(newer_version(), None, False)
+    assert asked == ["99.0.0"] and installed == ["99.0.0"]
+    assert "Administrator" not in window.statusBar().currentMessage()
+
+
+def test_install_blocker_reflects_the_real_folder(monkeypatch, tmp_path):
+    from app.update_dialogs import UpdateController
+    controller = UpdateController.__new__(UpdateController)  # ohne Fenster: nur die Prüfung
+    assert controller.install_blocker() == "source"  # die Tests laufen aus dem Quelltext
+    monkeypatch.setattr(updater, "application_directory", lambda: str(tmp_path))
+    assert controller.install_blocker() == ""  # echter, beschreibbarer Ordner
+    assert not list(tmp_path.iterdir())  # die Prüfung hinterlässt nichts
+    monkeypatch.setattr(updater, "application_directory", lambda: str(tmp_path / "gibt_es_nicht"))
+    assert controller.install_blocker() == "rights"  # nicht beschreibbar (hier: nicht vorhanden)
 
 
 def test_update_is_only_installed_in_the_finished_program(window, monkeypatch):

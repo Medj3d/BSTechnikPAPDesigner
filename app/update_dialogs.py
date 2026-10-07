@@ -20,6 +20,9 @@ class UpdateController(QObject):
     Signal im Thread der Oberfläche an.
     """
 
+    # So lange bleibt der Hinweis „neue Version“ in der Statuszeile (Millisekunden)
+    STATUS_NOTE_MS = 20000
+
     _checked = Signal(object, object, bool)   # UpdateInfo | None, UpdateError | None, von Hand ausgelöst
     _progress = Signal(int, int)
     _downloaded = Signal(object, object)      # Ordner der neuen Version | None, Fehler | None
@@ -76,8 +79,55 @@ class UpdateController(QObject):
                 QMessageBox.information(self._window, "Nach Updates suchen",
                                         f"Das Programm ist auf dem neuesten Stand (Version {config.APP_VERSION}).")
             return
+        blocker = self.install_blocker()
+        if blocker:
+            # Hier kann das Programm sich nicht selbst aktualisieren: nicht erst fragen
+            self._announce_without_install(info, blocker, manual)
+            return
         if self.ask_install(info):
             self.install(info)
+
+    def install_blocker(self) -> str:
+        """Warum sich das Programm hier nicht selbst aktualisieren kann.
+
+        ``""`` = es kann; ``"rights"`` = der Programmordner ist nicht beschreibbar
+        (z. B. für alle Benutzer unter C:\\Programme installiert); ``"source"`` =
+        das Programm läuft aus dem Quelltext statt als exe.
+        """
+        app_dir = updater.application_directory()
+        if app_dir is None:
+            return "source"
+        return "" if updater.can_write(app_dir) else "rights"
+
+    def _announce_without_install(self, info: updater.UpdateInfo, blocker: str, manual: bool) -> None:
+        """Weist auf die neue Version hin, ohne eine Frage zu stellen, die sich nicht erfüllen lässt.
+
+        Beim Start nur ein ruhiger Hinweis in der Statuszeile; über das Menü
+        eine Auskunft mit dem Link zur neuen Version.
+        """
+        if blocker == "rights":
+            reason = "das Programm kann sich hier nicht selbst aktualisieren, bitte beim Administrator melden"
+        else:
+            reason = "dieses Programm läuft aus dem Quelltext und aktualisiert sich nicht selbst"
+        if not manual:
+            self._window.statusBar().showMessage(
+                f"Neue Version {info.version} verfügbar – {reason}.", self.STATUS_NOTE_MS)
+            return
+        released = f" ({info.released})" if info.released else ""
+        text = f"Version {info.version}{released} ist verfügbar – installiert ist Version {config.APP_VERSION}."
+        if blocker == "rights":
+            text += ("\n\nDas Programm darf seinen Ordner hier nicht ändern (es ist für alle Benutzer "
+                     "installiert) und kann sich deshalb nicht selbst aktualisieren. Bitte beim "
+                     "Administrator melden; er installiert die neue Version mit dem Setup.")
+        else:
+            text += "\n\nDieses Programm läuft aus dem Quelltext und aktualisiert sich nicht selbst."
+        if info.notes:
+            text += f"\n\nNeu in dieser Version:\n{info.notes}"
+        repo = updater.repository()
+        if repo:
+            text += (f"\n\nDie neue Version gibt es hier:\n"
+                     f"https://github.com/{repo}/releases/latest/download/{config.SETUP_FILE_NAME}")
+        QMessageBox.information(self._window, "Update verfügbar", text)
 
     def ask_install(self, info: updater.UpdateInfo) -> bool:
         box = QMessageBox(self._window)

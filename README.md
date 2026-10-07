@@ -322,7 +322,8 @@ Die Setup-Datei entsteht mit `release.bat` (siehe unten) und braucht dafür
 [Inno Setup 6](https://jrsoftware.org/isdl.php) auf dem Rechner, auf dem
 gebaut wird. Wer im Setup „für alle Benutzer“ wählt (Administrator, z. B. in
 der Schule), installiert nach `C:\Programme`; dort kann sich das Programm
-nicht selbst aktualisieren, neue Versionen kommen dann mit dem nächsten Setup.
+nicht selbst aktualisieren und weist nur in der Statuszeile auf neue Versionen
+hin. Der Administrator installiert sie dann mit dem nächsten Setup.
 
 ### Neue Version als Update veröffentlichen
 
@@ -349,7 +350,11 @@ Für jede neue Version:
 
 Voraussetzungen auf dem Zielrechner: Internetzugang zu `github.com` und
 Schreibrechte im Programmordner (also nicht unter `C:\Programme` ohne
-Administratorrechte). Fehlt eines davon, läuft das Programm unverändert weiter.
+Administratorrechte). Fehlt der Internetzugang, läuft das Programm unverändert
+weiter. Fehlen die Schreibrechte, stellt es keine Frage, die sich nicht erfüllen
+lässt: Beim Start steht nur ein ruhiger Hinweis in der Statuszeile („Neue Version
+… verfügbar – bitte beim Administrator melden“); **Hilfe → Nach Updates suchen**
+nennt zusätzlich den Link zur neuen Setup-Datei.
 
 ### Dateiendung `.pap` im System registrieren
 
@@ -380,6 +385,7 @@ dritte Zahl kleine Nachbesserungen.
 | 1.5 | 07.10.2026 | Urheber und Version im Über-Dialog, Ladebildschirm, automatisches Speichern, Updates |
 | 1.5.1 | 07.10.2026 | Ladebildschirm erscheint früher und bleibt 6 Sekunden stehen |
 | 1.5.2 | 08.10.2026 | Setup-Datei zum Weitergeben und Installieren |
+| 1.5.3 | 08.10.2026 | ohne Schreibrechte im Programmordner (z. B. Installation für alle Benutzer) nur noch ein Hinweis in der Statuszeile statt einer Update-Frage |
 
 ---
 
