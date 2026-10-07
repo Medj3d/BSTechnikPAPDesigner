@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import QApplication
 
-from app import config
+from app import config, i18n
 from app.model.element_types import ElementType
 
 
@@ -218,7 +218,9 @@ def set_current_theme(theme: Theme) -> None:
 
 def ui_font(point_size: float = 9.5) -> QFont:
     font = QFont()
-    font.setFamilies(["Segoe UI Variable Text", "Segoe UI", "Inter", "Helvetica Neue", "Arial"])
+    # Die Schriften für Chinesisch, Japanisch, … stehen dahinter: Qt greift je Zeichen auf sie zurück
+    font.setFamilies(["Segoe UI Variable Text", "Segoe UI", "Inter", "Helvetica Neue", "Arial",
+                      *i18n.font_fallbacks()])
     font.setPointSizeF(point_size)
     return font
 

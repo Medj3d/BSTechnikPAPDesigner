@@ -27,8 +27,11 @@ def _set_windows_app_id() -> None:
             pass
 
 
-def _create_application():
-    """Die Qt-Anwendung – noch ohne Farbschema, damit der Ladebildschirm sofort erscheinen kann."""
+def _create_application(arguments: list[str] | tuple[str, ...] = ()):
+    """Die Qt-Anwendung – noch ohne Farbschema, damit der Ladebildschirm sofort erscheinen kann.
+
+    Stellt auch die Sprache ein: ``--sprache <Code>`` (nur für diesen Start) oder die gespeicherte Auswahl.
+    """
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtWidgets import QApplication
@@ -42,6 +45,14 @@ def _create_application():
     app.setApplicationVersion(config.APP_VERSION)
     app.setOrganizationName(config.ORGANIZATION_NAME)
     app.setOrganizationDomain(config.ORGANIZATION_DOMAIN)
+
+    from app import i18n
+    from app.settings_store import SettingsStore
+
+    preference = _flag_value(list(arguments), config.LANGUAGE_FLAG) or SettingsStore().language()
+    code = preference if preference == i18n.PSEUDO_LANGUAGE else i18n.resolve(preference)
+    i18n.set_language(code)
+    i18n.apply_to_application(app, code)
     return app
 
 
@@ -75,7 +86,10 @@ def _install_update(arguments: list[str]) -> int:
     except (IndexError, ValueError):
         return 2
     app = _create_application()
-    splash = _show_splash(app, "Update wird installiert …")
+
+    from app.i18n import tr
+
+    splash = _show_splash(app, tr("Update wird installiert …"))
 
     from PySide6.QtWidgets import QMessageBox
 
@@ -93,6 +107,41 @@ def _install_update(arguments: list[str]) -> int:
     return 0
 
 
+def _files_from(arguments: list[str]) -> list[str]:
+    """Die Projektdateien unter den Startargumenten (als absolute Pfade); Schalter und ihre Werte zählen nicht."""
+    from app import config
+
+    files, skip = [], False
+    for argument in arguments:
+        if skip:
+            skip = False
+        elif argument in (config.WAIT_FOR_FLAG, config.LANGUAGE_FLAG):
+            skip = True  # der nächste Wert gehört zum Schalter (Prozessnummer bzw. Sprachcode)
+        elif not argument.startswith("-") and os.path.isfile(argument):
+            files.append(os.path.abspath(argument))
+    return files
+
+
+def _flag_value(arguments: list[str], flag: str) -> str | None:
+    if flag in arguments and arguments.index(flag) + 1 < len(arguments):
+        return arguments[arguments.index(flag) + 1]
+    return None
+
+
+def _open_in_window(window, files: list[str]) -> None:
+    """Öffnet Dateien, die ein weiterer Programmstart übergeben hat, als Reiter in diesem Fenster."""
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
+
+    def run() -> None:
+        if QApplication.activeModalWidget() is not None:  # z. B. offene Speichern-Nachfrage: danach erst öffnen
+            QTimer.singleShot(400, run)
+            return
+        window.open_external_files(files)
+
+    QTimer.singleShot(0, run)
+
+
 def main() -> int:
     # Im gebündelten Programm (PyInstaller) liegt das Paket neben der EXE
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -107,14 +156,32 @@ def main() -> int:
     if config.UPDATE_APPLY_FLAG in arguments and resources.is_frozen():
         return _install_update(arguments[arguments.index(config.UPDATE_APPLY_FLAG) + 1:])
 
-    # Liegt im Benutzerordner eine neuere Kopie (Update ohne Schreibrechte im Programmordner),
-    # gibt dieses Programm sofort an sie ab – noch vor Qt und Ladebildschirm.
     from app import updater
 
+    # Neustart (nach Update oder Sprachwechsel): erst warten, bis sich das alte Programm geschlossen hat –
+    # sonst übergäbe dieser Start seine Dateien noch an das sich schließende Fenster.
+    waiting_for = _flag_value(arguments, config.WAIT_FOR_FLAG)
+    if waiting_for is not None and waiting_for.isdigit():
+        updater.wait_for_exit(int(waiting_for), 30.0)
+
+    # Liegt im Benutzerordner eine neuere Kopie (Update ohne Schreibrechte im Programmordner),
+    # gibt dieses Programm sofort an sie ab – noch vor Qt und Ladebildschirm.
     if updater.redirect_to_user_program(arguments):
         return 0
 
-    app = _create_application()
+    files = _files_from(arguments)
+    app = _create_application(arguments)
+
+    # Läuft schon ein Programmfenster? Dann übernimmt es die Dateien (als Reiter) und dieser Start endet sofort,
+    # ohne Ladebildschirm. Sonst wird dieser Start das erste Programm und lauscht auf weitere Starts.
+    instance_server = None
+    if config.NEW_WINDOW_FLAG not in arguments:
+        from app import single_instance
+
+        handed_over, instance_server = single_instance.acquire(files)
+        if handed_over:
+            return 0
+
     started = time.monotonic()
     splash = _show_splash(app)
 
@@ -134,12 +201,17 @@ def main() -> int:
     window.show()
     splash.finish(window)
 
-    files = [arg for arg in arguments if not arg.startswith("-") and os.path.isfile(arg)]
     opened = window.offer_recovery() > 0
     for path in files:
         opened = window.open_file(path) or opened
     if not opened:
         window.new_document()
+
+    if instance_server is not None:
+        # Ab jetzt öffnen weitere Programmstarts ihre Dateien hier; was während des Starts eintraf, folgt sofort
+        window.instance_server = instance_server
+        app.aboutToQuit.connect(instance_server.close)
+        instance_server.set_handler(lambda received: _open_in_window(window, received))
 
     if resources.is_frozen():
         # Reste eines früheren Updates entfernen und nach einer neuen Version sehen

@@ -7,8 +7,8 @@ gezeigt, bis das Hauptfenster bereit ist.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
+from PySide6.QtCore import QRect, QRectF, Qt
+from PySide6.QtGui import QBitmap, QColor, QFont, QPainter, QPixmap, QRegion
 from PySide6.QtWidgets import QSplashScreen
 
 from app import config, resources
@@ -16,6 +16,8 @@ from app import config, resources
 LOGO_FILE = "bs_technik_logo.png"
 SPLASH_WIDTH = 560
 SPLASH_HEIGHT = 440
+LOGO_SIZE = 270.0   # Kantenlänge der Raute im Ladebildschirm
+LOGO_TOP = 46.0     # Abstand der Raute vom oberen Rand
 # Das Logo hat einen schwarzen Rand – auf Schwarz fügt es sich nahtlos ein
 BACKGROUND = "#000000"
 TEXT_COLOR = "#f2f2f2"
@@ -35,6 +37,17 @@ def load_logo() -> QPixmap:
     return icons.render_app_icon(200)
 
 
+def logo_content_rect(logo: QPixmap) -> QRect:
+    """Der sichtbare Teil des Logos ohne den schwarzen Rand ringsum.
+
+    Zentriert wird nach der tatsächlichen Form (der Raute), nicht nach dem Bildrechteck –
+    sonst sitzt das Logo schief, sobald ein Bild ungleichmäßige Ränder hat.
+    """
+    mask = logo.toImage().createMaskFromColor(QColor(0, 0, 0).rgb(), Qt.MaskMode.MaskInColor)
+    rect = QRegion(QBitmap.fromImage(mask)).boundingRect()
+    return rect if not rect.isEmpty() else logo.rect()
+
+
 def render_splash(device_pixel_ratio: float = 1.0, message: str = "", with_text: bool = True) -> QPixmap:
     """Zeichnet den Ladebildschirm (``message``: zusätzliche Zeile, z. B. beim Aktualisieren).
 
@@ -52,12 +65,14 @@ def render_splash(device_pixel_ratio: float = 1.0, message: str = "", with_text:
     painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
     painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
 
-    # Logo in der Mitte (etwas oberhalb, damit die Zeile darunter Platz hat)
+    # Logo waagerecht genau in der Mitte, etwas oberhalb, damit die Zeile darunter Platz hat.
+    # Gezeichnet wird nur der sichtbare Teil des Bildes: so entsteht kein schiefer Rand.
     logo = load_logo()
-    logo_height = 270.0
-    logo_width = logo_height * logo.width() / max(1, logo.height())
-    logo_rect = QRectF((SPLASH_WIDTH - logo_width) / 2, 36, logo_width, logo_height)
-    painter.drawPixmap(logo_rect, logo, QRectF(logo.rect()))
+    content = logo_content_rect(logo)
+    scale = LOGO_SIZE / max(content.width(), content.height())
+    logo_width, logo_height = content.width() * scale, content.height() * scale
+    logo_rect = QRectF((SPLASH_WIDTH - logo_width) / 2, LOGO_TOP, logo_width, logo_height)
+    painter.drawPixmap(logo_rect, logo, QRectF(content))
     if not with_text:
         painter.end()
         return pixmap

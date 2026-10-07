@@ -43,6 +43,17 @@ def _isolated_local_appdata(monkeypatch, tmp_path_factory):
 
 
 @pytest.fixture(autouse=True)
+def _german_ui():
+    """Die Tests laufen auf Deutsch (der Quelltext ist deutsch). ``PAP_TEST_LANGUAGE=xx`` schaltet auf die
+    Pseudo-Sprache um, in der jeder Text eingerahmt wird: So fällt jede Stelle auf, an der Programmlogik am
+    deutschen Wortlaut hängt (Tests, die Texte prüfen, schlagen dann erwartungsgemäß fehl)."""
+    from app import i18n
+    i18n.set_language(os.environ.get("PAP_TEST_LANGUAGE", "de"))
+    yield
+    i18n.set_language("de")
+
+
+@pytest.fixture(autouse=True)
 def _no_real_dialogs(monkeypatch):
     """Kein Test darf einen echten Dialog auf dem Bildschirm öffnen.
 

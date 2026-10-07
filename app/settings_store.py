@@ -48,6 +48,17 @@ class SettingsStore:
     def set_auto_save(self, enabled: bool) -> None:
         self._settings.setValue("auto_save", bool(enabled))
 
+    # ---------------------------------------------------------- Sprache
+    def language(self) -> str:
+        """Die gewählte Sprache: ``auto`` (Systemsprache) oder ein Sprachcode aus ``i18n.LANGUAGES``."""
+        from app import i18n
+
+        value = str(self._settings.value("language", i18n.AUTOMATIC)).strip()
+        return value if value == i18n.AUTOMATIC or i18n.normalize(value) else i18n.AUTOMATIC
+
+    def set_language(self, code: str) -> None:
+        self._settings.setValue("language", code)
+
     # ---------------------------------------------------------- Ordner
     def last_directory(self) -> str:
         value = self._settings.value("last_directory", "")

@@ -78,6 +78,17 @@ def test_about_dialog_names_authors_version_and_month():
     dialog.deleteLater()
 
 
+def has_blue_logo(image, ratio: float = 1.0) -> bool:
+    """Ist das blaue Logo (Ring und Dreiecke) da, und sitzt es waagerecht in der Mitte?"""
+    xs = []
+    for y in range(40, 330, 2):
+        for x in range(0, splash.SPLASH_WIDTH, 2):
+            color = image.pixelColor(int(x * ratio), int(y * ratio))
+            if color.blue() > color.red() + 60 and color.blue() > 90:
+                xs.append(x)
+    return len(xs) > 600 and abs((min(xs) + max(xs)) / 2 - splash.SPLASH_WIDTH / 2) <= 4
+
+
 def test_splash_shows_logo_credit_and_version(monkeypatch):
     assert os.path.isfile(resources.asset_path(splash.LOGO_FILE))
     assert config.SPLASH_CREDIT == "A product for BS Technik from Are Schäfer and Linus Twardzik"
@@ -85,11 +96,11 @@ def test_splash_shows_logo_credit_and_version(monkeypatch):
     pixmap = splash.render_splash(1.0)
     assert (pixmap.width(), pixmap.height()) == (splash.SPLASH_WIDTH, splash.SPLASH_HEIGHT)
     image = pixmap.toImage()
-    center = image.pixelColor(splash.SPLASH_WIDTH // 2, 36 + 135)
-    assert center.blue() > center.red() + 40  # das Blau des Logos in der Mitte
+    assert has_blue_logo(image)  # das Blau des Logos, waagerecht in der Mitte
     assert image.pixelColor(3, 3).lightness() == 0  # schwarzer Hintergrund
     # Schrift unter dem Logo und in der Ecke unten rechts
-    assert any(image.pixelColor(x, 338).lightness() > 150 for x in range(60, 500))
+    credit_top = int(splash.LOGO_TOP + splash.LOGO_SIZE) + 22
+    assert any(image.pixelColor(x, y).lightness() > 150 for x in range(60, 500) for y in range(credit_top, credit_top + 26))
     assert any(image.pixelColor(x, y).lightness() > 80 for x in range(470, 545) for y in range(410, 430))
     assert not any(image.pixelColor(x, y).lightness() > 80 for x in range(10, 120) for y in range(410, 430))
     # hohe Bildschirmauflösung: schärferes Bild gleicher Größe
@@ -100,16 +111,90 @@ def test_splash_shows_logo_credit_and_version(monkeypatch):
     assert not splash.render_splash(1.0).isNull()
 
 
+def diamond_bounds(image, ratio: float = 1.0):
+    """Begrenzung der weißen Raute im oberen Teil des Ladebildschirms (ohne die Textzeilen darunter)."""
+    def bright(x, y):
+        color = image.pixelColor(int(x * ratio), int(y * ratio))
+        return color.red() > 200 and color.green() > 200 and color.blue() > 200
+
+    rows = [y for y in range(0, 330) if any(bright(x, y) for x in range(0, splash.SPLASH_WIDTH, 2))]
+    cols = [x for x in range(0, splash.SPLASH_WIDTH) if any(bright(x, y) for y in range(0, 330, 2))]
+    return min(cols), min(rows), max(cols), max(rows), bright
+
+
+@pytest.mark.parametrize("ratio", [1.0, 1.25, 1.5, 2.0])
+def test_splash_logo_is_complete_and_centered(ratio):
+    """Die Raute ist vollständig (spitz, nicht oben abgeschnitten) und sitzt genau in der Mitte."""
+    image = splash.render_splash(ratio).toImage()
+    left, top, right, bottom, bright = diamond_bounds(image, ratio)
+    width, height = right - left, bottom - top
+    assert abs(width - height) <= 3  # ein Quadrat auf der Spitze: keine Seite fehlt
+    assert abs((left + right) / 2 - splash.SPLASH_WIDTH / 2) <= 1.5
+    assert abs(height - splash.LOGO_SIZE) <= 10 and abs(top - splash.LOGO_TOP) <= 4
+    # die obere Spitze läuft spitz zu: kurz unter dem höchsten Punkt ist die weiße Fläche noch schmal
+    near_top = [x for x in range(left, right + 1) if bright(x, top + 6)]
+    assert len(near_top) <= 16
+    # unten ebenso
+    near_bottom = [x for x in range(left, right + 1) if bright(x, bottom - 6)]
+    assert len(near_bottom) <= 16
+    # genug Rand ringsum: nichts reicht an das Fensterende
+    assert left >= 20 and right <= splash.SPLASH_WIDTH - 20 and top >= 20
+
+
+def test_logo_file_has_the_full_diamond():
+    """Die gelieferte Bilddatei hatte die obere Spitze abgeschnitten; tools/complete_logo.py ergänzt sie."""
+    from PySide6.QtGui import QImage
+    logo = QImage(resources.asset_path(splash.LOGO_FILE))
+    assert not logo.isNull()
+    white = lambda x, y: min(logo.pixelColor(x, y).red(), logo.pixelColor(x, y).green(), logo.pixelColor(x, y).blue()) > 200  # noqa: E731
+    top_row = [x for x in range(logo.width()) if white(x, 0)]
+    assert top_row == []  # die weiße Fläche stößt nirgends an den oberen Bildrand
+    rows = [y for y in range(logo.height()) if any(white(x, y) for x in range(0, logo.width(), 2))]
+    cols = [x for x in range(logo.width()) if any(white(x, y) for y in range(0, logo.height(), 2))]
+    assert abs((max(rows) - min(rows)) - (max(cols) - min(cols))) <= 3  # Quadrat
+    assert abs(min(cols) - (logo.width() - 1 - max(cols))) <= 2  # gleicher Rand links und rechts
+    assert abs(min(rows) - (logo.height() - 1 - max(rows))) <= 2  # … und oben und unten
+
+
+@pytest.mark.parametrize("scale", ["1.25", "1.5", "2"])
+def test_splash_window_is_not_cut_off_on_scaled_screens(scale):
+    """Bei Bildschirmskalierung (z. B. 150 %) bleibt das Fenster 560 × 440 und die Raute vollständig."""
+    import subprocess
+    import sys
+    code = (
+        "import sys; sys.path.insert(0, %r)\n"
+        "from app import config; config.SETTINGS_APP_NAME = 'PAPDesignerTests'\n"
+        "from PySide6.QtCore import Qt\nfrom PySide6.QtWidgets import QApplication\n"
+        "app = QApplication(sys.argv[:1])\nfrom app import splash\n"
+        "screen = splash.SplashScreen(); screen.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)\n"
+        "screen.show(); app.processEvents(); screen.complete(); app.processEvents()\n"
+        "image = screen.grab().toImage(); dpr = image.devicePixelRatio()\n"
+        "bright = lambda x, y: min(image.pixelColor(int(x*dpr), int(y*dpr)).red(), image.pixelColor(int(x*dpr), int(y*dpr)).green(),"
+        " image.pixelColor(int(x*dpr), int(y*dpr)).blue()) > 200\n"
+        "cols = [x for x in range(560) if any(bright(x, y) for y in range(0, 330, 2))]\n"
+        "rows = [y for y in range(330) if any(bright(x, y) for x in range(0, 560, 2))]\n"
+        "print(screen.width(), screen.height(), max(cols) - min(cols), max(rows) - min(rows), (min(cols) + max(cols)) / 2, dpr)\n"
+    ) % ROOT
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60,
+                            env=dict(os.environ, QT_SCALE_FACTOR=scale))
+    assert result.returncode == 0, result.stderr[-500:]
+    width, height, diamond_w, diamond_h, center, dpr = result.stdout.split()[-6:]
+    assert (int(width), int(height)) == (splash.SPLASH_WIDTH, splash.SPLASH_HEIGHT)
+    assert abs(int(diamond_w) - int(diamond_h)) <= 3 and abs(float(center) - splash.SPLASH_WIDTH / 2) <= 1.5
+    assert abs(float(dpr) - float(scale)) < 0.01
+
+
 def test_splash_screen_shows_the_logo_at_once_and_the_text_right_after():
     def has_text(pixmap) -> bool:
         image = pixmap.toImage()
         ratio = pixmap.devicePixelRatio()
-        return any(image.pixelColor(int(x * ratio), int(338 * ratio)).lightness() > 150 for x in range(60, 500))
+        top = int(splash.LOGO_TOP + splash.LOGO_SIZE) + 22
+        return any(image.pixelColor(int(x * ratio), int(y * ratio)).lightness() > 150
+                   for x in range(60, 500) for y in range(top, top + 26))
 
     screen = splash.SplashScreen()
     first = screen.pixmap()
-    center = first.toImage().pixelColor(first.width() // 2, int((36 + 135) * first.devicePixelRatio()))
-    assert center.blue() > center.red() + 40 and not has_text(first)  # nur das Logo – ohne Wartezeit
+    assert has_blue_logo(first.toImage(), first.devicePixelRatio()) and not has_text(first)  # nur das Logo – sofort
     screen.complete()
     assert has_text(screen.pixmap())
     screen.deleteLater()
@@ -128,7 +213,7 @@ def test_start_shows_the_splash_before_loading_the_program():
     # Die Weitergabe an eine neuere Kopie im Benutzerordner kommt noch vor Qt und Ladebildschirm –
     # sonst würde die alte Version erst ihr Fenster aufbauen und dann doch wechseln.
     redirect = body.index("updater.redirect_to_user_program(arguments)")
-    assert redirect < body.index("_create_application()") < shown
+    assert redirect < body.index("_create_application(arguments)") < shown
 
 
 # ------------------------------------------------------ Automatisches Speichern
@@ -853,7 +938,7 @@ def test_program_hands_over_to_the_copy_before_anything_else_loads():
         body = handle.read()
     body = body[body.index("def main()"):]
     assert body.index("_install_update(") < body.index("updater.redirect_to_user_program(arguments)")
-    assert body.index("updater.redirect_to_user_program(arguments)") < body.index("_create_application()")
+    assert body.index("updater.redirect_to_user_program(arguments)") < body.index("_create_application(arguments)")
 
 
 def test_update_is_only_installed_in_the_finished_program(window, monkeypatch):

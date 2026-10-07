@@ -23,8 +23,23 @@ WINDOWS_APP_ID = "BSTechnik.PAPDesigner.1"
 
 # Dateiformat: ".pap" ist das einzige Projektformat
 FILE_EXTENSION = ".pap"
+# Deutscher Quelltext; angezeigt wird immer file_type_description() bzw. file_dialog_filter() (übersetzt)
 FILE_TYPE_DESCRIPTION = "Programmablaufplan"
 FILE_DIALOG_FILTER = f"Programmablaufpläne (*{FILE_EXTENSION})"
+
+
+def file_type_description() -> str:
+    """Name des Dateityps in der eingestellten Sprache (Windows-Dateizuordnung, Dateisymbol)."""
+    from app.i18n import tr
+
+    return tr("Programmablaufplan")
+
+
+def file_dialog_filter() -> str:
+    """Filter der Öffnen-/Speichern-Dialoge in der eingestellten Sprache, z. B. „Programmablaufpläne (*.pap)“."""
+    from app.i18n import tr
+
+    return tr("Programmablaufpläne ({pattern})", pattern=f"*{FILE_EXTENSION}")
 # ProgID für die Windows-Dateizuordnung
 FILE_PROG_ID = "BSTechnik.PAPDesigner.Project"
 
@@ -47,6 +62,13 @@ EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe"
 SETUP_FILE_NAME = "BSTechnikPAPDesigner-Setup.exe"
 # Mit diesem Aufruf installiert die neue Programmdatei ein Update (siehe app/updater.py)
 UPDATE_APPLY_FLAG = "--apply-update"
+# Programmstart: erst warten, bis der Prozess mit dieser Nummer beendet ist (z. B. beim Neustart nach einem
+# Update oder Sprachwechsel – sonst übergäbe der Start seine Dateien noch an das sich schließende Programm)
+WAIT_FOR_FLAG = "--warte-auf"
+# Programmstart als eigenes Fenster, ohne Dateien an ein laufendes Programm zu übergeben (siehe app/single_instance.py)
+NEW_WINDOW_FLAG = "--neues-fenster"
+# Programmstart in einer bestimmten Sprache (nur für diesen Start, nichts wird gespeichert), z. B. ``--sprache fr``
+LANGUAGE_FLAG = "--sprache"
 
 # Raster
 DEFAULT_GRID_SIZE = 20

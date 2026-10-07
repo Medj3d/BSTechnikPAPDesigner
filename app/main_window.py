@@ -16,7 +16,8 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayo
                                QMainWindow, QMenu, QMessageBox, QPushButton, QStackedWidget,
                                QTabBar, QTabWidget, QToolBar, QToolButton, QVBoxLayout, QWidget)
 
-from app import alignment, clipboard, config, export, file_association, icons, styles
+from app import (alignment, clipboard, config, export, file_association, i18n, icons, restart, single_instance,
+                 styles)
 from app import theme as theme_module
 from app.actions import ALIGN_ACTIONS, ActionRegistry, insert_action_name
 from app.autosave import AutosaveManager
@@ -39,6 +40,7 @@ from app.fileformat.project import ProjectFileError
 from app.items.base_item import FlowItem
 from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType
 from app.palette import ToolPalette
+from app.i18n import tr
 from app.settings_store import SettingsStore
 from app.update_dialogs import UpdateController
 
@@ -122,6 +124,8 @@ class MainWindow(QMainWindow):
         self.actions = ActionRegistry(self)
         self.autosave = AutosaveManager(autosave_directory, parent=self) if enable_autosave else None
         self.updates = UpdateController(self)
+        self.instance_server = None  # lauscht auf Dateien weiterer Programmstarts (siehe app/single_instance.py)
+        self._restart_files: list[str] | None = None  # gesetzt, solange ein Neustart (z. B. Sprachwechsel) läuft
         # Automatisches Speichern bereits gespeicherter Projekte (kurz nach der letzten Änderung)
         self._auto_save_enabled = self.settings_store.auto_save()
         self._auto_save_pending: set = set()
@@ -211,6 +215,7 @@ class MainWindow(QMainWindow):
         for name in ("theme_dark", "theme_light"):
             theme_group.addAction(a[name])
             theme_menu.addAction(a[name])
+        self._build_language_menu(view_menu)
         view_menu.addSeparator()
         self.view_menu = view_menu
 
@@ -251,6 +256,53 @@ class MainWindow(QMainWindow):
         help_menu.addAction(a["check_updates"])
         help_menu.addSeparator()
         help_menu.addAction(a["about"])
+
+    def _build_language_menu(self, parent_menu: QMenu) -> None:
+        """Untermenü „Sprache / Language“: die Systemsprache oder eine der vorhandenen Sprachen."""
+        # Die Beschriftung ist bewusst zweisprachig und wird nicht übersetzt: So findet man sie in jeder Sprache.
+        menu = parent_menu.addMenu("Sprache / Language")
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        self.language_actions: dict[str, object] = {}
+        chosen = self.settings_store.language()
+        entries = [(i18n.AUTOMATIC, tr("Automatisch (Systemsprache)"))]
+        entries += [(code, i18n.language_name(code)) for code in i18n.available_languages()]
+        for code, label in entries:
+            action = menu.addAction(label)
+            action.setCheckable(True)
+            action.setChecked(code == chosen)
+            group.addAction(action)
+            action.triggered.connect(lambda _checked=False, c=code: self._on_language_chosen(c))
+            self.language_actions[code] = action
+
+    def _on_language_chosen(self, code: str) -> None:
+        """Merkt sich die gewählte Sprache; sie gilt nach einem Neustart (auf Wunsch sofort)."""
+        if code == self.settings_store.language():
+            return
+        self.settings_store.set_language(code)
+        if i18n.resolve(code) == i18n.language():
+            return  # die Systemsprache ist die, die ohnehin läuft
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setWindowTitle(config.APP_NAME)
+        box.setText(tr("Die Sprache wird nach einem Neustart des Programms geändert."))
+        box.setInformativeText(tr("Gespeicherte Projekte werden danach wieder geöffnet."))
+        now = box.addButton(tr("Jetzt neu starten"), QMessageBox.ButtonRole.AcceptRole)
+        later = box.addButton(tr("Später"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(now)
+        box.setEscapeButton(later)
+        box.exec()
+        if box.clickedButton() is now:
+            self.restart_program()
+
+    def restart_program(self) -> None:
+        """Schließt das Programm (mit Nachfrage zum Speichern) und startet es neu.
+
+        Die gespeicherten Projekte öffnen sich danach wieder. Bricht der Benutzer das Schließen ab,
+        bleibt alles, wie es ist.
+        """
+        self._restart_files = [view.document.file_path for view in self.views() if view.document.file_path]
+        self.close()
 
     def _build_toolbar(self) -> None:
         a = self.actions
@@ -678,6 +730,16 @@ class MainWindow(QMainWindow):
                                          "dem Raster der Datei übernommen.", 8000)
         return True
 
+    def open_external_files(self, paths: list[str]) -> None:
+        """Öffnet Dateien, die ein weiterer Programmstart (z. B. Doppelklick im Explorer) hierher übergeben hat.
+
+        Jede Datei wird als eigener Reiter geöffnet – wie beim Öffnen im Programm selbst; schon geöffnete Dateien
+        werden nur in den Vordergrund geholt. Danach kommt das Fenster nach vorn.
+        """
+        for path in paths:
+            self.open_file(path)
+        single_instance.bring_to_front(self)
+
     def save_document(self, document: DiagramDocument) -> bool:
         # Gespeichert wird ausschließlich als .pap-Datei
         if not document.file_path or not _has_project_extension(document.file_path):
@@ -857,12 +919,20 @@ class MainWindow(QMainWindow):
             if isinstance(view, DiagramView) and view.document.is_modified:
                 self.tabs.setCurrentIndex(i)
                 if not self.maybe_save(view.document):
+                    self._restart_files = None  # Schließen abgebrochen: auch kein Neustart
                     event.ignore()
                     return
         self.settings_store.save_window(self.saveGeometry(), self.saveState(WINDOW_STATE_VERSION))
         self.simulation_panel.stop(silent=True)
         if self.autosave is not None:
             self.autosave.shutdown()
+        if self.instance_server is not None:
+            # Das Fenster schließt sich: weitere Programmstarts sollen nicht mehr hierher übergeben, sondern selbst
+            # das erste Programm werden.
+            self.instance_server.close()
+        if self._restart_files is not None:
+            restart.launch_after_quit(QApplication.instance(), self._restart_files)
+            self._restart_files = None
         event.accept()
 
     def offer_recovery(self) -> int:

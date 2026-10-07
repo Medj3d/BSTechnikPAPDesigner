@@ -470,9 +470,17 @@ def start_installer(new_dir: str, app_dir: str) -> None:
         raise UpdateError("Die neue Version konnte nicht gestartet werden.", str(exc)) from exc
 
 
-def launch_program(app_dir: str) -> None:
+def launch_program(app_dir: str, wait_pid: int | None = None) -> None:
+    """Startet das Programm aus ``app_dir``.
+
+    ``wait_pid``: Der neue Start wartet, bis dieser Prozess beendet ist (das laufende Programm, das sich gerade
+    schließt) – sonst übergäbe er seine Arbeit noch an dieses (siehe ``app.single_instance``).
+    """
+    command = [os.path.join(app_dir, config.EXECUTABLE_NAME)]
+    if wait_pid:
+        command += [config.WAIT_FOR_FLAG, str(wait_pid)]
     try:
-        subprocess.Popen([os.path.join(app_dir, config.EXECUTABLE_NAME)], cwd=app_dir, close_fds=True)
+        subprocess.Popen(command, cwd=app_dir, close_fds=True)
     except OSError:
         log.exception("Programm konnte nach dem Update nicht gestartet werden")
 

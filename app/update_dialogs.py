@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
@@ -234,4 +235,4 @@ class UpdateController(QObject):
         """Startet das Programm aus ``folder``, sobald dieses Programm beendet ist."""
         application = QApplication.instance()
         if application is not None:
-            application.aboutToQuit.connect(lambda: updater.launch_program(folder))
+            application.aboutToQuit.connect(lambda: updater.launch_program(folder, wait_pid=os.getpid()))

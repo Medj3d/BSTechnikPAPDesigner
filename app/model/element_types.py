@@ -4,12 +4,19 @@ Jeder Typ besitzt eine feste semantische Bedeutung (entsprechend der klassischen
 Programmablaufplan-Notation), eine Standardgröße, erlaubte Anschlusspunkte und
 Regeln für ein- und ausgehende Verbindungen. Die grafische Form wird in
 ``app.items.shapes`` definiert.
+
+Die Texte in ``ElementSpec`` sind der deutsche Quelltext (Schlüssel der Übersetzung). Angezeigt wird immer
+über ``display_name_for``, ``description_for`` und ``default_text_for``; ob ein Text noch der Standardtext
+ist, sagt ``is_default_text`` – in jeder Sprache, denn der Standardtext steht in der Projektdatei.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+
+from app import i18n
+from app.i18n import N_, tr
 
 
 class ElementType(str, Enum):
@@ -75,51 +82,61 @@ class ElementSpec:
 
 _SPECS = {
     ElementType.START: ElementSpec(
-        ElementType.START, "Start", "Beginn eines Ablaufs", "Start",
+        ElementType.START, N_("Start", ctx="Baustein"), N_("Beginn eines Ablaufs"), N_("Start", ctx="Standardtext"),
         120, 40, 200, (PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
         can_be_target=False,
     ),
     ElementType.END: ElementSpec(
-        ElementType.END, "Ende", "Ende eines Ablaufs", "Ende",
+        ElementType.END, N_("Ende", ctx="Baustein"), N_("Ende eines Ablaufs"), N_("Ende", ctx="Standardtext"),
         120, 40, 200, (PORT_TOP, PORT_LEFT, PORT_RIGHT),
         can_be_source=False, max_outgoing=0,
     ),
     ElementType.INPUT: ElementSpec(
-        ElementType.INPUT, "Eingabe", "Eingabe von Daten oder Werten", "Eingabe",
+        ElementType.INPUT, N_("Eingabe", ctx="Baustein"), N_("Eingabe von Daten oder Werten"),
+        N_("Eingabe", ctx="Standardtext"),
         160, 60, 240, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
     ),
     ElementType.OUTPUT: ElementSpec(
-        ElementType.OUTPUT, "Ausgabe", "Ausgabe von Informationen, Text oder Werten", "Ausgabe",
+        ElementType.OUTPUT, N_("Ausgabe", ctx="Baustein"), N_("Ausgabe von Informationen, Text oder Werten"),
+        N_("Ausgabe", ctx="Standardtext"),
         160, 60, 240, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
     ),
     ElementType.PROCESS: ElementSpec(
-        ElementType.PROCESS, "Vorgang", "Verarbeitung, Berechnung oder Anweisung", "Vorgang",
+        ElementType.PROCESS, N_("Vorgang", ctx="Baustein"), N_("Verarbeitung, Berechnung oder Anweisung"),
+        N_("Vorgang", ctx="Standardtext"),
         160, 60, 260, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
     ),
     ElementType.SUBPROGRAM: ElementSpec(
-        ElementType.SUBPROGRAM, "Unterprogramm", "Aufruf eines Unterprogramms bzw. einer Funktion",
-        "Unterprogramm", 160, 60, 240, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
+        ElementType.SUBPROGRAM, N_("Unterprogramm", ctx="Baustein"),
+        N_("Aufruf eines Unterprogramms bzw. einer Funktion"),
+        N_("Unterprogramm", ctx="Standardtext"), 160, 60, 240, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
     ),
     ElementType.DECISION: ElementSpec(
-        ElementType.DECISION, "Verzweigung", "Entscheidung mit mehreren Ausgängen (z. B. ja/nein)",
-        "Bedingung?", 160, 120, 180, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
+        ElementType.DECISION, N_("Verzweigung", ctx="Baustein"),
+        N_("Entscheidung mit mehreren Ausgängen (z. B. ja/nein)"),
+        N_("Bedingung?", ctx="Standardtext"), 160, 120, 180, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
         max_outgoing=None,
     ),
     ElementType.LOOP: ElementSpec(
-        ElementType.LOOP, "Schleife", "Schleifenbegrenzung (Schleifenbeginn und Schleifenende)",
-        "Schleife", 160, 60, 240, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
+        ElementType.LOOP, N_("Schleife", ctx="Baustein"),
+        N_("Schleifenbegrenzung (Schleifenbeginn und Schleifenende)"),
+        N_("Schleife", ctx="Standardtext"), 160, 60, 240, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
     ),
     ElementType.COMMENT: ElementSpec(
-        ElementType.COMMENT, "Kommentar", "Beschreibender Text, nicht Teil des Ablaufs",
-        "Kommentar", 160, 60, 260, (PORT_LEFT, PORT_RIGHT),
+        ElementType.COMMENT, N_("Kommentar", ctx="Baustein"), N_("Beschreibender Text, nicht Teil des Ablaufs"),
+        N_("Kommentar", ctx="Standardtext"), 160, 60, 260, (PORT_LEFT, PORT_RIGHT),
         max_outgoing=None, is_flow=False,
     ),
     ElementType.JUNCTION: ElementSpec(
-        ElementType.JUNCTION, "Verbindungspunkt",
-        "Knoten auf einem Pfeil, an dem weitere Verbindungen ansetzen",
+        ElementType.JUNCTION, N_("Verbindungspunkt", ctx="Baustein"),
+        N_("Knoten auf einem Pfeil, an dem weitere Verbindungen ansetzen"),
         "", JUNCTION_SIZE, JUNCTION_SIZE, 0, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
     ),
 }
+
+# Standardtexte der beiden Schleifenteile (deutscher Quelltext)
+_LOOP_BEGIN_TEXT = N_("Schleifenbeginn", ctx="Standardtext")
+_LOOP_END_TEXT = N_("Schleifenende", ctx="Standardtext")
 
 # Reihenfolge in Werkzeugpalette und Menüs (entspricht der Referenz)
 PALETTE_ORDER = (
@@ -142,12 +159,38 @@ def all_specs() -> list[ElementSpec]:
     return list(_SPECS.values())
 
 
-def default_text_for(element_type: ElementType, properties: dict | None = None) -> str:
-    element_type = ElementType(element_type)
-    if element_type is ElementType.LOOP:
+def display_name_for(element_type: ElementType | str) -> str:
+    """Name des Bausteintyps in der eingestellten Sprache („Vorgang“, „Process“, …)."""
+    return tr(spec_for(element_type).display_name, ctx="Baustein")
+
+
+def description_for(element_type: ElementType | str) -> str:
+    """Kurze Beschreibung des Bausteintyps in der eingestellten Sprache."""
+    return tr(spec_for(element_type).description)
+
+
+def _default_text_source(element_type: ElementType, properties: dict | None) -> str:
+    """Der deutsche Standardtext (Schlüssel der Übersetzung)."""
+    if ElementType(element_type) is ElementType.LOOP:
         part = (properties or {}).get(LOOP_PART_KEY, LOOP_BEGIN)
-        return "Schleifenende" if part == LOOP_END else "Schleifenbeginn"
+        return _LOOP_END_TEXT if part == LOOP_END else _LOOP_BEGIN_TEXT
     return spec_for(element_type).default_text
+
+
+def default_text_for(element_type: ElementType, properties: dict | None = None) -> str:
+    """Text, den ein neuer Baustein anfangs trägt – in der eingestellten Sprache."""
+    source = _default_text_source(ElementType(element_type), properties)
+    return tr(source, ctx="Standardtext") if source else ""
+
+
+def is_default_text(text: str, element_type: ElementType, properties: dict | None = None) -> bool:
+    """Ist ``text`` der Standardtext des Bausteins – in **irgendeiner** Sprache?
+
+    Der Standardtext steht in der Projektdatei; ein Plan, der in einer anderen Sprache angelegt wurde, soll
+    trotzdem als „noch mit Standardtext“ erkannt werden.
+    """
+    source = _default_text_source(ElementType(element_type), properties)
+    return bool(source) and text in i18n.all_translations(source, ctx="Standardtext")
 
 
 def default_properties_for(element_type: ElementType) -> dict:

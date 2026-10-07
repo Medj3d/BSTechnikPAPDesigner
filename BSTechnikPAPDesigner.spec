@@ -22,7 +22,7 @@ a = Analysis(
         "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWebEngineQuick",
         "PySide6.QtQuick", "PySide6.QtQml", "PySide6.Qt3DCore", "PySide6.QtMultimedia",
         "PySide6.QtCharts", "PySide6.QtDataVisualization", "PySide6.QtBluetooth", "PySide6.QtPositioning",
-        "PySide6.QtSql", "PySide6.QtNetwork", "PySide6.QtTest",
+        "PySide6.QtSql", "PySide6.QtTest",
     ],
     noarchive=False,
 )
