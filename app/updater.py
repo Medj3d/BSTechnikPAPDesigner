@@ -5,12 +5,23 @@ Ablauf:
 1. Beim Start lädt das Programm im Hintergrund die kleine Datei
    ``version.json`` der neuesten Veröffentlichung.
 2. Nennt sie eine höhere Version als die eigene, fragt das Programm nach.
-3. Das Paket (ZIP des Programmordners) wird nach ``<Programmordner>\\_update``
-   geladen, anhand seiner Prüfsumme (SHA-256) geprüft und entpackt.
-4. Die neue Programmdatei wird mit ``--apply-update`` gestartet. Sie wartet,
-   bis das alte Programm beendet ist, ersetzt den Programmordner und startet
-   das Programm neu. Schlägt das Ersetzen fehl, wird der alte Stand
-   wiederhergestellt.
+3. Das Paket (ZIP des Programmordners) wird geladen, anhand seiner Prüfsumme
+   (SHA-256) geprüft und entpackt – nach ``<Programmordner>\\_update``, wenn
+   der Programmordner beschreibbar ist, sonst in den Benutzerordner.
+4. Zwei Wege, je nach Programmordner (siehe ``update_mode``):
+
+   * **Programmordner beschreibbar** („nur für mich“ installiert): Die neue
+     Programmdatei wird mit ``--apply-update`` gestartet. Sie wartet, bis das
+     alte Programm beendet ist, ersetzt den Programmordner und startet das
+     Programm neu. Schlägt das Ersetzen fehl, wird der alte Stand
+     wiederhergestellt.
+   * **Programmordner nicht beschreibbar** (z. B. für alle Benutzer unter
+     ``C:\\Programme``): Die neue Version kommt nach
+     ``%LOCALAPPDATA%\\BSTechnik\\PAPDesigner\\update\\<Version>`` und wird
+     sofort gestartet. Künftig gibt das installierte Programm beim Start von
+     selbst an diese neuere Kopie ab (``redirect_to_user_program``). Lässt
+     der Rechner den Start aus dem Benutzerordner nicht zu, läuft das
+     installierte Programm einfach weiter und es wird nicht erneut versucht.
 
 Es werden keine fremden Hilfsprogramme (cmd, PowerShell) benötigt, und eigene
 Dateien des Benutzers im Programmordner bleiben unberührt: Ersetzt wird nur,
@@ -43,6 +54,12 @@ log = logging.getLogger(__name__)
 
 APPLY_FLAG = config.UPDATE_APPLY_FLAG
 STAGING_DIRECTORY = "_update"
+USER_UPDATE_DIRECTORY = "update"
+COMPLETE_MARKER = "fertig.txt"
+BLOCKED_MARKER = "gesperrt.txt"
+# Umgebungsvariable: Dieses Programm wurde vom installierten Programm aus dem Benutzerordner gestartet
+# (verhindert, dass es von dort noch einmal weiterverweist)
+STARTED_FROM_UPDATE_ENV = "BSTECHNIK_PAP_STARTED_FROM_UPDATE"
 BACKUP_SUFFIX = ".alt"
 MANIFEST_MAX_BYTES = 64 * 1024
 PACKAGE_MAX_BYTES = 600 * 1024 * 1024
@@ -173,6 +190,177 @@ def can_write(directory: str) -> bool:
         return True
     except OSError:
         return False
+
+
+# ------------------------------------------------ Update im Benutzerordner
+# Ist der Programmordner nicht beschreibbar (z. B. für alle Benutzer unter
+# C:\Programme installiert), kommt die neue Version in einen Ordner im
+# Benutzerprofil: %LOCALAPPDATA%\BSTechnik\PAPDesigner\update\<Version>.
+# Beim Start gibt das installierte Programm dann an die neuere Kopie ab.
+def user_update_root() -> str:
+    from app import errors
+
+    return os.path.join(os.path.dirname(errors.log_directory()), USER_UPDATE_DIRECTORY)
+
+
+def _is_inside(path: str, folder: str) -> bool:
+    path, folder = os.path.normcase(os.path.abspath(path)), os.path.normcase(os.path.abspath(folder))
+    try:
+        return os.path.commonpath([path, folder]) == folder
+    except ValueError:  # z. B. verschiedene Laufwerke
+        return False
+
+
+def running_from_user_copy() -> bool:
+    """Läuft dieses Programm aus dem Benutzerordner (also nicht aus dem installierten Ordner)?"""
+    app_dir = application_directory()
+    return app_dir is not None and _is_inside(app_dir, user_update_root())
+
+
+def user_updates_blocked() -> bool:
+    """Wurde auf diesem Rechner schon erlebt, dass Programme aus dem Benutzerordner gesperrt sind?"""
+    return os.path.isfile(os.path.join(user_update_root(), BLOCKED_MARKER))
+
+
+def mark_user_updates_blocked() -> None:
+    try:
+        os.makedirs(user_update_root(), exist_ok=True)
+        with open(os.path.join(user_update_root(), BLOCKED_MARKER), "w", encoding="utf-8") as handle:
+            handle.write("Der Start von Programmen aus diesem Ordner war nicht möglich.\n")
+    except OSError:
+        log.warning("Sperre für Updates im Benutzerordner konnte nicht vermerkt werden")
+
+
+def user_update_root_usable() -> bool:
+    root = user_update_root()
+    try:
+        os.makedirs(root, exist_ok=True)
+    except OSError:
+        return False
+    return can_write(root)
+
+
+def update_mode() -> str:
+    """Wie sich dieses Programm aktualisieren kann.
+
+    * ``"in_place"``  – der Programmordner wird ersetzt (beschreibbar, z. B. „nur für mich“ installiert)
+    * ``"user_copy"`` – die neue Version kommt in den Benutzerordner und wird von dort gestartet
+    * ``"blocked"``   – weder noch (kein Zugriff, oder Programme aus dem Benutzerordner sind gesperrt)
+    * ``"source"``    – das Programm läuft aus dem Quelltext
+    """
+    app_dir = application_directory()
+    if app_dir is None:
+        return "source"
+    if not running_from_user_copy() and can_write(app_dir):
+        return "in_place"
+    if user_updates_blocked() or not user_update_root_usable():
+        return "blocked"
+    return "user_copy"
+
+
+def _version_folder_name(version: str) -> str:
+    return ".".join(str(part) for part in parse_version(version))
+
+
+def user_programs() -> list[tuple[tuple, str, str]]:
+    """Fertige Programmkopien im Benutzerordner als (Version, Name, Ordner), die neueste zuerst."""
+    root = user_update_root()
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return []
+    found = []
+    for name in names:
+        version = parse_version(name)
+        folder = os.path.join(root, name)
+        if version and os.path.isfile(os.path.join(folder, COMPLETE_MARKER)) \
+                and os.path.isfile(os.path.join(folder, config.EXECUTABLE_NAME)):
+            found.append((version, name, folder))
+    return sorted(found, reverse=True)
+
+
+def newer_user_program() -> tuple[str, str] | None:
+    """(Version, Ordner) der neuesten fertigen Kopie – wenn sie neuer ist als dieses Programm."""
+    for _version, name, folder in user_programs():
+        return (name, folder) if is_newer(name, config.APP_VERSION) else None
+    return None
+
+
+def redirect_to_user_program(arguments: list[str]) -> bool:
+    """Startet eine neuere Kopie aus dem Benutzerordner anstelle dieses Programms.
+
+    ``True``: Die Kopie läuft, dieses Programm soll sich sofort beenden. ``False``:
+    normal weiterstarten (nichts Neueres da, bereits von der Kopie gestartet, oder der
+    Start war nicht möglich – dann wird das vermerkt und nicht erneut versucht).
+    """
+    if not resources.is_frozen() or os.environ.get(STARTED_FROM_UPDATE_ENV) or user_updates_blocked():
+        return False
+    found = newer_user_program()
+    if found is None:
+        return False
+    version, folder = found
+    try:
+        subprocess.Popen([os.path.join(folder, config.EXECUTABLE_NAME), *arguments], cwd=folder, close_fds=True,
+                         env=dict(os.environ, **{STARTED_FROM_UPDATE_ENV: version}))
+    except OSError as exc:
+        log.warning("Neuere Version aus dem Benutzerordner konnte nicht gestartet werden: %s", exc)
+        mark_user_updates_blocked()
+        return False
+    return True
+
+
+def install_user_program(new_dir: str, version: str) -> str:
+    """Legt die entpackte neue Version im Benutzerordner ab. Gibt deren Ordner zurück."""
+    name = _version_folder_name(version)
+    if not name:
+        raise UpdateError("Die Versionsnummer des Updates ist ungültig.")
+    target = os.path.join(user_update_root(), name)
+    try:
+        os.makedirs(user_update_root(), exist_ok=True)
+        _remove(target)
+        shutil.move(new_dir, target)
+        # die Markierung kommt zuletzt: erst damit gilt die Kopie als vollständig
+        with open(os.path.join(target, COMPLETE_MARKER), "w", encoding="utf-8") as handle:
+            handle.write(name)
+    except OSError as exc:
+        _remove(target)
+        raise UpdateError("Die neue Version konnte nicht abgelegt werden.", str(exc)) from exc
+    return target
+
+
+def _remove_if_unused(path: str) -> None:
+    """Entfernt einen Ordner nur, wenn ihn kein laufendes Programm benutzt (Windows lässt ihn dann nicht umbenennen)."""
+    aside = path + ".weg"
+    try:
+        _remove(aside)
+        os.rename(path, aside)
+    except OSError:
+        return
+    _remove(aside)
+
+
+def cleanup_user_programs() -> None:
+    """Räumt den Benutzerordner auf: veraltete oder unvollständige Kopien und Zwischenreste.
+
+    Das laufende Programm und neuere Kopien bleiben stehen; ebenso die Sperrmarkierung.
+    """
+    root = user_update_root()
+    running = application_directory()
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return
+    complete = {name for _version, name, _folder in user_programs()}
+    for name in names:
+        path = os.path.join(root, name)
+        if name == BLOCKED_MARKER or (running is not None and _is_inside(running, path)):
+            continue
+        if name in complete and is_newer(name, config.APP_VERSION):
+            continue  # eine neuere Kopie wartet auf den nächsten Start
+        if os.path.isdir(path) and not os.path.islink(path):
+            _remove_if_unused(path)
+        else:
+            _remove(path)
 
 
 def _remove(path: str) -> None:

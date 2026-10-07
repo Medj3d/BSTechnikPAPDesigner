@@ -107,6 +107,13 @@ def main() -> int:
     if config.UPDATE_APPLY_FLAG in arguments and resources.is_frozen():
         return _install_update(arguments[arguments.index(config.UPDATE_APPLY_FLAG) + 1:])
 
+    # Liegt im Benutzerordner eine neuere Kopie (Update ohne Schreibrechte im Programmordner),
+    # gibt dieses Programm sofort an sie ab – noch vor Qt und Ladebildschirm.
+    from app import updater
+
+    if updater.redirect_to_user_program(arguments):
+        return 0
+
     app = _create_application()
     started = time.monotonic()
     splash = _show_splash(app)

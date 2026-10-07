@@ -81,3 +81,5 @@ Type: filesandordirs; Name: "{app}\_internal"
 Type: filesandordirs; Name: "{app}\_update"
 Type: filesandordirs; Name: "{app}\_internal.alt"
 Type: files; Name: "{app}\{#AppExe}.alt"
+; Neuere Programmkopien, die das Programm bei einem Update im Benutzerordner abgelegt hat
+Type: filesandordirs; Name: "{localappdata}\BSTechnik\PAPDesigner\update"

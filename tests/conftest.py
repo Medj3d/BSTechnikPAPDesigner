@@ -34,6 +34,15 @@ config.AUTO_SAVE_DEFAULT = False
 
 
 @pytest.fixture(autouse=True)
+def _isolated_local_appdata(monkeypatch, tmp_path_factory):
+    """Protokoll, Sicherungen und Update-Ordner liegen in jedem Test in einem eigenen Temp-Ordner –
+    nie im echten ``%LOCALAPPDATA%`` des Benutzers."""
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path_factory.mktemp("localappdata")))
+    monkeypatch.delenv("BSTECHNIK_PAP_STARTED_FROM_UPDATE", raising=False)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _no_real_dialogs(monkeypatch):
     """Kein Test darf einen echten Dialog auf dem Bildschirm öffnen.
 

@@ -38,7 +38,7 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Hinweise | **Extras → Hinweise** (Strg+Umschalt+H) oder Klick auf die Anzeige in der Statusleiste: rote Verbindungen, fehlender Start/Ende, unerreichbare Bausteine, Sackgassen, unbeschriftete Verzweigungsausgänge, Schleifen ohne Gegenstück, Standardtexte; Klick springt zur Stelle |
 | Automatisch speichern | ein Projekt, das einmal gespeichert wurde, wird rund 2 Sekunden nach jeder Änderung von selbst in seine Datei geschrieben (spätestens nach 10 Sekunden, nie mitten in einer Texteingabe); abschaltbar unter **Datei → Automatisch speichern** |
 | Sichern | noch nie gespeicherte Projekte werden jede Minute gesichert; nach einem Absturz bietet das Programm beim nächsten Start die Wiederherstellung an („Später“ behält die Sicherungen für den nächsten Start) |
-| Updates | das fertige Programm prüft beim Start, ob eine neuere Version veröffentlicht wurde, und aktualisiert sich nach Rückfrage selbst (auch über **Hilfe → Nach Updates suchen**) |
+| Updates | das fertige Programm prüft beim Start, ob eine neuere Version veröffentlicht wurde, und aktualisiert sich nach Rückfrage selbst, auch ohne Schreibrechte im Programmordner (z. B. bei Installation für alle Benutzer); auch über **Hilfe → Nach Updates suchen** |
 | Ladebildschirm / Über | beim Start erscheint als Erstes für 6 Sekunden das Schullogo mit Urheberzeile und Version; **Hilfe → Über das Programm** nennt Urheber, Version und Erscheinungsmonat |
 | Farbschema | **Ansicht → Farbschema**: dunkel oder hell (z. B. für Beamer), wird gespeichert |
 | PapDesigner-Dateien | `.pap`-Dateien aus dem alten PapDesigner werden wie jedes andere Projekt geöffnet (**Datei → Öffnen** oder ins Fenster ziehen), auch mit mehreren Diagrammen/Unterprogrammen; die Anordnung wird aus dem Raster der Datei übernommen. Vor dem ersten Überschreiben einer solchen Datei fragt das Programm nach |
@@ -321,9 +321,14 @@ Programm. Die jeweils neueste Fassung steht immer unter
 Die Setup-Datei entsteht mit `release.bat` (siehe unten) und braucht dafür
 [Inno Setup 6](https://jrsoftware.org/isdl.php) auf dem Rechner, auf dem
 gebaut wird. Wer im Setup „für alle Benutzer“ wählt (Administrator, z. B. in
-der Schule), installiert nach `C:\Programme`; dort kann sich das Programm
-nicht selbst aktualisieren und weist nur in der Statuszeile auf neue Versionen
-hin. Der Administrator installiert sie dann mit dem nächsten Setup.
+der Schule), installiert nach `C:\Programme`. Dort darf das Programm seinen
+Ordner nicht ändern; Updates legt es deshalb im Benutzerprofil ab
+(`%LOCALAPPDATA%\BSTechnik\PAPDesigner\update\<Version>`) und startet sie von
+dort. Das installierte Programm gibt beim Start automatisch an die neuere Kopie
+ab (rund 0,2 Sekunden). Sperrt der Rechner den Start von Programmen aus dem
+Benutzerprofil, läuft das installierte Programm unverändert weiter und weist
+nur in der Statuszeile auf neue Versionen hin; der Administrator installiert
+sie dann mit dem nächsten Setup.
 
 ### Neue Version als Update veröffentlichen
 
@@ -348,13 +353,25 @@ Für jede neue Version:
    `version.json` und lädt alles als Version `v…` hoch. (Nur bauen, ohne
    Hochladen: `python tools\make_release.py --ohne-upload`.)
 
-Voraussetzungen auf dem Zielrechner: Internetzugang zu `github.com` und
-Schreibrechte im Programmordner (also nicht unter `C:\Programme` ohne
-Administratorrechte). Fehlt der Internetzugang, läuft das Programm unverändert
-weiter. Fehlen die Schreibrechte, stellt es keine Frage, die sich nicht erfüllen
-lässt: Beim Start steht nur ein ruhiger Hinweis in der Statuszeile („Neue Version
-… verfügbar – bitte beim Administrator melden“); **Hilfe → Nach Updates suchen**
-nennt zusätzlich den Link zur neuen Setup-Datei.
+Voraussetzung auf dem Zielrechner ist Internetzugang zu `github.com`; fehlt er,
+läuft das Programm unverändert weiter. Wie das Update installiert wird, hängt
+vom Programmordner ab:
+
+* **Programmordner beschreibbar** (Setup „nur für mich“): Das Programm ersetzt
+  seinen Ordner selbst und startet neu; schlägt das fehl, bleibt die bisherige
+  Version erhalten.
+* **Programmordner nicht beschreibbar** (Setup „für alle Benutzer“, z. B. unter
+  `C:\Programme`): Die neue Version kommt in den Benutzerordner
+  (`%LOCALAPPDATA%\BSTechnik\PAPDesigner\update\<Version>`) und wird von dort
+  gestartet. Ältere Kopien dort werden aufgeräumt. Das Update gilt dabei nur
+  für den Benutzer, der es geladen hat; andere Benutzer desselben Rechners
+  laden es bei ihrem eigenen Start. Ein neueres Setup bleibt jederzeit
+  möglich und hat Vorrang, sobald seine Version neuer ist.
+* **Auch das nicht möglich** (Start aus dem Benutzerordner gesperrt, z. B. durch
+  eine Schulrichtlinie): Das Programm stellt keine Frage, die sich nicht
+  erfüllen lässt. Beim Start steht nur ein ruhiger Hinweis in der Statuszeile
+  („Neue Version … verfügbar – bitte beim Administrator melden“); **Hilfe →
+  Nach Updates suchen** nennt zusätzlich den Link zur neuen Setup-Datei.
 
 ### Dateiendung `.pap` im System registrieren
 
@@ -386,6 +403,7 @@ dritte Zahl kleine Nachbesserungen.
 | 1.5.1 | 07.10.2026 | Ladebildschirm erscheint früher und bleibt 6 Sekunden stehen |
 | 1.5.2 | 08.10.2026 | Setup-Datei zum Weitergeben und Installieren |
 | 1.5.3 | 08.10.2026 | ohne Schreibrechte im Programmordner (z. B. Installation für alle Benutzer) nur noch ein Hinweis in der Statuszeile statt einer Update-Frage |
+| 1.6 | 08.10.2026 | Updates funktionieren auch ohne Schreibrechte im Programmordner: Die neue Version wird im Benutzerordner abgelegt und von dort gestartet |
 
 ---
 

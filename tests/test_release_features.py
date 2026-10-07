@@ -124,7 +124,11 @@ def test_start_shows_the_splash_before_loading_the_program():
     body = source[source.index("def main()"):]
     shown = body.index("_show_splash(app)")
     assert shown < body.index("_apply_look(app)") < body.index("from app.main_window import MainWindow")
-    assert "main_window" not in body[:shown] and "updater" not in body[:shown]
+    assert "main_window" not in body[:shown]
+    # Die Weitergabe an eine neuere Kopie im Benutzerordner kommt noch vor Qt und Ladebildschirm –
+    # sonst würde die alte Version erst ihr Fenster aufbauen und dann doch wechseln.
+    redirect = body.index("updater.redirect_to_user_program(arguments)")
+    assert redirect < body.index("_create_application()") < shown
 
 
 # ------------------------------------------------------ Automatisches Speichern
@@ -602,8 +606,254 @@ def test_install_blocker_reflects_the_real_folder(monkeypatch, tmp_path):
     monkeypatch.setattr(updater, "application_directory", lambda: str(tmp_path))
     assert controller.install_blocker() == ""  # echter, beschreibbarer Ordner
     assert not list(tmp_path.iterdir())  # die Prüfung hinterlässt nichts
+    # Programmordner nicht beschreibbar (hier: nicht vorhanden): die Kopie im Benutzerordner übernimmt
     monkeypatch.setattr(updater, "application_directory", lambda: str(tmp_path / "gibt_es_nicht"))
-    assert controller.install_blocker() == "rights"  # nicht beschreibbar (hier: nicht vorhanden)
+    assert controller.install_blocker() == "" and updater.update_mode() == "user_copy"
+    # … außer der Rechner lässt den Start aus dem Benutzerordner nicht zu
+    updater.mark_user_updates_blocked()
+    assert controller.install_blocker() == "rights" and updater.update_mode() == "blocked"
+
+
+# ------------------------------------------- Update im Benutzerordner (ohne Schreibrechte)
+def frozen_app(monkeypatch, app_dir):
+    """Das Programm gibt sich als fertige exe in ``app_dir`` aus."""
+    monkeypatch.setattr(resources, "is_frozen", lambda: True)
+    monkeypatch.setattr(updater, "application_directory", lambda: str(app_dir))
+
+
+def place_copy(version: str, complete: bool = True) -> str:
+    """Eine Programmkopie im Benutzerordner anlegen (wie nach einem Update)."""
+    folder = os.path.join(updater.user_update_root(), version)
+    os.makedirs(os.path.join(folder, "_internal"))
+    open(os.path.join(folder, EXE), "w").close()
+    if complete:
+        open(os.path.join(folder, updater.COMPLETE_MARKER), "w").close()
+    return folder
+
+
+def test_user_update_folder_lives_in_the_users_profile(monkeypatch, tmp_path):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    assert updater.user_update_root() == str(tmp_path / "BSTechnik" / config.SETTINGS_APP_NAME / "update")
+
+
+def test_update_mode_depends_on_the_program_folder(monkeypatch, tmp_path):
+    # Jede Lage steht in einem eigenen Block: ein globales monkeypatch.undo() würde auch die Umleitung von
+    # LOCALAPPDATA auf den Temp-Ordner aufheben, und der Test schriebe in den echten Benutzerordner.
+    app_dir = tmp_path / "programm"
+    app_dir.mkdir()
+    not_writable = lambda directory: os.path.abspath(directory) != str(app_dir)  # noqa: E731
+    assert updater.update_mode() == "source"  # die Tests laufen aus dem Quelltext
+    with monkeypatch.context() as m:
+        frozen_app(m, app_dir)
+        assert updater.update_mode() == "in_place"  # beschreibbar, z. B. „nur für mich“ installiert
+    with monkeypatch.context() as m:
+        # nicht beschreibbar (z. B. C:\Programme), der Benutzerordner aber schon
+        frozen_app(m, app_dir)
+        m.setattr(updater, "can_write", not_writable)
+        assert updater.update_mode() == "user_copy"
+        # der Benutzerordner ist nicht nutzbar
+        m.setattr(updater, "user_update_root_usable", lambda: False)
+        assert updater.update_mode() == "blocked"
+    with monkeypatch.context() as m:
+        # Programme aus dem Benutzerordner sind auf diesem Rechner gesperrt
+        frozen_app(m, app_dir)
+        m.setattr(updater, "can_write", not_writable)
+        updater.mark_user_updates_blocked()
+        assert updater.update_mode() == "blocked"
+        os.remove(os.path.join(updater.user_update_root(), updater.BLOCKED_MARKER))
+    # Läuft das Programm selbst aus dem Benutzerordner, wird dort nie ersetzt, sondern eine neue Kopie abgelegt
+    running = place_copy("0.0.3")
+    with monkeypatch.context() as m:
+        frozen_app(m, running)
+        assert updater.update_mode() == "user_copy"  # obwohl der Ordner beschreibbar ist
+        assert updater.running_from_user_copy()
+
+
+def test_tests_never_write_into_the_real_user_folder():
+    """Die autouse-Fixture lenkt LOCALAPPDATA in einen Temp-Ordner von pytest um."""
+    assert "pytest-of-" in updater.user_update_root()
+    assert "pytest-of-" in os.environ["LOCALAPPDATA"]
+
+
+def test_new_version_is_placed_in_the_user_folder_and_found(tmp_path):
+    new_dir = program_folder(tmp_path / "neu", "neu")
+    folder = updater.install_user_program(str(new_dir), "99.1.0")
+    assert folder == os.path.join(updater.user_update_root(), "99.1.0") and not new_dir.exists()
+    assert os.path.isfile(os.path.join(folder, EXE)) and os.path.isfile(os.path.join(folder, updater.COMPLETE_MARKER))
+    assert [(name, f) for _v, name, f in updater.user_programs()] == [("99.1.0", folder)]
+    assert updater.newer_user_program() == ("99.1.0", folder)
+    # „v99.2“ wird zu „99.2“; dieselbe Version wird ersetzt, nicht vermischt
+    other = program_folder(tmp_path / "neu2", "zweite")
+    again = updater.install_user_program(str(other), "v99.2")
+    assert again.endswith("99.2") and updater.newer_user_program() == ("99.2", again)
+    third = program_folder(tmp_path / "neu3", "dritte")
+    updater.install_user_program(str(third), "99.2")
+    assert (tmp_path / "neu3").exists() is False
+    assert not os.path.exists(os.path.join(again, "_internal", "nur_zweite.dll"))
+    assert os.path.exists(os.path.join(again, "_internal", "nur_dritte.dll"))
+    with pytest.raises(updater.UpdateError):
+        updater.install_user_program(str(program_folder(tmp_path / "x", "x")), "neu")
+
+
+def test_only_complete_and_newer_copies_count(tmp_path):
+    place_copy("99.0.0", complete=False)             # unvollständig (Abbruch beim Ablegen)
+    place_copy(config.APP_VERSION)                  # gleiche Version
+    place_copy("0.0.1")                              # ältere Version
+    os.makedirs(os.path.join(updater.user_update_root(), "kein-versionsname"))
+    assert updater.newer_user_program() is None
+    assert [name for _v, name, _f in updater.user_programs()] == [config.APP_VERSION, "0.0.1"]
+    newest = place_copy("99.0.1")
+    place_copy("99.0.0.5")
+    place_copy("98.9.9")
+    assert updater.newer_user_program() == ("99.0.1", newest)  # die höchste, nicht die zuletzt angelegte
+
+
+class FakePopen:
+    calls: list = []
+    error: Exception | None = None
+
+    def __init__(self, command, **kwargs):
+        if FakePopen.error is not None:
+            raise FakePopen.error
+        FakePopen.calls.append((command, kwargs))
+
+
+def test_installed_program_hands_over_to_a_newer_user_copy(monkeypatch, tmp_path):
+    FakePopen.calls, FakePopen.error = [], None
+    monkeypatch.setattr(updater.subprocess, "Popen", FakePopen)
+    frozen_app(monkeypatch, tmp_path / "programm")
+    assert updater.redirect_to_user_program(["plan.pap"]) is False and FakePopen.calls == []  # nichts Neueres da
+    place_copy("0.0.1")
+    place_copy(config.APP_VERSION)
+    assert updater.redirect_to_user_program([]) is False  # nur ältere bzw. gleiche Kopien
+    folder = place_copy("99.0.0")
+    assert updater.redirect_to_user_program(["plan.pap", "zweiter plan.pap"]) is True
+    (command, kwargs), = FakePopen.calls
+    assert command == [os.path.join(folder, EXE), "plan.pap", "zweiter plan.pap"] and kwargs["cwd"] == folder
+    assert kwargs["env"][updater.STARTED_FROM_UPDATE_ENV] == "99.0.0"
+    # die Kopie selbst gibt nicht noch einmal weiter (Schutz vor Endlosschleifen)
+    monkeypatch.setenv(updater.STARTED_FROM_UPDATE_ENV, "99.0.0")
+    assert updater.redirect_to_user_program([]) is False and len(FakePopen.calls) == 1
+    monkeypatch.delenv(updater.STARTED_FROM_UPDATE_ENV)
+    # … und der Quelltext-Start schon gar nicht
+    monkeypatch.setattr(resources, "is_frozen", lambda: False)
+    assert updater.redirect_to_user_program([]) is False and len(FakePopen.calls) == 1
+
+
+def test_locked_down_computers_keep_running_the_installed_program(monkeypatch, tmp_path):
+    """Sperrt der Rechner den Start aus dem Benutzerordner, läuft das installierte Programm weiter – ohne Dauerschleife."""
+    FakePopen.calls, FakePopen.error = [], OSError(1260, "Diese Anwendung wurde durch Gruppenrichtlinien blockiert")
+    monkeypatch.setattr(updater.subprocess, "Popen", FakePopen)
+    frozen_app(monkeypatch, tmp_path / "programm")
+    place_copy("99.0.0")
+    assert updater.redirect_to_user_program([]) is False
+    assert updater.user_updates_blocked() and updater.update_mode() == "blocked"
+    FakePopen.error = None
+    assert updater.redirect_to_user_program([]) is False and FakePopen.calls == []  # nicht erneut versucht
+
+
+def test_user_folder_is_tidied_without_touching_what_is_in_use(monkeypatch, tmp_path):
+    root = updater.user_update_root()
+    old, equal, incomplete = place_copy("0.0.1"), place_copy(config.APP_VERSION), place_copy("99.0.5", complete=False)
+    waiting, running = place_copy("99.0.0"), place_copy("0.0.2")
+    os.makedirs(os.path.join(root, updater.STAGING_DIRECTORY, "neu"))
+    updater.mark_user_updates_blocked()
+    frozen_app(monkeypatch, running)  # dieses Programm läuft aus „0.0.2“
+    updater.cleanup_user_programs()
+    assert sorted(os.listdir(root)) == sorted(["99.0.0", "0.0.2", updater.BLOCKED_MARKER])
+    assert os.path.isdir(waiting) and os.path.isdir(running)
+    assert not any(os.path.exists(path) for path in (old, equal, incomplete))
+    # Eine Kopie, die gerade ein anderes Programmfenster benutzt, lässt sich unter Windows nicht umbenennen: sie bleibt
+    busy = place_copy("0.0.4")
+    real_rename = os.rename
+
+    def rename(source, target):
+        if os.path.abspath(source) == busy:
+            raise PermissionError("wird verwendet")
+        return real_rename(source, target)
+
+    monkeypatch.setattr(updater.os, "rename", rename)
+    updater.cleanup_user_programs()
+    assert os.path.isfile(os.path.join(busy, EXE)) and os.path.isfile(os.path.join(busy, updater.COMPLETE_MARKER))
+    # ohne Benutzerordner passiert nichts
+    shutil.rmtree(root)
+    updater.cleanup_user_programs()
+
+
+@pytest.fixture
+def update_flow(window, monkeypatch, tmp_path):
+    """Gerüst für das Installieren eines Updates ohne Fenster, Netz und Neustart."""
+    import types
+    from unittest.mock import MagicMock
+    from app import update_dialogs
+
+    log = types.SimpleNamespace(downloads=[], launched=[], closed=[], installer=[], shown=[])
+    monkeypatch.setattr(update_dialogs, "QProgressDialog", lambda *a, **k: MagicMock())
+    monkeypatch.setattr(QMessageBox, "warning", lambda _p, title, text, *a, **k: log.shown.append(text))
+    monkeypatch.setattr(window, "close", lambda: log.closed.append(True))
+    frozen_app(monkeypatch, tmp_path / "programm")
+    controller = window.updates
+
+    def fake_download(info, staging_parent, **_kwargs):
+        log.downloads.append(staging_parent)
+        return str(program_folder(__import__("pathlib").Path(staging_parent) / updater.STAGING_DIRECTORY / "neu", "neu"))
+
+    monkeypatch.setattr(updater, "download_package", fake_download)
+    monkeypatch.setattr(updater, "start_installer", lambda new_dir, app_dir: log.installer.append((new_dir, app_dir)))
+    monkeypatch.setattr(controller, "_launch_after_quit", lambda folder: log.launched.append(folder))
+    log.controller = controller
+    return log
+
+
+def test_update_without_write_access_is_installed_in_the_user_folder(update_flow, qapp, monkeypatch):
+    monkeypatch.setattr(updater, "update_mode", lambda: "user_copy")
+    update_flow.controller.install(newer_version(version="99.3.0"))
+    assert wait_until(qapp, lambda: update_flow.launched and update_flow.closed)
+    root = updater.user_update_root()
+    assert update_flow.downloads == [root]  # geladen wird in den Benutzerordner, nicht in den Programmordner
+    folder = os.path.join(root, "99.3.0")
+    assert update_flow.launched == [folder] and update_flow.installer == []
+    assert updater.newer_user_program() == ("99.3.0", folder)
+    assert not os.path.exists(os.path.join(root, updater.STAGING_DIRECTORY))  # Zwischenordner aufgeräumt
+    assert update_flow.shown == []
+
+
+def test_update_with_write_access_still_replaces_the_program_folder(update_flow, qapp, monkeypatch, tmp_path):
+    monkeypatch.setattr(updater, "update_mode", lambda: "in_place")
+    update_flow.controller.install(newer_version())
+    assert wait_until(qapp, lambda: update_flow.installer and update_flow.closed)
+    assert update_flow.downloads == [str(tmp_path / "programm")] and update_flow.launched == []
+    assert update_flow.installer[0][1] == str(tmp_path / "programm")
+
+
+def test_failed_placing_keeps_the_program_running(update_flow, qapp, monkeypatch):
+    monkeypatch.setattr(updater, "update_mode", lambda: "user_copy")
+
+    def failing(new_dir, version):
+        raise updater.UpdateError("Die neue Version konnte nicht abgelegt werden.")
+
+    monkeypatch.setattr(updater, "install_user_program", failing)
+    update_flow.controller.install(newer_version())
+    assert wait_until(qapp, lambda: update_flow.shown)
+    wait_until(qapp, lambda: False, 0.1)
+    assert update_flow.shown == ["Die neue Version konnte nicht abgelegt werden."]
+    assert update_flow.closed == [] and update_flow.launched == []
+
+
+def test_blocked_computer_only_gets_the_link(update_flow, monkeypatch):
+    monkeypatch.setattr(config, "UPDATE_REPOSITORY", "schule/pap")
+    monkeypatch.setattr(updater, "update_mode", lambda: "blocked")
+    update_flow.controller.install(newer_version())
+    assert update_flow.downloads == [] and update_flow.closed == []
+    assert len(update_flow.shown) == 1 and "https://github.com/schule/pap/releases/latest" in update_flow.shown[0]
+
+
+def test_program_hands_over_to_the_copy_before_anything_else_loads():
+    with open(os.path.join(ROOT, "main.py"), encoding="utf-8") as handle:
+        body = handle.read()
+    body = body[body.index("def main()"):]
+    assert body.index("_install_update(") < body.index("updater.redirect_to_user_program(arguments)")
+    assert body.index("updater.redirect_to_user_program(arguments)") < body.index("_create_application()")
 
 
 def test_update_is_only_installed_in_the_finished_program(window, monkeypatch):

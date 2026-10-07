@@ -6,7 +6,7 @@ import logging
 import threading
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
-from PySide6.QtWidgets import QMessageBox, QProgressDialog
+from PySide6.QtWidgets import QApplication, QMessageBox, QProgressDialog
 
 from app import config, updater
 
@@ -33,6 +33,8 @@ class UpdateController(QObject):
         self._checking = False
         self._cancel = threading.Event()
         self._dialog: QProgressDialog | None = None
+        self._mode = "in_place"                              # Weg des gerade laufenden Updates
+        self._pending_info: updater.UpdateInfo | None = None  # dessen Version
         self._checked.connect(self._on_checked)
         self._progress.connect(self._on_progress)
         self._downloaded.connect(self._on_downloaded)
@@ -42,6 +44,7 @@ class UpdateController(QObject):
         app_dir = updater.application_directory()
         if app_dir is not None and self._dialog is None:
             updater.cleanup_staging(app_dir)
+            updater.cleanup_user_programs()
 
     # ------------------------------------------------------------- Prüfen
     def check(self, manual: bool = False) -> None:
@@ -90,14 +93,13 @@ class UpdateController(QObject):
     def install_blocker(self) -> str:
         """Warum sich das Programm hier nicht selbst aktualisieren kann.
 
-        ``""`` = es kann; ``"rights"`` = der Programmordner ist nicht beschreibbar
-        (z. B. für alle Benutzer unter C:\\Programme installiert); ``"source"`` =
-        das Programm läuft aus dem Quelltext statt als exe.
+        ``""`` = es kann (der Programmordner wird ersetzt oder die neue Version
+        kommt in den Benutzerordner); ``"rights"`` = weder noch (Programmordner
+        nicht beschreibbar und der Start aus dem Benutzerordner nicht möglich);
+        ``"source"`` = das Programm läuft aus dem Quelltext statt als exe.
         """
-        app_dir = updater.application_directory()
-        if app_dir is None:
-            return "source"
-        return "" if updater.can_write(app_dir) else "rights"
+        mode = updater.update_mode()
+        return {"source": "source", "blocked": "rights"}.get(mode, "")
 
     def _announce_without_install(self, info: updater.UpdateInfo, blocker: str, manual: bool) -> None:
         """Weist auf die neue Version hin, ohne eine Frage zu stellen, die sich nicht erfüllen lässt.
@@ -116,9 +118,9 @@ class UpdateController(QObject):
         released = f" ({info.released})" if info.released else ""
         text = f"Version {info.version}{released} ist verfügbar – installiert ist Version {config.APP_VERSION}."
         if blocker == "rights":
-            text += ("\n\nDas Programm darf seinen Ordner hier nicht ändern (es ist für alle Benutzer "
-                     "installiert) und kann sich deshalb nicht selbst aktualisieren. Bitte beim "
-                     "Administrator melden; er installiert die neue Version mit dem Setup.")
+            text += ("\n\nDas Programm darf seinen Ordner hier nicht ändern und kann auch keine neue Version "
+                     "im Benutzerordner ablegen oder starten. Bitte beim Administrator melden; er "
+                     "installiert die neue Version mit dem Setup.")
         else:
             text += "\n\nDieses Programm läuft aus dem Quelltext und aktualisiert sich nicht selbst."
         if info.notes:
@@ -148,18 +150,23 @@ class UpdateController(QObject):
 
     # -------------------------------------------------------- Installieren
     def install(self, info: updater.UpdateInfo) -> None:
-        app_dir = updater.application_directory()
-        if app_dir is None:
+        mode = updater.update_mode()
+        if mode == "source":
             QMessageBox.information(self._window, "Update",
                                     "Updates werden nur im fertigen Programm (exe) installiert – "
                                     "dieses Programm läuft gerade aus dem Quelltext.")
             return
-        if not updater.can_write(app_dir):
+        if mode == "blocked":
             QMessageBox.warning(self._window, "Update nicht möglich",
-                                "Im Programmordner fehlen die Schreibrechte, deshalb kann sich das Programm "
-                                "nicht selbst aktualisieren.\n\nDie neue Version gibt es hier:\n"
+                                "Das Programm darf seinen Ordner hier nicht ändern und kann auch keine neue "
+                                "Version im Benutzerordner starten, deshalb kann es sich nicht selbst "
+                                "aktualisieren.\n\nDie neue Version gibt es hier:\n"
                                 f"{updater.releases_page()}")
             return
+        app_dir = updater.application_directory()
+        # beschreibbarer Programmordner: dort wird ersetzt; sonst kommt die Kopie in den Benutzerordner
+        staging_parent = app_dir if mode == "in_place" else updater.user_update_root()
+        self._mode, self._pending_info = mode, info
         # erst alle Projekte sichern bzw. nachfragen – danach wird das Programm beendet
         for view in self._window.views():
             if not self._window.maybe_save(view.document):
@@ -177,7 +184,7 @@ class UpdateController(QObject):
 
         def work():
             try:
-                new_dir = updater.download_package(info, app_dir, progress=self._progress.emit,
+                new_dir = updater.download_package(info, staging_parent, progress=self._progress.emit,
                                                    cancelled=self._cancel.is_set)
                 self._downloaded.emit(new_dir, None)
             except updater.UpdateCancelled:
@@ -211,9 +218,20 @@ class UpdateController(QObject):
         if new_dir is None or app_dir is None:
             return  # abgebrochen
         try:
-            updater.start_installer(new_dir, app_dir)
+            if self._mode == "in_place":
+                updater.start_installer(new_dir, app_dir)
+                # Das Programm beenden; die neue Version wartet darauf und ersetzt dann den Programmordner
+            else:
+                folder = updater.install_user_program(new_dir, self._pending_info.version)
+                updater.cleanup_user_programs()  # Zwischenreste und veraltete Kopien entfernen
+                self._launch_after_quit(folder)  # die neue Kopie startet, sobald dieses Programm beendet ist
         except updater.UpdateError as exc:
             QMessageBox.warning(self._window, "Update nicht möglich", exc.message)
             return
-        # Das Programm beenden; die neue Version wartet darauf und ersetzt dann den Programmordner
         QTimer.singleShot(0, self._window.close)
+
+    def _launch_after_quit(self, folder: str) -> None:
+        """Startet das Programm aus ``folder``, sobald dieses Programm beendet ist."""
+        application = QApplication.instance()
+        if application is not None:
+            application.aboutToQuit.connect(lambda: updater.launch_program(folder))
