@@ -1,0 +1,1 @@
+"""Automatisches Anordnen von Programmablaufplänen."""

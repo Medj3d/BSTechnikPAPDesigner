@@ -1,0 +1,7 @@
+# Zeilenenden: Batch-Dateien brauchen Windows-Zeilenenden, Projektdateien (.pap)
+# werden vom Programm mit einfachen Zeilenumbrüchen geschrieben.
+* text=auto
+*.bat text eol=crlf
+*.pap text eol=lf
+*.png binary
+*.ico binary

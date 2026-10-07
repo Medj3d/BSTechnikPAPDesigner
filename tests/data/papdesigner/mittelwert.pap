@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FRAME GUID="0B7B6C3E-1D2A-4C55-9E57-2B2F1B8C9A10" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="0000000000000000">
+  <PROJECT FORMAT="1.00" NAME="Mittelwert" AUTHOR="Testautor" CREATED="2021.03.01 08:15:00" MODIFIED="2021.03.02 09:30:00">
+    <DIAGRAMS>
+      <DIAGRAM FORMAT="1.00" ID="0" NAME="Hauptprogramm" CREATED="2021.03.01 08:15:00" MODIFIED="2021.03.02 09:30:00">
+        <LAYOUT FORMAT="1.00" COLUMNS="3" ROWS="11">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0" ANCHOR="True">
+              <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
+                <TEXT><![CDATA[Hauptprogramm]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="1">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1">
+                <TEXT><![CDATA[Start]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="2">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2">
+                <TEXT><![CDATA[n einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="3">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="3">
+                <TEXT><![CDATA[summe = 0]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="4">
+              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="4" ASSOCIATE="7">
+                <TEXT><![CDATA[Für i = 1 bis n]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="5">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="5">
+                <TEXT><![CDATA[x einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="6">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="6">
+                <TEXT><![CDATA[summe = summe + x]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="7">
+              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="7" ASSOCIATE="4">
+                <TEXT><![CDATA[]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="8">
+              <FIGURE SUBTYPE="PapCondition" FORMAT="1.00" ID="8">
+                <TEXT><![CDATA[n > 0]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="9">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="9">
+                <TEXT><![CDATA[summe / n ausgeben]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="9">
+              <FIGURE SUBTYPE="PapModule" FORMAT="1.00" ID="10">
+                <TEXT><![CDATA[Fehlermeldung]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="10">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="11">
+                <TEXT><![CDATA[]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="11">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="12">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="20" FROM="1" TO="2" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="21" FROM="2" TO="3" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="22" FROM="3" TO="4" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="23" FROM="4" TO="5" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="24" FROM="5" TO="6" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="25" FROM="6" TO="7" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="26" FROM="7" TO="8" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="27" FROM="8" TO="9" TEXT="ja" />
+          <CONNECTION FORMAT="1.00" ID="28" FROM="8" TO="10" TEXT="nein" />
+          <CONNECTION FORMAT="1.00" ID="29" FROM="9" TO="11" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="30" FROM="10" TO="11" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="31" FROM="11" TO="12" TEXT="" />
+        </CONNECTIONS>
+      </DIAGRAM>
+      <DIAGRAM FORMAT="1.00" ID="1" NAME="Fehlermeldung" CREATED="2021.03.01 08:20:00" MODIFIED="2021.03.01 08:20:00">
+        <LAYOUT FORMAT="1.00" COLUMNS="1" ROWS="3">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="100">
+                <TEXT><![CDATA[Fehlermeldung]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="1">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="101">
+                <TEXT><![CDATA["Keine Werte" ausgeben]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="2">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="102">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="110" FROM="100" TO="101" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="111" FROM="101" TO="102" TEXT="" />
+        </CONNECTIONS>
+      </DIAGRAM>
+    </DIAGRAMS>
+  </PROJECT>
+</FRAME>

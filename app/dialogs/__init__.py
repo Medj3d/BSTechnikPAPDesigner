@@ -1,0 +1,1 @@
+"""Dialoge der Anwendung."""

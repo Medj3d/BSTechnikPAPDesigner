@@ -1,0 +1,12 @@
+# Ergebnisse des exe-Baus (werden mit build_exe.bat neu erzeugt)
+build/
+dist/
+
+# Zwischendateien von Python und den Tests
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Persönliche Einstellungen von Editoren
+.vscode/
+.idea/

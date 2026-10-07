@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="1" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.0.0">
+  <PROJECT FORMAT="1.00" NAME="Beispiel_Mittelwert" AUTHOR="BS Technik" CREATED="2026.09.24 21:55:01" MODIFIED="2026.09.24 21:55:01" bst:DESCRIPTION="Beispiel: Mittelwert von n eingegebenen Werten mit Schleife und Verzweigung." bst:CREATED="2026-09-24T21:55:01+02:00" bst:MODIFIED="2026-09-24T21:55:01+02:00">
+    <DIAGRAMS>
+      <DIAGRAM FORMAT="1.00" ID="0" NAME="Beispiel_Mittelwert" CREATED="2026.09.24 21:55:01" MODIFIED="2026.09.24 21:55:01">
+        <LAYOUT FORMAT="1.00" COLUMNS="2" ROWS="12" bst:GRID_SIZE="20" bst:GRID_VISIBLE="True" bst:SNAP_TO_GRID="True" bst:ZOOM="0.8" bst:VIEW_X="100" bst:VIEW_Y="560">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
+              <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
+                <TEXT><![CDATA[Beispiel_Mittelwert]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="340c436455ec4416902e52144e6e8d03">
+                <TEXT><![CDATA[Start]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="200" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2" bst:UID="4ed793f54b1b465180044f4f32c95600">
+                <TEXT><![CDATA[Anzahl n einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="3" bst:UID="0b365d7269764358ba0129d18414afe0">
+                <TEXT><![CDATA[summe = 0]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="4" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="4" ASSOCIATE="5" bst:UID="c63bd7492e15436fa87edcaec98ca8c5">
+                <TEXT><![CDATA[Für i = 1 bis n]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="7" bst:X="0" bst:Y="620" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="5" ASSOCIATE="4" bst:UID="f348aaa6180b4270865d4962fb55b4cb">
+                <TEXT><![CDATA[nächstes i]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="5" bst:X="0" bst:Y="420" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="6" bst:UID="c99d8177d0c1473d9141f5b958a17f76">
+                <TEXT><![CDATA[Wert x einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="6" bst:X="0" bst:Y="520" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="7" bst:UID="7b822b9d6c0f4ec6a6153381be1684c5">
+                <TEXT><![CDATA[summe = summe + x]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="8" bst:X="0" bst:Y="760" bst:WIDTH="160" bst:HEIGHT="120">
+              <FIGURE SUBTYPE="PapCondition" FORMAT="1.00" ID="8" bst:UID="e7cc7e972c494d47bebaa868be9430ca">
+                <TEXT><![CDATA[n > 0 ?]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="9" bst:X="0" bst:Y="920" bst:WIDTH="200" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="9" bst:UID="6b68252cc63246f081005a2a38aa387f">
+                <TEXT><![CDATA[mittelwert = summe / n]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="10" bst:X="0" bst:Y="1020" bst:WIDTH="200" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="10" bst:UID="fc5e9202d7714c00bf8a005053f00711">
+                <TEXT><![CDATA[Mittelwert ausgeben]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="9" bst:X="280" bst:Y="920" bst:WIDTH="240" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="11" bst:UID="dc0cb49959f34e658e7f4daf0b87dced">
+                <TEXT><![CDATA[„Keine Werte“ ausgeben]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="11" bst:X="0" bst:Y="1140" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="12" bst:UID="170af5461c3d4d9ca9aebe056269940e">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="1" bst:X="300" bst:Y="0" bst:WIDTH="200" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="d3d20467a8a047ba89187cc2907e2f85">
+                <TEXT><![CDATA[Berechnet den Mittelwert
+von n eingegebenen Werten]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="6" TEXT="" bst:UID="b931c354943c4b7e9f4167afcc112910" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,390" />
+          <CONNECTION FORMAT="1.00" ID="15" FROM="6" TO="7" TEXT="" bst:UID="9822b6133c6f4641a43cd1d402f00dfb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,450 0,490" />
+          <CONNECTION FORMAT="1.00" ID="16" FROM="7" TO="5" TEXT="" bst:UID="bd221dc8a4fb477d924198b029332ec9" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,550 0,590" />
+          <CONNECTION FORMAT="1.00" ID="17" FROM="1" TO="2" TEXT="" bst:UID="d6e654f1e8a74affa6518e9458d59ab6" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="2" TO="3" TEXT="" bst:UID="32ba32dc8452439fbdc6066a951ae1bf" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,170" />
+          <CONNECTION FORMAT="1.00" ID="19" FROM="3" TO="4" TEXT="" bst:UID="eeb827c83734403a9cd9ae032b9b045a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,230 0,270" />
+          <CONNECTION FORMAT="1.00" ID="20" FROM="5" TO="8" TEXT="" bst:UID="e7f63250d0c64ab9bc45bd3beaa248a6" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,650 0,700" />
+          <CONNECTION FORMAT="1.00" ID="21" FROM="8" TO="9" TEXT="ja" bst:UID="78fbade7e8f643189936532f8021ea5d" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,820 0,890" />
+          <CONNECTION FORMAT="1.00" ID="22" FROM="8" TO="11" TEXT="nein" bst:UID="789e8cf5c39a433ab31464bae0a538ed" bst:SOURCE_PORT="right" bst:TARGET_PORT="top" bst:PATH="80,760 280,760 280,890" />
+          <CONNECTION FORMAT="1.00" ID="23" FROM="9" TO="10" TEXT="" bst:UID="0ff5f4e4557b436f8db83cac4bd89878" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,950 0,990" />
+          <CONNECTION FORMAT="1.00" ID="24" FROM="10" TO="12" TEXT="" bst:UID="2b93fe588adb40478b4e477b2871967e" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,1050 0,1120" />
+          <CONNECTION FORMAT="1.00" ID="25" FROM="11" TO="12" TEXT="" bst:UID="7437a1b4e087491086b109e3d155ec66" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="right" bst:PATH="280,950 280,1140 60,1140" />
+          <CONNECTION FORMAT="1.00" ID="26" FROM="13" TO="1" TEXT="" bst:UID="38df381ee4c04af3b4119ffb0f424afe" bst:SOURCE_PORT="left" bst:TARGET_PORT="right" bst:PATH="200,0 60,0" />
+        </CONNECTIONS>
+      </DIAGRAM>
+    </DIAGRAMS>
+  </PROJECT>
+</FRAME>
