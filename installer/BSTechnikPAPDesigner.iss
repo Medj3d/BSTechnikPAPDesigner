@@ -4,7 +4,7 @@
 ; Das Setup registriert die Dateiendung .pap als Projektdateityp.
 
 #define AppName "BS Technik PAP Designer"
-#define AppVersion "1.0.0"
+#define AppVersion "1.5.0"
 #define AppExe "BSTechnikPAPDesigner.exe"
 #define ProgId "BSTechnik.PAPDesigner.Project"
 

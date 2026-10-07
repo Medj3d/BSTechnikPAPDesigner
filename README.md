@@ -131,7 +131,7 @@ UTF-8-kodiertes XML im Aufbau des PapDesigners:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED"
-       xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="1" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.0.0">
+       xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="1" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.5.0">
   <PROJECT FORMAT="1.00" NAME="…" AUTHOR="…" CREATED="2026.09.24 21:55:01" MODIFIED="…"
            bst:DESCRIPTION="…" bst:CREATED="2026-09-24T21:55:01+02:00" bst:MODIFIED="…">
     <DIAGRAMS>
@@ -325,7 +325,7 @@ Einmalig einrichten:
 
 Für jede neue Version:
 
-1. In `app/config.py` `APP_VERSION` erhöhen (z. B. `1.0.0` → `1.1.0`) und
+1. In `app/config.py` `APP_VERSION` erhöhen (z. B. `1.5.0` → `1.6.0`) und
    `APP_RELEASE_DATE` anpassen.
 2. `release.bat "Was ist neu"` ausführen. Das baut das Programm, erzeugt
    `dist\BSTechnikPAPDesigner.zip` und `dist\version.json` und lädt beides als
@@ -346,6 +346,21 @@ Zuordnung: `.pap`-Dateien öffnen sich danach mit diesem Programm.
 * **Ohne Installer:** im Programm **Hilfe → Dateityp registrieren …** wählen.
   Die Zuordnung wird nur für den aktuellen Windows-Benutzer eingetragen
   (`HKEY_CURRENT_USER\Software\Classes`, keine Administratorrechte nötig).
+
+---
+
+## Versionen
+
+Die Zahl nach dem Punkt zählt die Erweiterungen seit dem Grundprogramm.
+
+| Version | Zeitraum | Inhalt |
+|---|---|---|
+| 1.0 | September 2026 | Grundprogramm: Editor für Programmablaufpläne |
+| 1.1 | 30.09.2026 | fragwürdige Verbindungen werden rot markiert statt verhindert; Verbindungen können an bestehenden Pfeilen ansetzen |
+| 1.2 | 30.09.–01.10.2026 | PapDesigner-Dateien lesen, Code erzeugen, Schreibtischtest, automatisch anordnen, Hinweisliste, automatisches Sichern, Struktogramm, helles Farbschema |
+| 1.3 | 01.–06.10.2026 | erzeugter Java-Code wird übersetzt, ausgeführt und mit Schreibtischtest und Python verglichen; rund 75 Fehler behoben |
+| 1.4 | 07.10.2026 | `.pap` als einziges Projektformat |
+| 1.5 | 07.10.2026 | Urheber und Version im Über-Dialog, Ladebildschirm, automatisches Speichern, Updates |
 
 ---
 

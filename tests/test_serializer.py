@@ -1,6 +1,7 @@
 """Tests für das Dateiformat .pap."""
 
 import os
+import re
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -299,7 +300,11 @@ def test_example_file_is_current_and_stable():
     assert result.native and result.warnings == []
     assert len(result.diagram.elements) == 13 and len(result.diagram.connections) == 13
     with open(EXAMPLE, encoding="utf-8", newline="") as handle:
-        assert diagram_to_xml(result.diagram) == handle.read()
+        stored = handle.read()
+    # Die Datei nennt die Programmversion, die sie geschrieben hat – eine neue
+    # Versionsnummer allein macht das Beispiel nicht veraltet.
+    writer = re.compile(r'bst:APP_VERSION="[^"]*"')
+    assert writer.sub("", diagram_to_xml(result.diagram)) == writer.sub("", stored)
 
 
 # ------------------------------------------------------------ Fehlerfälle
