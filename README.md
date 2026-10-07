@@ -252,11 +252,11 @@ app/
   fileformat/                Lesen und Schreiben von .pap (serializer.py), Kennungen und Version (project.py)
 assets/                      erzeugte Programm-/Dateisymbole (.ico/.png), Schullogo
 tools/generate_icons.py      erzeugt die Symbole in assets/
-tools/make_release.py        packt das gebaute Programm als Update und lädt es bei GitHub hoch
+tools/make_release.py        erzeugt Setup-Datei und Update-Paket und lädt sie bei GitHub hoch
 build_exe.bat                baut das Programm (dist\BSTechnikPAPDesigner)
 release.bat                  baut und veröffentlicht eine neue Version als Update
 tests/                       automatische Tests (pytest)
-installer/                   optionales Inno-Setup-Skript inkl. Dateizuordnung
+installer/                   Inno-Setup-Skript für die Setup-Datei (inkl. Dateizuordnung)
 ```
 
 Grafik und Daten sind getrennt: Jedes grafische Objekt hält eine Referenz
@@ -309,6 +309,21 @@ Die Konfiguration wurde mit PyInstaller 6.22 und PySide6 6.11 unter Python 3.14 
 
 Die Zwischendateien des Baus landen im Temp-Ordner, nicht im Projektordner.
 
+### Weitergeben: die Setup-Datei
+
+Weitergegeben wird eine einzige Datei, `BSTechnikPAPDesigner-Setup.exe`. Sie
+installiert das Programm ohne Administratorrechte in das Benutzerprofil, legt
+einen Eintrag im Startmenü an und verknüpft auf Wunsch `.pap`-Dateien mit dem
+Programm. Die jeweils neueste Fassung steht immer unter
+
+    https://github.com/Medj3d/BSTechnikPAPDesigner/releases/latest/download/BSTechnikPAPDesigner-Setup.exe
+
+Die Setup-Datei entsteht mit `release.bat` (siehe unten) und braucht dafür
+[Inno Setup 6](https://jrsoftware.org/isdl.php) auf dem Rechner, auf dem
+gebaut wird. Wer im Setup „für alle Benutzer“ wählt (Administrator, z. B. in
+der Schule), installiert nach `C:\Programme`; dort kann sich das Programm
+nicht selbst aktualisieren, neue Versionen kommen dann mit dem nächsten Setup.
+
 ### Neue Version als Update veröffentlichen
 
 Das fertige Programm sieht beim Start in den Veröffentlichungen („Releases“)
@@ -327,9 +342,10 @@ Für jede neue Version:
 
 1. In `app/config.py` `APP_VERSION` erhöhen (z. B. `1.5.0` → `1.6.0`) und
    `APP_RELEASE_DATE` anpassen.
-2. `release.bat "Was ist neu"` ausführen. Das baut das Programm, erzeugt
-   `dist\BSTechnikPAPDesigner.zip` und `dist\version.json` und lädt beides als
-   Version `v…` hoch.
+2. `release.bat "Was ist neu"` ausführen. Das baut das Programm, erzeugt in
+   `dist` die Setup-Datei, das Update-Paket `BSTechnikPAPDesigner.zip` und
+   `version.json` und lädt alles als Version `v…` hoch. (Nur bauen, ohne
+   Hochladen: `python tools\make_release.py --ohne-upload`.)
 
 Voraussetzungen auf dem Zielrechner: Internetzugang zu `github.com` und
 Schreibrechte im Programmordner (also nicht unter `C:\Programme` ohne
@@ -340,9 +356,9 @@ Administratorrechte). Fehlt eines davon, läuft das Programm unverändert weiter
 Ist der alte PapDesigner noch installiert, übernimmt die Registrierung dessen
 Zuordnung: `.pap`-Dateien öffnen sich danach mit diesem Programm.
 
-* **Mit Installer (empfohlen):** `installer\BSTechnikPAPDesigner.iss` mit
-  [Inno Setup 6](https://jrsoftware.org/isinfo.php) übersetzen. Das Setup
-  installiert das Programm und registriert `.pap` inklusive Dateisymbol.
+* **Mit der Setup-Datei (empfohlen):** Im Setup ist „.pap-Dateien mit diesem
+  Programm öffnen“ vorausgewählt; es trägt die Zuordnung inklusive Dateisymbol
+  ein und entfernt sie bei der Deinstallation wieder.
 * **Ohne Installer:** im Programm **Hilfe → Dateityp registrieren …** wählen.
   Die Zuordnung wird nur für den aktuellen Windows-Benutzer eingetragen
   (`HKEY_CURRENT_USER\Software\Classes`, keine Administratorrechte nötig).
@@ -363,6 +379,7 @@ dritte Zahl kleine Nachbesserungen.
 | 1.4 | 07.10.2026 | `.pap` als einziges Projektformat |
 | 1.5 | 07.10.2026 | Urheber und Version im Über-Dialog, Ladebildschirm, automatisches Speichern, Updates |
 | 1.5.1 | 07.10.2026 | Ladebildschirm erscheint früher und bleibt 6 Sekunden stehen |
+| 1.5.2 | 08.10.2026 | Setup-Datei zum Weitergeben und Installieren |
 
 ---
 

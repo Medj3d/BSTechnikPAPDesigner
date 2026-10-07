@@ -428,11 +428,67 @@ def test_locked_program_folder_is_left_untouched(tmp_path, monkeypatch):
     assert tree(app_dir) == before
 
 
-def test_release_files_are_built_and_understood(tmp_path, monkeypatch):
+def load_make_release():
     import importlib.util
     spec = importlib.util.spec_from_file_location("make_release", os.path.join(ROOT, "tools", "make_release.py"))
-    make_release = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(make_release)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_setup_file_is_built_and_published_with_the_release(tmp_path, monkeypatch):
+    import types
+    make_release = load_make_release()
+    dist = tmp_path / "dist"
+    program_folder(dist / "BSTechnikPAPDesigner", "neu")
+    monkeypatch.setattr(make_release, "DIST", str(dist))
+    monkeypatch.setattr(make_release, "PROGRAM", str(dist / "BSTechnikPAPDesigner"))
+    monkeypatch.setattr(make_release.sys, "argv", ["make_release.py", "--ohne-upload", "Setup dabei"])
+    assert make_release.release_notes() == "Setup dabei"
+    calls = []
+
+    def fake_run(command, **_kwargs):
+        calls.append(command)
+        if command[0] == "ISCC.exe":
+            (dist / config.SETUP_FILE_NAME).write_bytes(b"setup")
+        return types.SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(make_release.subprocess, "run", fake_run)
+    # ohne Inno Setup geht es ohne Setup-Datei weiter
+    monkeypatch.setattr(make_release, "find_inno_setup", lambda: None)
+    assert make_release.build_setup() is None and calls == []
+    # mit Inno Setup: Version, Quelle und Ziel werden vorgegeben
+    monkeypatch.setattr(make_release, "find_inno_setup", lambda: "ISCC.exe")
+    setup = make_release.build_setup()
+    assert setup == str(dist / config.SETUP_FILE_NAME)
+    assert f"/DAppVersion={config.APP_VERSION}" in calls[0] and f"/DOutputDir={dist}" in calls[0]
+    assert os.path.isfile(calls[0][-1]) and calls[0][-1].endswith(".iss")
+    # --ohne-upload: alles bauen, nichts hochladen
+    assert make_release.main() == 0 and not any(command[0] == "gh" for command in calls)
+    # hochgeladen werden Paket, Angaben und Setup-Datei
+    monkeypatch.setattr(config, "UPDATE_REPOSITORY", "schule/pap")
+    monkeypatch.setattr(make_release.shutil, "which", lambda name: "gh")
+    assert make_release.publish("p.zip", "version.json", setup) == 0
+    assert calls[-1][:7] == ["gh", "release", "create", f"v{config.APP_VERSION}", "p.zip", "version.json", setup]
+
+
+def test_installer_script_installs_without_admin_rights_and_takes_its_version_from_the_build():
+    path = os.path.join(ROOT, "installer", "BSTechnikPAPDesigner.iss")
+    raw = open(path, "rb").read()
+    assert raw.startswith(b"\xef\xbb\xbf")  # sonst liest Inno Setup die Umlaute falsch
+    script = raw.decode("utf-8-sig")
+    assert "PrivilegesRequired=lowest" in script  # Benutzerprofil: dort funktionieren die Updates
+    assert f"OutputBaseFilename={os.path.splitext(config.SETUP_FILE_NAME)[0]}" in script
+    assert f'#define AppExe "{config.EXECUTABLE_NAME}"' in script
+    assert config.APP_VERSION not in script and "#ifndef AppVersion" in script  # Version kommt vom Bau
+    assert f'#define ProgId "{config.FILE_PROG_ID}"' in script and f"Classes\\{config.FILE_EXTENSION}" in script
+    assert os.path.isfile(os.path.join(ROOT, "assets", "file_icon.ico")) and r"_internal\assets\file_icon.ico" in script
+    for author in config.APP_AUTHORS:
+        assert author in script
+
+
+def test_release_files_are_built_and_understood(tmp_path, monkeypatch):
+    make_release = load_make_release()
     dist = tmp_path / "dist"
     program_folder(dist / "BSTechnikPAPDesigner", "neu")
     monkeypatch.setattr(make_release, "DIST", str(dist))

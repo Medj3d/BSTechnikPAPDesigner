@@ -7,7 +7,7 @@ hier definiert, damit sie später an genau einer Stelle geändert werden können
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.5.1"
+APP_VERSION = "1.5.2"
 APP_RELEASE_DATE = "Oktober 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Text auf dem Ladebildschirm
@@ -43,6 +43,8 @@ UPDATE_REPOSITORY = "Medj3d/BSTechnikPAPDesigner"
 UPDATE_MANIFEST_NAME = "version.json"
 UPDATE_PACKAGE_NAME = "BSTechnikPAPDesigner.zip"
 EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe"
+# Setup-Datei zum Weitergeben (installiert das Programm; entsteht mit release.bat)
+SETUP_FILE_NAME = "BSTechnikPAPDesigner-Setup.exe"
 # Mit diesem Aufruf installiert die neue Programmdatei ein Update (siehe app/updater.py)
 UPDATE_APPLY_FLAG = "--apply-update"
 
