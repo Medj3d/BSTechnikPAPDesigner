@@ -127,6 +127,7 @@ def check_language(code: str, entries: dict) -> tuple[list[str], list[str]]:
 
 
 def main(argv: list[str]) -> int:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     codes = [a for a in argv if not a.startswith("--")] or [c for c in i18n.LANGUAGES if c != i18n.SOURCE_LANGUAGE]
     entries, _dynamic = collect()
     failed = False

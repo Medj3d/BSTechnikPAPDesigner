@@ -41,6 +41,8 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Updates | das fertige Programm prüft beim Start, ob eine neuere Version veröffentlicht wurde, und aktualisiert sich nach Rückfrage selbst, auch ohne Schreibrechte im Programmordner (z. B. bei Installation für alle Benutzer); auch über **Hilfe → Nach Updates suchen** |
 | Ladebildschirm / Über | beim Start erscheint als Erstes für 6 Sekunden das Schullogo mit Urheberzeile und Version; **Hilfe → Über das Programm** nennt Urheber, Version und Erscheinungsmonat |
 | Farbschema | **Ansicht → Farbschema**: dunkel oder hell (z. B. für Beamer), wird gespeichert |
+| Sprachen | **Ansicht → Sprache / Language**: Deutsch, English, Français, Español, Português (Brasil), Русский, العربية, 中文 und 日本語; „Automatisch“ richtet sich nach der Sprache von Windows. Die Sprache gilt nach einem Neustart, den das Programm gleich anbietet (gespeicherte Projekte werden danach wieder geöffnet). Arabisch wird von rechts nach links dargestellt. Pläne aus jeder Sprache lassen sich in jeder Sprache öffnen: Standardtexte und die Beschriftungen ja/nein/sonst werden in allen Sprachen erkannt |
+| Ein Fenster | wird eine weitere Datei geöffnet (Doppelklick im Explorer, „Öffnen mit“), erscheint sie als neuer Reiter im schon laufenden Programm statt in einem zweiten Fenster; das Fenster kommt dabei nach vorne |
 | PapDesigner-Dateien | `.pap`-Dateien aus dem alten PapDesigner werden wie jedes andere Projekt geöffnet (**Datei → Öffnen** oder ins Fenster ziehen), auch mit mehreren Diagrammen/Unterprogrammen; die Anordnung wird aus dem Raster der Datei übernommen. Vor dem ersten Überschreiben einer solchen Datei fragt das Programm nach |
 | Robustheit | verständliche Fehlermeldungen statt Tracebacks, Fehlerprotokoll unter `%LOCALAPPDATA%\BSTechnik\PAPDesigner\logs` |
 
@@ -65,6 +67,14 @@ Eine Projektdatei direkt öffnen:
 ```bat
 python main.py "C:\Pfad\mein_programm.pap"
 ```
+
+Läuft das Programm schon, öffnet dieser Aufruf die Datei dort als weiteren
+Reiter. Startoptionen (auch für die fertige `BSTechnikPAPDesigner.exe`):
+
+| Option | Wirkung |
+|---|---|
+| `--neues-fenster` | startet ein zweites, eigenständiges Fenster |
+| `--sprache <Code>` | Sprache nur für diesen Start: `de`, `en`, `fr`, `es`, `pt`, `ru`, `ar`, `zh`, `ja` |
 
 ---
 
@@ -227,7 +237,11 @@ app/
   export.py                  PNG/SVG/PDF-Export und Druck
   errors.py                  Fehlerbehandlung und Protokoll
   file_association.py        optionale Registrierung von .pap (Benutzerebene)
-  settings_store.py          zuletzt geöffnete Dateien, Fensterzustand
+  settings_store.py          zuletzt geöffnete Dateien, Fensterzustand, Sprache
+  i18n.py                    Mehrsprachigkeit: tr()/N_()/tr_code(), Sprachwahl, Schreibrichtung, Schriften
+  labels.py                  ja/nein/sonst und allgemeine Programmnamen in allen Sprachen erkennen
+  single_instance.py         ein Fenster für alles: weitere Starts übergeben ihre Dateien dem laufenden Programm
+  restart.py                 Neustart des Programms (z. B. nach dem Wechsel der Sprache)
   model/                     grafikunabhängiges Datenmodell, Bausteintypen, Verbindungsregeln
                              (rules.py: Warnungen vs. technisch blockierende Fehler)
   analysis/                  Ablaufgraph (graph.py), Strukturbaum (ast.py, structure.py:
@@ -251,7 +265,11 @@ app/
   dialogs/                   Projekteigenschaften, Über, Tastenkürzel, Exportoptionen
   fileformat/                Lesen und Schreiben von .pap (serializer.py), Kennungen und Version (project.py)
 assets/                      erzeugte Programm-/Dateisymbole (.ico/.png), Schullogo
+assets/translations/         Übersetzungen (eine JSON-Datei je Sprache: deutscher Text → Übersetzung)
 tools/generate_icons.py      erzeugt die Symbole in assets/
+tools/extract_strings.py     listet alle übersetzbaren Texte des Quelltexts
+tools/check_translations.py  prüft die Übersetzungen (Vollständigkeit, Platzhalter, Tastenkürzel)
+tools/translation_batch.py   ergänzt fehlende Übersetzungen portionsweise
 tools/make_release.py        erzeugt Setup-Datei und Update-Paket und lädt sie bei GitHub hoch
 build_exe.bat                baut das Programm (dist\BSTechnikPAPDesigner)
 release.bat                  baut und veröffentlicht eine neue Version als Update
@@ -262,6 +280,31 @@ installer/                   Inno-Setup-Skript für die Setup-Datei (inkl. Datei
 Grafik und Daten sind getrennt: Jedes grafische Objekt hält eine Referenz
 auf seine Modelldaten (`ElementData`, `ConnectionData`) und hält diese aktuell.
 Der Serializer arbeitet ausschließlich mit dem Modell.
+
+### Mehrsprachigkeit
+
+Der deutsche Text im Quelltext ist zugleich der Schlüssel der Übersetzung:
+`tr("Datei speichern")` liefert den Text in der eingestellten Sprache,
+`tr("{n} Bausteine", n=3)` füllt Platzhalter. Texte in Tabellen und Konstanten
+werden mit `N_("…")` nur markiert und erst bei der Anzeige mit `tr(variable)`
+übersetzt. Dasselbe deutsche Wort mit anderer Bedeutung bekommt einen
+Zusammenhang: `tr("Ende", ctx="Baustein")`. Texte in erzeugten Programmen
+(Pseudocode, Kommentare) laufen über `tr_code()`: Deutsch bleibt Deutsch, jede
+andere Sprache erzeugt englischen Programmtext.
+
+Neue Texte übersetzen:
+
+```bat
+python tools\translation_batch.py status
+python tools\translation_batch.py next fr --out teil.json
+python tools\translation_batch.py merge fr uebersetzt.json
+python tools\check_translations.py --warnings
+```
+
+Was in Projektdateien steht (Standardtexte der Bausteine, ja/nein/sonst), wird
+in allen Sprachen wiedererkannt (`is_default_text`, `app/labels.py`); die
+Schlüsselwörter in den Texten eines Plans (z. B. `für i von 1 bis 10`,
+`solange`, `Eingabe:`) gehören zur Sprache des Plans und bleiben, wie sie sind.
 
 ---
 
@@ -404,6 +447,7 @@ dritte Zahl kleine Nachbesserungen.
 | 1.5.2 | 08.10.2026 | Setup-Datei zum Weitergeben und Installieren |
 | 1.5.3 | 08.10.2026 | ohne Schreibrechte im Programmordner (z. B. Installation für alle Benutzer) nur noch ein Hinweis in der Statuszeile statt einer Update-Frage |
 | 1.6 | 08.10.2026 | Updates funktionieren auch ohne Schreibrechte im Programmordner: Die neue Version wird im Benutzerordner abgelegt und von dort gestartet |
+| 1.7 | 08.10.2026 | neun Sprachen (Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch); weitere Dateien öffnen sich als Reiter im laufenden Programm; Schullogo im Ladebildschirm vollständig und mittig |
 
 ---
 
