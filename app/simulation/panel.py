@@ -14,8 +14,10 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QGraphicsItem, QHBo
 
 from app import icons, styles
 from app.analysis.graph import FlowGraph
+from app.i18n import tr
 from app.items.base_item import LAYER_OVERLAY
-from app.model.element_types import ElementType
+from app.labels import no_label, yes_label
+from app.model.element_types import ElementType, default_text_for
 from app.simulation.engine import NEEDS_DECISION, NEEDS_INPUT, Simulator
 from app.simulation.evaluator import format_value
 
@@ -67,13 +69,13 @@ class SimulationPanel(QWidget):
         self._stale = False
 
         self.program_combo = QComboBox()
-        self.program_combo.setToolTip("Ablauf (Start-Element)")
-        self.restart_button = self._tool("restart", "Neu starten", self.restart)
-        self.step_button = self._tool("step", "Einen Schritt ausführen (F10)", self.step)
+        self.program_combo.setToolTip(tr("Ablauf (Start-Element)"))
+        self.restart_button = self._tool("restart", tr("Neu starten"), self.restart)
+        self.step_button = self._tool("step", tr("Einen Schritt ausführen (F10)"), self.step)
         self.step_button.setShortcut(QKeySequence("F10"))
-        self.run_button = self._tool("play", "Ausführen bis zur nächsten Eingabe (F5)", self.run)
+        self.run_button = self._tool("play", tr("Ausführen bis zur nächsten Eingabe (F5)"), self.run)
         self.run_button.setShortcut(QKeySequence("F5"))
-        self.stop_button = self._tool("stop", "Beenden", self.stop)
+        self.stop_button = self._tool("stop", tr("Beenden", ctx="Schreibtischtest"), self.stop)
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(6, 4, 6, 0)
         toolbar.addWidget(self.program_combo, 1)
@@ -83,16 +85,16 @@ class SimulationPanel(QWidget):
         self._toolbar_stretch = QWidget()
         toolbar.addWidget(self._toolbar_stretch, 1)
 
-        self.status = QLabel("Starten Sie den Schreibtischtest mit ▶ oder „Schritt“.")
+        self.status = QLabel(tr("Starten Sie den Schreibtischtest mit ▶ oder „Schritt“."))
         self.status.setWordWrap(True)
         self.status.setContentsMargins(8, 2, 8, 2)
 
         # Eingabe
         self.input_label = QLabel("")
         self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Wert(e) eingeben, mehrere durch Leerzeichen trennen")
+        self.input_field.setPlaceholderText(tr("Wert(e) eingeben, mehrere durch Leerzeichen trennen"))
         self.input_field.returnPressed.connect(self.submit_input)
-        ok = QPushButton("OK")
+        ok = QPushButton(tr("OK"))
         ok.clicked.connect(self.submit_input)
         self.input_row = QWidget()
         row = QHBoxLayout(self.input_row)
@@ -114,7 +116,7 @@ class SimulationPanel(QWidget):
 
         # Tabellen
         self.variables_table = QTableWidget(0, 2)
-        self.variables_table.setHorizontalHeaderLabels(["Variable", "Wert"])
+        self.variables_table.setHorizontalHeaderLabels([tr("Variable"), tr("Wert")])
         self.trace_table = QTableWidget(0, 2)
         self.outputs = QPlainTextEdit()
         self.outputs.setReadOnly(True)
@@ -126,10 +128,10 @@ class SimulationPanel(QWidget):
             table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
             table.horizontalHeader().setStretchLastSection(True)
         self.tabs = QTabWidget()
-        self.tabs.addTab(self.variables_table, "Variablen")
-        self.tabs.addTab(self.trace_table, "Schreibtischtest")
-        self.tabs.addTab(self.outputs, "Ausgaben")
-        self.tabs.addTab(self.log, "Protokoll")
+        self.tabs.addTab(self.variables_table, tr("Variablen"))
+        self.tabs.addTab(self.trace_table, tr("Schreibtischtest"))
+        self.tabs.addTab(self.outputs, tr("Ausgaben"))
+        self.tabs.addTab(self.log, tr("Protokoll"))
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -151,7 +153,7 @@ class SimulationPanel(QWidget):
             button.deleteLater()
         self._decision_buttons = []
         choices = [(label, index) for index, label in enumerate(options)] if options \
-            else [("ja", True), ("nein", False)]
+            else [(yes_label(), True), (no_label(), False)]
         for label, answer in choices:
             button = QPushButton(label)
             button.clicked.connect(lambda _=False, a=answer: self.decide(a))
@@ -196,7 +198,8 @@ class SimulationPanel(QWidget):
         if self._document is not None:
             # gleiche Reihenfolge wie die Analyse: Hauptprogramm zuerst
             for node in FlowGraph.from_scene(self._document.scene).starts():
-                self.program_combo.addItem(" ".join(node.text.split()) or "Start", node.id)
+                self.program_combo.addItem(" ".join(node.text.split()) or default_text_for(ElementType.START),
+                                           node.id)
         index = self.program_combo.findData(current)
         self.program_combo.setCurrentIndex(max(0, index))
         self.program_combo.blockSignals(False)
@@ -214,7 +217,7 @@ class SimulationPanel(QWidget):
         self.input_row.hide()
         self.decision_row.hide()
         self._remove_highlight()
-        self.status.setText("Der Plan wurde geändert. Bitte den Schreibtischtest neu starten.")
+        self.status.setText(tr("Der Plan wurde geändert. Bitte den Schreibtischtest neu starten."))
         self._update_controls()
 
     # ------------------------------------------------------------ Ablauf
@@ -230,13 +233,13 @@ class SimulationPanel(QWidget):
         start_id = self.program_combo.currentData()
         graph = FlowGraph.from_scene(self._document.scene)
         if not graph.starts():
-            self.status.setText("Der Plan enthält kein Start-Element.")
+            self.status.setText(tr("Der Plan enthält kein Start-Element."))
             return
         self._simulator = Simulator(graph, start_id)
         self._stale = False
         self.log.clear()
         self.outputs.clear()
-        self.status.setText("Bereit. „Schritt“ führt den nächsten Baustein aus.")
+        self.status.setText(tr("Bereit. „Schritt“ führt den nächsten Baustein aus."))
         self._show_current()
         self._update_tables()
         self._update_controls()
@@ -265,7 +268,7 @@ class SimulationPanel(QWidget):
             if result.needs or result.finished:
                 break
         else:
-            self.status.setText(f"Nach {RUN_BATCH} Schritten angehalten – mit ▶ fortsetzen.")
+            self.status.setText(tr("Nach {count} Schritten angehalten – mit ▶ fortsetzen.", count=RUN_BATCH))
         self._show_result(self._simulator.pending or None, logged=True)
 
     def stop(self, silent: bool = False) -> None:
@@ -275,7 +278,7 @@ class SimulationPanel(QWidget):
         self.input_row.hide()
         self.decision_row.hide()
         if not silent:
-            self.status.setText("Schreibtischtest beendet.")
+            self.status.setText(tr("Schreibtischtest beendet."))
         self._update_controls()
 
     def submit_input(self) -> None:
@@ -322,8 +325,10 @@ class SimulationPanel(QWidget):
             self.decision_label.setText(pending.prompt)
             self.status.setText(pending.message)
         elif simulator.finished:
-            self.status.setText((result.message + " – " if result is not None and result.message else "")
-                                + "Schreibtischtest beendet.")
+            if result is not None and result.message:
+                self.status.setText(tr("{message} – Schreibtischtest beendet.", message=result.message))
+            else:
+                self.status.setText(tr("Schreibtischtest beendet."))
         elif result is not None:
             self.status.setText(result.message)
         self._show_current()
@@ -368,7 +373,7 @@ class SimulationPanel(QWidget):
         trace = simulator.trace if simulator else []
         names = list(variables)
         self.trace_table.setColumnCount(2 + len(names))
-        self.trace_table.setHorizontalHeaderLabels(["Schritt", "Baustein"] + names)
+        self.trace_table.setHorizontalHeaderLabels([tr("Schritt"), tr("Baustein")] + names)
         self.trace_table.setRowCount(len(trace))
         for row, entry in enumerate(trace):
             self.trace_table.setItem(row, 0, QTableWidgetItem(str(entry.step)))

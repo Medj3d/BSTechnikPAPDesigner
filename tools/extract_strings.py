@@ -105,9 +105,17 @@ def collect(root: str = ROOT) -> tuple[dict[str, Entry], list[Dynamic]]:
     return entries, dynamic
 
 
+def is_required(code: str, entry: Entry) -> bool:
+    """Braucht die Sprache ``code`` diesen Text?
+
+    Texte, die nur in erzeugten Programmen stehen (``tr_code``), gibt es nur auf Deutsch und Englisch.
+    """
+    return code == i18n.FALLBACK_LANGUAGE or entry.kinds != {"tr_code"}
+
+
 def missing(code: str, entries: dict[str, Entry]) -> list[str]:
     catalog = i18n.load_catalog(code)
-    return [key for key in entries if key not in catalog]
+    return [key for key, entry in entries.items() if key not in catalog and is_required(code, entry)]
 
 
 def main(argv: list[str]) -> int:
@@ -115,7 +123,8 @@ def main(argv: list[str]) -> int:
     if "--json" in argv:
         target = argv[argv.index("--json") + 1]
         data = [{"key": e.key, "text": e.text, "ctx": e.ctx, "placeholders": e.placeholders,
-                 "locations": [f"{p}:{n}" for p, n in e.locations]} for e in entries.values()]
+                 "kinds": sorted(e.kinds), "locations": [f"{p}:{n}" for p, n in e.locations]}
+                for e in entries.values()]
         with open(target, "w", encoding="utf-8") as handle:
             json.dump(data, handle, ensure_ascii=False, indent=1)
         print(f"{len(entries)} Texte nach {target} geschrieben.")

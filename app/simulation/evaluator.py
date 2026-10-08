@@ -14,6 +14,7 @@ import math
 import operator
 
 from app.analysis import text as T
+from app.i18n import tr
 
 MAX_POWER = 10_000
 MAX_STRING = 100_000
@@ -27,9 +28,9 @@ class EvaluationError(Exception):
 def _limited(value):
     """Begrenzt Zwischenergebnisse, damit Schleifen wie x = x * x nicht ausufern."""
     if isinstance(value, int) and not isinstance(value, bool) and value.bit_length() > MAX_INT_BITS:
-        raise EvaluationError("Die Zahl ist zu groß.")
+        raise EvaluationError(tr("Die Zahl ist zu groß."))
     if isinstance(value, str) and len(value) > MAX_STRING:
-        raise EvaluationError("Die Zeichenkette ist zu lang.")
+        raise EvaluationError(tr("Die Zeichenkette ist zu lang."))
     return value
 
 
@@ -54,9 +55,9 @@ def runden(x, stellen=0):
 def _power(base, exponent):
     """pow(a, b) mit denselben Grenzen wie der Operator **."""
     if isinstance(exponent, (int, float)) and abs(exponent) > MAX_POWER:
-        raise ValueError("Der Exponent ist zu groß.")
+        raise ValueError(tr("Der Exponent ist zu groß."))
     if isinstance(base, int) and isinstance(exponent, int) and exponent > 0             and max(abs(base), 2).bit_length() * exponent > MAX_INT_BITS * 2:
-        raise OverflowError("Die Zahl ist zu groß.")
+        raise OverflowError(tr("Die Zahl ist zu groß."))
     return base ** exponent
 
 
@@ -109,13 +110,13 @@ def _eval(node, variables):
     if isinstance(node, ast.Constant):
         if isinstance(node.value, (int, float, str, bool)):
             return node.value
-        raise EvaluationError("Dieser Wert wird nicht unterstützt.")
+        raise EvaluationError(tr("Dieser Wert wird nicht unterstützt."))
     if isinstance(node, ast.Name):
         if node.id in variables:
             return variables[node.id]
         if node.id in _CONSTANTS:
             return _CONSTANTS[node.id]
-        raise EvaluationError(f"Die Variable „{node.id}“ hat noch keinen Wert.")
+        raise EvaluationError(tr("Die Variable „{name}“ hat noch keinen Wert.", name=node.id))
     if isinstance(node, ast.UnaryOp):
         value = _eval(node.operand, variables)
         try:
@@ -124,14 +125,14 @@ def _eval(node, variables):
             if isinstance(node.op, ast.UAdd):
                 return +value
         except TypeError as exc:
-            raise EvaluationError(f"Rechnung nicht möglich ({exc}).") from exc
+            raise EvaluationError(tr("Rechnung nicht möglich ({error}).", error=exc)) from exc
         if isinstance(node.op, ast.Not):
             return not value
-        raise EvaluationError("Dieser Operator wird nicht unterstützt.")
+        raise EvaluationError(tr("Dieser Operator wird nicht unterstützt."))
     if isinstance(node, ast.BinOp):
         op = _BINARY.get(type(node.op))
         if op is None:
-            raise EvaluationError("Dieser Operator wird nicht unterstützt.")
+            raise EvaluationError(tr("Dieser Operator wird nicht unterstützt."))
         left, right = _eval(node.left, variables), _eval(node.right, variables)
         if isinstance(node.op, ast.Add) and isinstance(left, str) != isinstance(right, str):
             # Text + Zahl wird verkettet – wie in den erzeugten Programmen
@@ -141,20 +142,20 @@ def _eval(node, variables):
             left = int(left) if isinstance(left, float) and math.isfinite(left) else left
             right = int(right) if isinstance(right, float) and math.isfinite(right) else right
         if isinstance(node.op, ast.Pow) and isinstance(right, (int, float)) and abs(right) > MAX_POWER:
-            raise EvaluationError("Der Exponent ist zu groß.")
+            raise EvaluationError(tr("Der Exponent ist zu groß."))
         if isinstance(node.op, ast.Mult) and (isinstance(left, str) or isinstance(right, str)):
             count = right if isinstance(left, str) else left
             if isinstance(count, int) and count * max(len(str(left)), len(str(right))) > MAX_STRING:
-                raise EvaluationError("Die Zeichenkette wäre zu lang.")
+                raise EvaluationError(tr("Die Zeichenkette wäre zu lang."))
         if isinstance(node.op, ast.Pow) and isinstance(left, int) and isinstance(right, int) and right > 0 \
                 and max(abs(left), 2).bit_length() * right > MAX_INT_BITS * 2:
-            raise EvaluationError("Die Zahl ist zu groß.")
+            raise EvaluationError(tr("Die Zahl ist zu groß."))
         try:
             return _limited(op(left, right))
         except ZeroDivisionError as exc:
-            raise EvaluationError("Division durch null.") from exc
+            raise EvaluationError(tr("Division durch null.")) from exc
         except (TypeError, ValueError, OverflowError) as exc:
-            raise EvaluationError(f"Rechnung nicht möglich ({exc}).") from exc
+            raise EvaluationError(tr("Rechnung nicht möglich ({error}).", error=exc)) from exc
     if isinstance(node, ast.BoolOp):
         values = node.values
         if isinstance(node.op, ast.And):
@@ -175,39 +176,39 @@ def _eval(node, variables):
         for op_node, comparator in zip(node.ops, node.comparators):
             op = _COMPARE.get(type(op_node))
             if op is None:
-                raise EvaluationError("Dieser Vergleich wird nicht unterstützt.")
+                raise EvaluationError(tr("Dieser Vergleich wird nicht unterstützt."))
             right = _eval(comparator, variables)
             try:
                 if not op(left, right):
                     return False
             except TypeError as exc:
-                raise EvaluationError("Diese Werte lassen sich nicht vergleichen.") from exc
+                raise EvaluationError(tr("Diese Werte lassen sich nicht vergleichen.")) from exc
             left = right
         return True
     if isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name) or node.func.id not in _FUNCTIONS or node.keywords:
-            raise EvaluationError("Diese Funktion wird nicht unterstützt.")
+            raise EvaluationError(tr("Diese Funktion wird nicht unterstützt."))
         args = [_eval(arg, variables) for arg in node.args]
         try:
             return _limited(_FUNCTIONS[node.func.id](*args))
         except (TypeError, ValueError, OverflowError) as exc:
-            raise EvaluationError(f"Funktion „{node.func.id}“: {exc}") from exc
+            raise EvaluationError(tr("Funktion „{name}“: {error}", name=node.func.id, error=exc)) from exc
     if isinstance(node, ast.IfExp):
         return _eval(node.body, variables) if _eval(node.test, variables) else _eval(node.orelse, variables)
-    raise EvaluationError("Dieser Ausdruck wird nicht unterstützt.")
+    raise EvaluationError(tr("Dieser Ausdruck wird nicht unterstützt."))
 
 
 def evaluate(expression: str, variables, condition: bool = False):
     """Wertet einen Ausdruck in PAP-Schreibweise aus. Wirft ``EvaluationError``."""
     expr = T.normalize_expression(expression, condition=condition)
     if not expr:
-        raise EvaluationError("Kein Ausdruck vorhanden.")
+        raise EvaluationError(tr("Kein Ausdruck vorhanden."))
     if len(expr) > 2000:
-        raise EvaluationError("Der Ausdruck ist zu lang.")
+        raise EvaluationError(tr("Der Ausdruck ist zu lang."))
     try:
         tree = ast.parse(expr, mode="eval")
     except SyntaxError as exc:
-        raise EvaluationError("Der Text ist kein auswertbarer Ausdruck.") from exc
+        raise EvaluationError(tr("Der Text ist kein auswertbarer Ausdruck.")) from exc
     return _eval(tree, variables)
 
 
@@ -270,4 +271,4 @@ def safe_str(value) -> str:
     try:
         return str(value)
     except ValueError:  # mehr als 4300 Stellen
-        return "(sehr große Zahl)"
+        return tr("(sehr große Zahl)")

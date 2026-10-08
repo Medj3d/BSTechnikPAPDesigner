@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from PySide6.QtGui import QUndoCommand
 
+from app.i18n import tr
+
 
 class EditTextCommand(QUndoCommand):
     def __init__(self, scene, element_id: str, old_text: str, new_text: str,
-                 text: str = "Text ändern", parent=None):
-        super().__init__(text, parent)
+                 text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Text ändern"), parent)
         self._scene = scene
         self._element_id = element_id
         self._old = old_text
@@ -29,8 +31,8 @@ class EditTextCommand(QUndoCommand):
 
 class EditLabelCommand(QUndoCommand):
     def __init__(self, scene, connection_id: str, old_label: str, new_label: str,
-                 text: str = "Beschriftung ändern", parent=None):
-        super().__init__(text, parent)
+                 text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Beschriftung ändern"), parent)
         self._scene = scene
         self._connection_id = connection_id
         self._old = old_label

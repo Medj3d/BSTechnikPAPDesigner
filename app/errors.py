@@ -14,6 +14,7 @@ import traceback
 from logging.handlers import RotatingFileHandler
 
 from app import config
+from app.i18n import tr
 
 _log_path: str | None = None
 _shown_messages: set[str] = set()
@@ -79,11 +80,11 @@ def show_unexpected_error(details: str) -> None:
     box = QMessageBox(QApplication.activeWindow())
     box.setIcon(QMessageBox.Icon.Warning)
     box.setWindowTitle(config.APP_NAME)
-    box.setText("Es ist ein unerwarteter Fehler aufgetreten.")
-    info = "Die letzte Aktion konnte möglicherweise nicht vollständig ausgeführt werden. " \
-           "Bitte speichern Sie Ihre Arbeit gegebenenfalls unter einem neuen Namen."
+    box.setText(tr("Es ist ein unerwarteter Fehler aufgetreten."))
+    info = tr("Die letzte Aktion konnte möglicherweise nicht vollständig ausgeführt werden. "
+              "Bitte speichern Sie Ihre Arbeit gegebenenfalls unter einem neuen Namen.")
     if _log_path:
-        info += f"\n\nEin Fehlerprotokoll wurde gespeichert:\n{_log_path}"
+        info += "\n\n" + tr("Ein Fehlerprotokoll wurde gespeichert:\n{path}", path=_log_path)
     box.setInformativeText(info)
     box.setDetailedText(details)
     box.setStandardButtons(QMessageBox.StandardButton.Ok)

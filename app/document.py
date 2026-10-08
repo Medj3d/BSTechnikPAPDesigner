@@ -15,6 +15,7 @@ from PySide6.QtGui import QUndoStack
 
 from app import config
 from app.fileformat.serializer import load_diagram, save_diagram
+from app.i18n import tr
 from app.model.diagram import Diagram, ProjectMeta, now_iso
 from app.scene import DiagramScene
 
@@ -39,7 +40,7 @@ class DiagramDocument(QObject):
         if diagram is None:
             DiagramDocument._untitled_counter += 1
             diagram = Diagram()
-            diagram.meta.name = f"{config.DEFAULT_PROJECT_NAME} {DiagramDocument._untitled_counter}"
+            diagram.meta.name = tr("Unbenannt {number}", number=DiagramDocument._untitled_counter)
         self.meta: ProjectMeta = diagram.meta
         self.settings = diagram.settings
         self.file_path = file_path

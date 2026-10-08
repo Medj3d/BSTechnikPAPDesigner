@@ -8,13 +8,23 @@ import PySide6
 from PySide6.QtCore import Qt, qVersion
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QVBoxLayout
 
-from app import config, icons
+from app import config, i18n, icons
+from app.i18n import tr
+from app.model.element_types import ElementType, display_name_for
+
+
+def _author_names() -> str:
+    """Die Urheber als Aufzählung in der eingestellten Sprache („A und B“, „A, B und C“)."""
+    names = list(config.APP_AUTHORS)
+    if len(names) < 2:
+        return "".join(names)
+    return tr("{first} und {last}", first=", ".join(names[:-1]), last=names[-1])
 
 
 class AboutDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(f"Über {config.APP_NAME}")
+        self.setWindowTitle(tr("Über {name}", name=config.APP_NAME))
         self.setMinimumWidth(440)
 
         logo = QLabel()
@@ -24,15 +34,24 @@ class AboutDialog(QDialog):
         title = QLabel(config.APP_NAME)
         title.setObjectName("DialogTitle")
         # Version und Erscheinungsmonat dieser Version
-        version = QLabel(f"Version {config.APP_VERSION} · {config.APP_RELEASE_DATE}")
+        version = QLabel(tr("Version {version} · {date}", version=config.APP_VERSION,
+                            date=i18n.release_date_text()))
         version.setObjectName("Muted")
-        authors = QLabel(f"Ein Programm von {' und '.join(config.APP_AUTHORS)}\nfür die BS Technik")
+        authors = QLabel(tr("Ein Programm von {authors}\nfür die BS Technik", authors=_author_names()))
         authors.setWordWrap(True)
-        description = QLabel(
-            "Editor für Programmablaufpläne (PAP) nach klassischer Notation.\n\n"
-            "Bausteine: Start, Ende, Eingabe, Ausgabe, Vorgang, Unterprogramm, "
-            "Verzweigung, Schleife und Kommentar.\n\n"
-            f"Projektdateien: *{config.FILE_EXTENSION}")
+        # Die Bausteinnamen kommen aus der Bausteintabelle: so stimmen sie mit denen der Werkzeugpalette überein
+        blocks = tr("Bausteine: {start}, {end}, {input}, {output}, {process}, {subprogram}, {decision}, "
+                    "{loop} und {comment}.",
+                    start=display_name_for(ElementType.START), end=display_name_for(ElementType.END),
+                    input=display_name_for(ElementType.INPUT), output=display_name_for(ElementType.OUTPUT),
+                    process=display_name_for(ElementType.PROCESS),
+                    subprogram=display_name_for(ElementType.SUBPROGRAM),
+                    decision=display_name_for(ElementType.DECISION), loop=display_name_for(ElementType.LOOP),
+                    comment=display_name_for(ElementType.COMMENT))
+        description = QLabel("\n\n".join([
+            tr("Editor für Programmablaufpläne (PAP) nach klassischer Notation."),
+            blocks,
+            tr("Projektdateien: *{extension}", extension=config.FILE_EXTENSION)]))
         description.setWordWrap(True)
         tech = QLabel(f"Python {platform.python_version()} · PySide6 {PySide6.__version__} · Qt {qVersion()}")
         tech.setObjectName("Muted")
@@ -54,7 +73,7 @@ class AboutDialog(QDialog):
         top.addLayout(text_layout, 1)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.button(QDialogButtonBox.StandardButton.Close).setText("Schließen")
+        buttons.button(QDialogButtonBox.StandardButton.Close).setText(tr("Schließen"))
         buttons.rejected.connect(self.reject)
         buttons.accepted.connect(self.accept)
 

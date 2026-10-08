@@ -12,6 +12,7 @@ from PySide6.QtGui import QBitmap, QColor, QFont, QPainter, QPixmap, QRegion
 from PySide6.QtWidgets import QSplashScreen
 
 from app import config, resources
+from app.i18n import tr
 
 LOGO_FILE = "bs_technik_logo.png"
 SPLASH_WIDTH = 560
@@ -25,7 +26,7 @@ MUTED_COLOR = "#8c8c8c"
 
 
 def version_text() -> str:
-    return f"Version {config.APP_VERSION}"
+    return tr("Version {version}", version=config.APP_VERSION)
 
 
 def load_logo() -> QPixmap:

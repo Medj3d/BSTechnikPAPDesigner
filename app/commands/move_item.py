@@ -5,6 +5,8 @@ from __future__ import annotations
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QUndoCommand
 
+from app.i18n import tr
+
 MOVE_COMMAND_ID = 1001
 
 
@@ -15,9 +17,9 @@ class MoveItemsCommand(QUndoCommand):
     zusammengefasst, solange dieselben Bausteine bewegt werden.
     """
 
-    def __init__(self, scene, moves: dict, text: str = "Verschieben", mergeable: bool = False,
+    def __init__(self, scene, moves: dict, text: str | None = None, mergeable: bool = False,
                  parent=None):
-        super().__init__(text, parent)
+        super().__init__(text if text is not None else tr("Verschieben"), parent)
         self._scene = scene
         self._moves = dict(moves)
         self._mergeable = mergeable

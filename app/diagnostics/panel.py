@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget, QListWidgetItem
 
 from app import icons, styles
 from app.diagnostics.checks import WARNING, Issue, run_checks
+from app.i18n import tr
 
 
 def severity_icon(severity: str) -> QIcon:
@@ -47,7 +48,7 @@ class DiagnosticsPanel(QWidget):
         self.summary.setObjectName("Muted")
         refresh = QToolButton()
         refresh.setIcon(icons.icon("restart"))
-        refresh.setToolTip("Aktualisieren")
+        refresh.setToolTip(tr("Aktualisieren"))
         refresh.clicked.connect(self.refresh)
         self._refresh_button = refresh
         header = QHBoxLayout()
@@ -101,7 +102,7 @@ class DiagnosticsPanel(QWidget):
         document = self._document
         if document is None:
             self._issues = []
-            self.summary.setText("Kein Projekt geöffnet.")
+            self.summary.setText(tr("Kein Projekt geöffnet."))
             self.issues_changed.emit(0, 0)
             return
         try:
@@ -111,13 +112,13 @@ class DiagnosticsPanel(QWidget):
         warnings = sum(1 for issue in self._issues if issue.severity == WARNING)
         infos = len(self._issues) - warnings
         if not self._issues:
-            self.summary.setText("Keine Auffälligkeiten.")
+            self.summary.setText(tr("Keine Auffälligkeiten."))
         else:
             parts = []
             if warnings:
-                parts.append(f"{warnings} Warnung" + ("en" if warnings != 1 else ""))
+                parts.append(tr("{n} Warnung", n=warnings) if warnings == 1 else tr("{n} Warnungen", n=warnings))
             if infos:
-                parts.append(f"{infos} Hinweis" + ("e" if infos != 1 else ""))
+                parts.append(tr("{n} Hinweis", n=infos) if infos == 1 else tr("{n} Hinweise", n=infos))
             self.summary.setText(" · ".join(parts))
         warning_icon = severity_icon(WARNING)
         info_icon = severity_icon("info")

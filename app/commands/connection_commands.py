@@ -7,14 +7,15 @@ import copy
 from PySide6.QtGui import QUndoCommand
 
 from app.connections.connection import ConnectionItem
+from app.i18n import tr
 from app.model.diagram import ConnectionData
 
 
 class AddConnectionCommand(QUndoCommand):
     """Erzeugt eine Verbindung von Baustein A (Quelle) nach Baustein B (Ziel)."""
 
-    def __init__(self, scene, data: ConnectionData, text: str = "Verbindung erstellen", parent=None):
-        super().__init__(text, parent)
+    def __init__(self, scene, data: ConnectionData, text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Verbindung erstellen"), parent)
         self._scene = scene
         self._data = data.copy()
         self._conn: ConnectionItem | None = None
@@ -43,8 +44,8 @@ class SetRoutingCommand(QUndoCommand):
     """Ändert die (manuelle) Linienführung einer Verbindung."""
 
     def __init__(self, scene, connection_id: str, old_routing: dict, new_routing: dict,
-                 text: str = "Linienführung ändern", parent=None):
-        super().__init__(text, parent)
+                 text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Linienführung ändern"), parent)
         self._scene = scene
         self._connection_id = connection_id
         self._old = copy.deepcopy(old_routing)

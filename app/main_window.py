@@ -40,7 +40,7 @@ from app.fileformat.project import ProjectFileError
 from app.items.base_item import FlowItem
 from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType
 from app.palette import ToolPalette
-from app.i18n import tr
+from app.i18n import N_, tr
 from app.settings_store import SettingsStore
 from app.update_dialogs import UpdateController
 
@@ -66,15 +66,15 @@ class EmptyState(QWidget):
         title = QLabel(config.APP_NAME)
         title.setObjectName("DialogTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        hint = QLabel("Kein Projekt geöffnet.")
+        hint = QLabel(tr("Kein Projekt geöffnet."))
         hint.setObjectName("Muted")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         buttons = QHBoxLayout()
         buttons.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        new_button = QPushButton("Neues Projekt")
+        new_button = QPushButton(tr("Neues Projekt"))
         new_button.setDefault(True)
         new_button.clicked.connect(window.new_document)
-        open_button = QPushButton("Projekt öffnen …")
+        open_button = QPushButton(tr("Projekt öffnen …"))
         open_button.clicked.connect(window.open_file_dialog)
         buttons.addWidget(new_button)
         buttons.addWidget(open_button)
@@ -96,7 +96,7 @@ class EmptyState(QWidget):
                 widget.deleteLater()
         if not files:
             return
-        caption = QLabel("Zuletzt geöffnet")
+        caption = QLabel(tr("Zuletzt geöffnet"))
         caption.setObjectName("Muted")
         caption.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.recent_box.addWidget(caption)
@@ -174,15 +174,15 @@ class MainWindow(QMainWindow):
         a = self.actions
         bar = self.menuBar()
 
-        file_menu = bar.addMenu("&Datei")
+        file_menu = bar.addMenu(tr("&Datei"))
         for name in ("new", "open"):
             file_menu.addAction(a[name])
-        self.recent_menu = file_menu.addMenu("&Zuletzt geöffnet")
+        self.recent_menu = file_menu.addMenu(tr("&Zuletzt geöffnet"))
         file_menu.addSeparator()
         for name in ("save", "save_as", "auto_save"):
             file_menu.addAction(a[name])
         file_menu.addSeparator()
-        export_menu = file_menu.addMenu(icons.icon("export"), "E&xportieren")
+        export_menu = file_menu.addMenu(icons.icon("export"), tr("E&xportieren"))
         for name in ("export_png", "export_svg", "export_pdf"):
             export_menu.addAction(a[name])
         self.export_menu = export_menu
@@ -194,7 +194,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction(a["close"])
         file_menu.addAction(a["quit"])
 
-        edit_menu = bar.addMenu("&Bearbeiten")
+        edit_menu = bar.addMenu(tr("&Bearbeiten"))
         for name in ("undo", "redo", None, "cut", "copy", "paste", "duplicate", "delete", None,
                      "select_all", "deselect", None, "edit_text"):
             if name is None:
@@ -202,14 +202,14 @@ class MainWindow(QMainWindow):
             else:
                 edit_menu.addAction(a[name])
 
-        view_menu = bar.addMenu("&Ansicht")
+        view_menu = bar.addMenu(tr("&Ansicht"))
         for name in ("zoom_in", "zoom_out", "zoom_reset", "zoom_fit", None, "toggle_grid", "toggle_snap"):
             if name is None:
                 view_menu.addSeparator()
             else:
                 view_menu.addAction(a[name])
         view_menu.addSeparator()
-        theme_menu = view_menu.addMenu("&Farbschema")
+        theme_menu = view_menu.addMenu(tr("&Farbschema"))
         theme_group = QActionGroup(self)
         theme_group.setExclusive(True)
         for name in ("theme_dark", "theme_light"):
@@ -219,14 +219,14 @@ class MainWindow(QMainWindow):
         view_menu.addSeparator()
         self.view_menu = view_menu
 
-        insert_menu = bar.addMenu("&Einfügen")
+        insert_menu = bar.addMenu(tr("&Einfügen", ctx="Menü"))  # Bausteine einfügen (nicht: aus der Zwischenablage)
         for element_type in PALETTE_ORDER:
             insert_menu.addAction(a[insert_action_name(element_type)])
         insert_menu.addSeparator()
         for element_type in FLOW_TERMINALS:
             insert_menu.addAction(a[insert_action_name(element_type)])
 
-        arrange_menu = bar.addMenu("An&ordnen")
+        arrange_menu = bar.addMenu(tr("An&ordnen"))
         for name in ALIGN_ACTIONS[:6]:
             arrange_menu.addAction(a[name])
         arrange_menu.addSeparator()
@@ -242,14 +242,14 @@ class MainWindow(QMainWindow):
         arrange_menu.addSeparator()
         arrange_menu.addAction(a["auto_layout"])
 
-        extras_menu = bar.addMenu("E&xtras")
+        extras_menu = bar.addMenu(tr("E&xtras"))
         extras_menu.addAction(a["generate_code"])
         extras_menu.addAction(a["structogram"])
         extras_menu.addAction(a["auto_layout"])
         extras_menu.addSeparator()
         self.extras_menu = extras_menu  # Schreibtischtest/Hinweise folgen in _build_tool_docks
 
-        help_menu = bar.addMenu("&Hilfe")
+        help_menu = bar.addMenu(tr("&Hilfe"))
         help_menu.addAction(a["shortcuts"])
         if file_association.is_supported():
             help_menu.addAction(a["register_filetype"])
@@ -306,7 +306,7 @@ class MainWindow(QMainWindow):
 
     def _build_toolbar(self) -> None:
         a = self.actions
-        toolbar = QToolBar("Werkzeugleiste", self)
+        toolbar = QToolBar(tr("Werkzeugleiste"), self)
         toolbar.setObjectName("MainToolbar")
         toolbar.setMovable(False)
         toolbar.setFloatable(False)
@@ -320,7 +320,7 @@ class MainWindow(QMainWindow):
                 toolbar.addAction(a[name])
         self.zoom_button = QToolButton()
         self.zoom_button.setText("100 %")
-        self.zoom_button.setToolTip("Zoom auf 100 % setzen (Strg+0)")
+        self.zoom_button.setToolTip(tr("Zoom auf 100 % setzen (Strg+0)"))
         self.zoom_button.setMinimumWidth(58)
         self.zoom_button.clicked.connect(lambda: self._with_view(lambda v: v.zoom_reset()))
         toolbar.addWidget(self.zoom_button)
@@ -337,13 +337,13 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
         self.toolbar = toolbar
         toggle = toolbar.toggleViewAction()
-        toggle.setText("&Werkzeugleiste")
+        toggle.setText(tr("&Werkzeugleiste"))
         self.view_menu.addAction(toggle)
 
     def _build_palette(self) -> None:
         self.palette = ToolPalette()
         self.palette.element_activated.connect(self.insert_element)
-        dock = QDockWidget("Bausteine", self)
+        dock = QDockWidget(tr("Bausteine"), self)
         dock.setObjectName("PaletteDock")
         dock.setWidget(self.palette)
         dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable
@@ -352,22 +352,22 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self.palette_dock = dock
         toggle = dock.toggleViewAction()
-        toggle.setText("Werkzeug&palette")
+        toggle.setText(tr("Werkzeug&palette"))
         self.view_menu.addAction(toggle)
 
     def _build_tool_docks(self) -> None:
         """Schreibtischtest und Hinweise als Docks am unteren Rand."""
         self.simulation_panel = SimulationPanel()
         self.simulation_panel.element_focus_requested.connect(self._focus_element)
-        self.simulation_dock = self._make_dock("Schreibtischtest", "SimulationDock", self.simulation_panel)
+        self.simulation_dock = self._make_dock(tr("Schreibtischtest"), "SimulationDock", self.simulation_panel)
         self.diagnostics_panel = DiagnosticsPanel()
         self.diagnostics_panel.navigate_requested.connect(self._navigate_to)
         self.diagnostics_panel.issues_changed.connect(self._update_diagnostics_title)
-        self.diagnostics_dock = self._make_dock("Hinweise", "DiagnosticsDock", self.diagnostics_panel)
+        self.diagnostics_dock = self._make_dock(tr("Hinweise"), "DiagnosticsDock", self.diagnostics_panel)
         self.tabifyDockWidget(self.diagnostics_dock, self.simulation_dock)
         self.diagnostics_dock.raise_()
-        for dock, text, shortcut in ((self.simulation_dock, "&Schreibtischtest", "F9"),
-                                     (self.diagnostics_dock, "&Hinweise", "Ctrl+Shift+H")):
+        for dock, text, shortcut in ((self.simulation_dock, tr("&Schreibtischtest"), "F9"),
+                                     (self.diagnostics_dock, tr("&Hinweise"), "Ctrl+Shift+H")):
             toggle = dock.toggleViewAction()
             toggle.setText(text)
             toggle.setShortcut(QKeySequence(shortcut))
@@ -403,18 +403,18 @@ class MainWindow(QMainWindow):
 
     def _update_diagnostics_title(self, warnings: int, infos: int) -> None:
         total = warnings + infos
-        self.diagnostics_dock.setWindowTitle(f"Hinweise ({total})" if total else "Hinweise")
+        self.diagnostics_dock.setWindowTitle(tr("Hinweise ({total})", total=total) if total else tr("Hinweise"))
         if not hasattr(self, "issues_button"):
             return
         if not total:
-            self.issues_button.setText("Keine Hinweise")
+            self.issues_button.setText(tr("Keine Hinweise"))
             self.issues_button.setIcon(icons.icon("info"))
         else:
             parts = []
             if warnings:
-                parts.append(f"{warnings} Warnung" + ("en" if warnings != 1 else ""))
+                parts.append(tr("{n} Warnung", n=warnings) if warnings == 1 else tr("{n} Warnungen", n=warnings))
             if infos:
-                parts.append(f"{infos} Hinweis" + ("e" if infos != 1 else ""))
+                parts.append(tr("{n} Hinweis", n=infos) if infos == 1 else tr("{n} Hinweise", n=infos))
             self.issues_button.setText(" · ".join(parts))
             self.issues_button.setIcon(icons.icon("warning" if warnings else "info"))
 
@@ -462,7 +462,7 @@ class MainWindow(QMainWindow):
         self.issues_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.issues_button.setIconSize(QSize(14, 14))
         self.issues_button.setAutoRaise(True)
-        self.issues_button.setToolTip("Hinweisliste ein-/ausblenden (Strg+Umschalt+H)")
+        self.issues_button.setToolTip(tr("Hinweisliste ein-/ausblenden (Strg+Umschalt+H)"))
         self.issues_button.clicked.connect(self._toggle_diagnostics)
         status.addPermanentWidget(self.issues_button)
         for label in (self.count_label, self.selection_label, self.position_label, self.grid_label,
@@ -572,7 +572,7 @@ class MainWindow(QMainWindow):
         close_button.setIcon(icons.icon("close"))
         close_button.setIconSize(QSize(12, 12))
         close_button.setAutoRaise(True)
-        close_button.setToolTip("Projekt schließen")
+        close_button.setToolTip(tr("Projekt schließen"))
         close_button.clicked.connect(lambda _=False, v=view: self.close_tab(self.tabs.indexOf(v)))
         self.tabs.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, close_button)
         self.undo_group.addStack(document.undo_stack)
@@ -614,7 +614,7 @@ class MainWindow(QMainWindow):
             if isinstance(view, DiagramView) and view.document is document:
                 title = document.display_name + (" *" if document.is_modified else "")
                 self.tabs.setTabText(i, title)
-                self.tabs.setTabToolTip(i, document.file_path or "Noch nicht gespeichert")
+                self.tabs.setTabToolTip(i, document.file_path or tr("Noch nicht gespeichert"))
         self._update_window_title()
 
     def _update_window_title(self) -> None:
@@ -663,8 +663,8 @@ class MainWindow(QMainWindow):
         self.add_document(DiagramDocument())
 
     def open_file_dialog(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "Projekt öffnen", self.settings_store.last_directory(),
-                                              config.FILE_DIALOG_FILTER)
+        path, _ = QFileDialog.getOpenFileName(self, tr("Projekt öffnen"), self.settings_store.last_directory(),
+                                              config.file_dialog_filter())
         if path:
             self.open_file(path)
 
@@ -672,9 +672,10 @@ class MainWindow(QMainWindow):
         path = os.path.abspath(path)
         if not _has_project_extension(path):
             # .pap ist das einzige Projektformat – auf jedem Weg (Dialog, Befehlszeile, Zuletzt geöffnet)
-            self._error("Datei kann nicht geöffnet werden",
-                        f"„{os.path.basename(path)}“ ist kein Programmablaufplan im Format "
-                        f"{config.FILE_EXTENSION}.\n\nEs können nur {config.FILE_EXTENSION}-Dateien geöffnet werden.")
+            self._error(tr("Datei kann nicht geöffnet werden"),
+                        tr("„{name}“ ist kein Programmablaufplan im Format {ext}.\n\n"
+                           "Es können nur {ext}-Dateien geöffnet werden.",
+                           name=os.path.basename(path), ext=config.FILE_EXTENSION))
             return False
         existing = self._find_document_by_path(path)
         if existing >= 0:
@@ -691,12 +692,12 @@ class MainWindow(QMainWindow):
             if not os.path.exists(path):
                 self.settings_store.remove_recent_file(path)
                 self._refresh_recent_menu()
-            self._error("Datei kann nicht geöffnet werden", exc.message)
+            self._error(tr("Datei kann nicht geöffnet werden"), exc.message)
             return False
         except Exception as exc:  # pragma: no cover - Absicherung
             log.exception("Unerwarteter Fehler beim Öffnen von %s", path)
-            self._error("Datei kann nicht geöffnet werden",
-                        f"Die Datei ist beschädigt oder inkompatibel.\n\n({type(exc).__name__})")
+            self._error(tr("Datei kann nicht geöffnet werden"),
+                        tr("Die Datei ist beschädigt oder inkompatibel.\n\n({error})", error=type(exc).__name__))
             return False
 
         # Ein unberührtes, leeres neues Projekt wird ersetzt
@@ -717,17 +718,17 @@ class MainWindow(QMainWindow):
             more = len(document.load_warnings) - len(shown)
             text = "\n".join(f"• {w}" for w in shown)
             if more > 0:
-                text += f"\n… und {more} weitere Hinweise."
-            QMessageBox.information(self, "Datei wurde mit Korrekturen geöffnet",
-                                    "Die Datei enthielt fehlerhafte Angaben, die automatisch korrigiert "
-                                    f"wurden:\n\n{text}")
+                text += "\n" + tr("… und {more} weitere Hinweise.", more=more)
+            QMessageBox.information(self, tr("Datei wurde mit Korrekturen geöffnet"),
+                                    tr("Die Datei enthielt fehlerhafte Angaben, die automatisch korrigiert "
+                                       "wurden:\n\n{text}", text=text))
         if document.native_file:
-            self.statusBar().showMessage(f"„{document.display_name}“ geöffnet.", 4000)
+            self.statusBar().showMessage(tr("„{name}“ geöffnet.", name=document.display_name), 4000)
         else:
             # Datei ohne gespeicherte Anordnung (z. B. aus dem PapDesigner)
             view.fit_diagram()
-            self.statusBar().showMessage(f"„{document.display_name}“ geöffnet – die Anordnung wurde aus "
-                                         "dem Raster der Datei übernommen.", 8000)
+            self.statusBar().showMessage(tr("„{name}“ geöffnet – die Anordnung wurde aus "
+                                            "dem Raster der Datei übernommen.", name=document.display_name), 8000)
         return True
 
     def open_external_files(self, paths: list[str]) -> None:
@@ -761,14 +762,14 @@ class MainWindow(QMainWindow):
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Question)
         box.setWindowTitle(config.APP_NAME)
-        box.setText(f"„{os.path.basename(document.file_path)}“ wurde mit einem anderen Programm "
-                    "erstellt (z. B. dem PapDesigner).")
-        box.setInformativeText("Beim Speichern wird die Datei neu geschrieben: Die genaue Anordnung kommt "
-                               "hinzu, mehrere Diagramme der Datei werden zu einem Plan zusammengefasst.\n\n"
-                               "Soll die Datei überschrieben werden?")
-        overwrite = box.addButton("Überschreiben", QMessageBox.ButtonRole.AcceptRole)
-        save_as = box.addButton("Speichern unter …", QMessageBox.ButtonRole.ActionRole)
-        cancel = box.addButton("Abbrechen", QMessageBox.ButtonRole.RejectRole)
+        box.setText(tr("„{name}“ wurde mit einem anderen Programm erstellt (z. B. dem PapDesigner).",
+                       name=os.path.basename(document.file_path)))
+        box.setInformativeText(tr("Beim Speichern wird die Datei neu geschrieben: Die genaue Anordnung kommt "
+                                  "hinzu, mehrere Diagramme der Datei werden zu einem Plan zusammengefasst.\n\n"
+                                  "Soll die Datei überschrieben werden?"))
+        overwrite = box.addButton(tr("Überschreiben"), QMessageBox.ButtonRole.AcceptRole)
+        save_as = box.addButton(tr("Speichern unter …"), QMessageBox.ButtonRole.ActionRole)
+        cancel = box.addButton(tr("Abbrechen"), QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(save_as)
         box.setEscapeButton(cancel)
         box.exec()
@@ -784,23 +785,23 @@ class MainWindow(QMainWindow):
         else:
             name = export.ensure_extension(_safe_filename(document.display_name), config.FILE_EXTENSION)
             suggestion = os.path.join(self.settings_store.last_directory(), name)
-        chosen, _ = QFileDialog.getSaveFileName(self, "Speichern unter", suggestion, config.FILE_DIALOG_FILTER)
+        chosen, _ = QFileDialog.getSaveFileName(self, tr("Speichern unter"), suggestion, config.file_dialog_filter())
         if not chosen:
             return False
         path = export.ensure_extension(chosen, config.FILE_EXTENSION)
         if path != chosen and os.path.exists(path):
             # Der Dialog hat nur den eingegebenen Namen geprüft, nicht den mit Endung
             answer = QMessageBox.question(
-                self, "Speichern unter",
-                f"„{os.path.basename(path)}“ ist bereits vorhanden.\nSoll die Datei ersetzt werden?",
+                self, tr("Speichern unter"),
+                tr("„{name}“ ist bereits vorhanden.\nSoll die Datei ersetzt werden?", name=os.path.basename(path)),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             if answer != QMessageBox.StandardButton.Yes:
                 return False
         other = self._find_document_by_path(path)
         if other >= 0 and self.views()[other].document is not document:
-            self._error("Speichern nicht möglich",
-                        "Diese Datei ist bereits in einem anderen Tab geöffnet. "
-                        "Bitte schließen Sie sie zuerst oder wählen Sie einen anderen Namen.")
+            self._error(tr("Speichern nicht möglich"),
+                        tr("Diese Datei ist bereits in einem anderen Tab geöffnet. "
+                           "Bitte schließen Sie sie zuerst oder wählen Sie einen anderen Namen."))
             return False
         return self._save_to(document, path)
 
@@ -811,14 +812,16 @@ class MainWindow(QMainWindow):
         except ProjectFileError as exc:
             log.warning("Speichern fehlgeschlagen: %s (%s)", path, exc.details)
             if automatic:
-                self.statusBar().showMessage(f"Automatisches Speichern nicht möglich: {exc.message}", 8000)
+                self.statusBar().showMessage(tr("Automatisches Speichern nicht möglich: {reason}",
+                                                reason=exc.message), 8000)
             else:
-                self._error("Speichern nicht möglich", exc.message)
+                self._error(tr("Speichern nicht möglich"), exc.message)
             return False
         except Exception:  # pragma: no cover - Absicherung
             log.exception("Unerwarteter Fehler beim Speichern")
             if not automatic:
-                self._error("Speichern nicht möglich", "Beim Speichern ist ein unerwarteter Fehler aufgetreten.")
+                self._error(tr("Speichern nicht möglich"),
+                            tr("Beim Speichern ist ein unerwarteter Fehler aufgetreten."))
             return False
         if not automatic:
             self.settings_store.add_recent_file(path)
@@ -827,7 +830,8 @@ class MainWindow(QMainWindow):
         self._update_document_title(document)
         if self.autosave is not None:
             self.autosave.document_saved(document)
-        self.statusBar().showMessage("Automatisch gespeichert." if automatic else f"Gespeichert: {path}",
+        self.statusBar().showMessage(tr("Automatisch gespeichert.") if automatic
+                                     else tr("Gespeichert: {path}", path=path),
                                      2000 if automatic else 4000)
         return True
 
@@ -847,8 +851,8 @@ class MainWindow(QMainWindow):
     def _on_auto_save_triggered(self, checked: bool) -> None:
         self.settings_store.set_auto_save(checked)
         self.set_auto_save(checked)
-        self.statusBar().showMessage("Automatisches Speichern ist eingeschaltet." if checked
-                                     else "Automatisches Speichern ist ausgeschaltet.", 4000)
+        self.statusBar().showMessage(tr("Automatisches Speichern ist eingeschaltet.") if checked
+                                     else tr("Automatisches Speichern ist ausgeschaltet."), 4000)
 
     def _auto_save_applies(self, document: DiagramDocument) -> bool:
         """Nur Projekte, die schon einmal mit diesem Programm als .pap gespeichert wurden."""
@@ -896,11 +900,11 @@ class MainWindow(QMainWindow):
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Question)
         box.setWindowTitle(config.APP_NAME)
-        box.setText(f"Das Projekt „{document.display_name}“ wurde geändert.")
-        box.setInformativeText("Möchten Sie die Änderungen speichern?")
-        save = box.addButton("Speichern", QMessageBox.ButtonRole.AcceptRole)
-        discard = box.addButton("Verwerfen", QMessageBox.ButtonRole.DestructiveRole)
-        cancel = box.addButton("Abbrechen", QMessageBox.ButtonRole.RejectRole)
+        box.setText(tr("Das Projekt „{name}“ wurde geändert.", name=document.display_name))
+        box.setInformativeText(tr("Möchten Sie die Änderungen speichern?"))
+        save = box.addButton(tr("Speichern"), QMessageBox.ButtonRole.AcceptRole)
+        discard = box.addButton(tr("Verwerfen"), QMessageBox.ButtonRole.DestructiveRole)
+        cancel = box.addButton(tr("Abbrechen"), QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(save)
         box.setEscapeButton(cancel)
         box.exec()
@@ -956,7 +960,7 @@ class MainWindow(QMainWindow):
                 try:
                     document = self.autosave.restore(entry)
                 except ProjectFileError as exc:
-                    self._error("Wiederherstellung nicht möglich", exc.message)
+                    self._error(tr("Wiederherstellung nicht möglich"), exc.message)
                     self.autosave.discard(entry)
                     continue
                 self.add_document(document)
@@ -964,7 +968,7 @@ class MainWindow(QMainWindow):
             else:
                 self.autosave.discard(entry)
         if restored:
-            self.statusBar().showMessage(f"{restored} Projekt(e) wiederhergestellt – bitte speichern.", 8000)
+            self.statusBar().showMessage(tr("{n} Projekt(e) wiederhergestellt – bitte speichern.", n=restored), 8000)
         return restored
 
     # ============================================================ Extras
@@ -990,13 +994,13 @@ class MainWindow(QMainWindow):
             plan = plan_auto_layout(scene)
         except Exception:
             log.exception("Automatisches Anordnen fehlgeschlagen")
-            self._error("Anordnen nicht möglich", "Beim automatischen Anordnen ist ein Fehler aufgetreten.")
+            self._error(tr("Anordnen nicht möglich"), tr("Beim automatischen Anordnen ist ein Fehler aufgetreten."))
             return
         if apply_layout(scene, plan):
             view.fit_diagram()
-            self.statusBar().showMessage("Plan automatisch angeordnet (Rückgängig mit Strg+Z).", 5000)
+            self.statusBar().showMessage(tr("Plan automatisch angeordnet (Rückgängig mit Strg+Z)."), 5000)
         else:
-            self.statusBar().showMessage("Der Plan ist bereits angeordnet.", 4000)
+            self.statusBar().showMessage(tr("Der Plan ist bereits angeordnet."), 4000)
 
     def _sync_theme_actions(self) -> None:
         name = theme_module.theme_name_of(styles.current_theme())
@@ -1032,7 +1036,7 @@ class MainWindow(QMainWindow):
         self.recent_menu.clear()
         files = self.settings_store.recent_files()
         if not files:
-            empty = self.recent_menu.addAction("(keine)")
+            empty = self.recent_menu.addAction(tr("(keine)"))
             empty.setEnabled(False)
         for index, path in enumerate(files, start=1):
             action = self.recent_menu.addAction(f"&{index}  {os.path.basename(path)}")
@@ -1041,7 +1045,7 @@ class MainWindow(QMainWindow):
             action.triggered.connect(lambda _=False, p=path: self.open_file(p))
         if files:
             self.recent_menu.addSeparator()
-            clear = self.recent_menu.addAction("Liste leeren")
+            clear = self.recent_menu.addAction(tr("Liste leeren"))
             clear.triggered.connect(self._clear_recent)
         self.empty_state.refresh_recent(files)
 
@@ -1083,14 +1087,14 @@ class MainWindow(QMainWindow):
     def _update_undo_texts(self) -> None:
         undo_text = self.undo_group.undoText()
         redo_text = self.undo_group.redoText()
-        self.actions["undo"].setText(f"&Rückgängig: {undo_text}" if undo_text else "&Rückgängig")
-        self.actions["redo"].setText(f"&Wiederholen: {redo_text}" if redo_text else "&Wiederholen")
+        self.actions["undo"].setText(tr("&Rückgängig: {text}", text=undo_text) if undo_text else tr("&Rückgängig"))
+        self.actions["redo"].setText(tr("&Wiederholen: {text}", text=redo_text) if redo_text else tr("&Wiederholen"))
 
     def copy(self) -> None:
         scene = self.current_scene()
         if scene is not None and clipboard.copy_selection(scene):
             self.paste_tracker.reset()
-            self.statusBar().showMessage("In die Zwischenablage kopiert.", 2500)
+            self.statusBar().showMessage(tr("In die Zwischenablage kopiert."), 2500)
 
     def cut(self) -> None:
         scene = self.current_scene()
@@ -1126,7 +1130,7 @@ class MainWindow(QMainWindow):
         if payload is None:
             return
         ids = clipboard.paste_payload(scene, payload, offset=QPointF(config.PASTE_OFFSET, config.PASTE_OFFSET),
-                                      text="Duplizieren")
+                                      text=tr("Duplizieren"))
         self._reveal(ids)
 
     def _reveal(self, ids) -> None:
@@ -1172,7 +1176,8 @@ class MainWindow(QMainWindow):
             return point.x(), point.y()
 
         moves = alignment.compute_moves(scene.selected_elements(), mode, snap_value=snap, force_snap=force_snap)
-        scene.apply_moves(moves, alignment.LABELS.get(mode, "Ausrichten"))
+        # Text des Rückgängig-Schritts: die Beschriftungen in alignment.LABELS sind dort mit N_ markiert
+        scene.apply_moves(moves, tr(alignment.LABELS.get(mode, N_("Ausrichten"))))
 
     def toggle_loop_part(self) -> None:
         scene = self.current_scene()
@@ -1221,42 +1226,43 @@ class MainWindow(QMainWindow):
             if item.element_type is ElementType.LOOP:
                 menu.addSeparator()
                 is_end = item.data.properties.get("part") == "end"
-                toggle = menu.addAction("In Schleifenbeginn umwandeln" if is_end else "In Schleifenende umwandeln")
+                toggle = menu.addAction(tr("In Schleifenbeginn umwandeln") if is_end
+                                        else tr("In Schleifenende umwandeln"))
                 toggle.triggered.connect(lambda: scene.toggle_loop_part(item))
             menu.addSeparator()
             if len(scene.selected_elements()) >= 2:
-                align_menu = menu.addMenu("Ausrichten")
+                align_menu = menu.addMenu(tr("Ausrichten"))
                 for name in ALIGN_ACTIONS:
                     align_menu.addAction(a[name])
             menu.addAction(a[alignment.SNAP_TO_GRID])
         elif isinstance(item, ConnectionItem):
-            label = menu.addAction("Beschriftung bearbeiten")
+            label = menu.addAction(tr("Beschriftung bearbeiten"))
             label.setShortcut(QKeySequence("F2"))
             label.setEnabled(not item.is_annotation)
             label.triggered.connect(lambda: scene.begin_label_edit(item))
-            reset = menu.addAction("Linienführung zurücksetzen")
+            reset = menu.addAction(tr("Linienführung zurücksetzen"))
             reset.setEnabled(item.has_manual_routing())
             reset.triggered.connect(lambda: scene.reset_routing(item))
             menu.addSeparator()
             menu.addAction(a["delete"])
         else:
-            new_menu = menu.addMenu(icons.icon("new"), "Neu")
+            new_menu = menu.addMenu(icons.icon("new"), tr("Neu"))
             for element_type in PALETTE_ORDER + FLOW_TERMINALS:
                 action = new_menu.addAction(icons.element_icon(element_type), a[insert_action_name(element_type)].text())
                 action.triggered.connect(lambda _=False, t=element_type, p=QPointF(scene_pos):
                                          self._insert_at(view, t, p))
                 if element_type is PALETTE_ORDER[-1]:
                     new_menu.addSeparator()
-            paste = menu.addAction(icons.icon("paste"), "Einfügen")
+            paste = menu.addAction(icons.icon("paste"), tr("Einfügen"))
             paste.setShortcut(QKeySequence(QKeySequence.StandardKey.Paste))
             paste.setEnabled(clipboard.can_paste())
             paste.triggered.connect(lambda _=False, p=QPointF(scene_pos): self.paste(at=p))
             menu.addAction(a["select_all"])
             menu.addSeparator()
-            grid_menu = menu.addMenu(icons.icon("grid"), "Raster")
+            grid_menu = menu.addMenu(icons.icon("grid"), tr("Raster"))
             grid_menu.addAction(a["toggle_grid"])
             grid_menu.addAction(a["toggle_snap"])
-            view_menu = menu.addMenu(icons.icon("zoom_fit"), "Ansicht")
+            view_menu = menu.addMenu(icons.icon("zoom_fit"), tr("Ansicht"))
             for name in ("zoom_in", "zoom_out", "zoom_reset", "zoom_fit"):
                 view_menu.addAction(a[name])
         menu.exec(global_pos)
@@ -1297,16 +1303,19 @@ class MainWindow(QMainWindow):
         if document is None:
             return
         if not document.scene.elements():
-            self._error("Export nicht möglich", "Das Diagramm ist leer – es gibt nichts zu exportieren.")
+            self._error(tr("Export nicht möglich"), tr("Das Diagramm ist leer – es gibt nichts zu exportieren."))
             return
         options = self._export_options(fmt)
         if options is None:
             return
         extension = {"PNG": ".png", "SVG": ".svg", "PDF": ".pdf"}[fmt]
-        filters = {"PNG": "PNG-Bild (*.png)", "SVG": "SVG-Grafik (*.svg)", "PDF": "PDF-Dokument (*.pdf)"}
+        filters = {"PNG": tr("PNG-Bild ({pattern})", pattern="*.png"),
+                   "SVG": tr("SVG-Grafik ({pattern})", pattern="*.svg"),
+                   "PDF": tr("PDF-Dokument ({pattern})", pattern="*.pdf")}
         base_dir = os.path.dirname(document.file_path) if document.file_path else self.settings_store.last_directory()
         suggestion = os.path.join(base_dir, _safe_filename(document.display_name) + extension)
-        path, _ = QFileDialog.getSaveFileName(self, f"Als {fmt} exportieren", suggestion, filters[fmt])
+        path, _ = QFileDialog.getSaveFileName(self, tr("Als {format} exportieren", format=fmt), suggestion,
+                                              filters[fmt])
         if not path:
             return
         path = export.ensure_extension(path, extension)
@@ -1318,13 +1327,13 @@ class MainWindow(QMainWindow):
             finally:
                 QApplication.restoreOverrideCursor()
         except export.ExportError as exc:
-            self._error("Export nicht möglich", str(exc))
+            self._error(tr("Export nicht möglich"), str(exc))
             return
         except Exception:
             log.exception("Export fehlgeschlagen")
-            self._error("Export nicht möglich", "Beim Export ist ein unerwarteter Fehler aufgetreten.")
+            self._error(tr("Export nicht möglich"), tr("Beim Export ist ein unerwarteter Fehler aufgetreten."))
             return
-        self.statusBar().showMessage(f"Exportiert: {path}", 5000)
+        self.statusBar().showMessage(tr("Exportiert: {path}", path=path), 5000)
 
     def _create_printer(self, document: DiagramDocument):
         from PySide6.QtGui import QPageLayout
@@ -1342,38 +1351,38 @@ class MainWindow(QMainWindow):
         if document is None:
             return
         if not document.scene.elements():
-            self._error("Drucken nicht möglich", "Das Diagramm ist leer.")
+            self._error(tr("Drucken nicht möglich"), tr("Das Diagramm ist leer."))
             return
         try:
             from PySide6.QtPrintSupport import QPrintDialog
         except ImportError:
-            self._error("Drucken nicht möglich", "Die Druckunterstützung ist nicht verfügbar.")
+            self._error(tr("Drucken nicht möglich"), tr("Die Druckunterstützung ist nicht verfügbar."))
             return
         printer = self._create_printer(document)
         dialog = QPrintDialog(printer, self)
-        dialog.setWindowTitle("Drucken")
+        dialog.setWindowTitle(tr("Drucken"))
         if dialog.exec() != QPrintDialog.DialogCode.Accepted:
             return
         try:
             export.print_scene(document.scene, printer, export.ExportOptions(theme_name="light"))
         except export.ExportError as exc:
-            self._error("Drucken nicht möglich", str(exc))
+            self._error(tr("Drucken nicht möglich"), str(exc))
 
     def print_preview(self) -> None:
         document = self.current_document()
         if document is None:
             return
         if not document.scene.elements():
-            self._error("Druckvorschau nicht möglich", "Das Diagramm ist leer.")
+            self._error(tr("Druckvorschau nicht möglich"), tr("Das Diagramm ist leer."))
             return
         try:
             from PySide6.QtPrintSupport import QPrintPreviewDialog
         except ImportError:
-            self._error("Druckvorschau nicht möglich", "Die Druckunterstützung ist nicht verfügbar.")
+            self._error(tr("Druckvorschau nicht möglich"), tr("Die Druckunterstützung ist nicht verfügbar."))
             return
         printer = self._create_printer(document)
         dialog = QPrintPreviewDialog(printer, self)
-        dialog.setWindowTitle("Druckvorschau")
+        dialog.setWindowTitle(tr("Druckvorschau"))
         dialog.resize(900, 700)
         options = export.ExportOptions(theme_name="light")
 
@@ -1388,21 +1397,23 @@ class MainWindow(QMainWindow):
 
     def register_file_type(self) -> None:
         answer = QMessageBox.question(
-            self, "Dateityp registrieren",
-            f"Sollen Dateien mit der Endung „{config.FILE_EXTENSION}“ für Ihr Benutzerkonto mit "
-            f"{config.APP_NAME} geöffnet werden?\n\n"
-            "Die Zuordnung wird nur für den aktuellen Windows-Benutzer eingetragen. Eine bestehende "
-            "Zuordnung zu einem anderen Programm (z. B. dem PapDesigner) wird dabei ersetzt.",
+            self, tr("Dateityp registrieren"),
+            tr("Sollen Dateien mit der Endung „{ext}“ für Ihr Benutzerkonto mit {app} geöffnet werden?\n\n"
+               "Die Zuordnung wird nur für den aktuellen Windows-Benutzer eingetragen. Eine bestehende "
+               "Zuordnung zu einem anderen Programm (z. B. dem PapDesigner) wird dabei ersetzt.",
+               ext=config.FILE_EXTENSION, app=config.APP_NAME),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if answer != QMessageBox.StandardButton.Yes:
             return
         try:
             file_association.register()
         except OSError as exc:
-            self._error("Registrierung fehlgeschlagen", f"Die Dateizuordnung konnte nicht eingetragen werden.\n\n{exc}")
+            self._error(tr("Registrierung fehlgeschlagen"),
+                        tr("Die Dateizuordnung konnte nicht eingetragen werden.\n\n{error}", error=str(exc)))
             return
-        QMessageBox.information(self, "Dateityp registriert",
-                                f"„{config.FILE_EXTENSION}“-Dateien werden jetzt mit {config.APP_NAME} geöffnet.")
+        QMessageBox.information(self, tr("Dateityp registriert"),
+                                tr("„{ext}“-Dateien werden jetzt mit {app} geöffnet.",
+                                   ext=config.FILE_EXTENSION, app=config.APP_NAME))
 
     def _error(self, title: str, message: str) -> None:
         QMessageBox.warning(self, title, message)
@@ -1478,11 +1489,19 @@ class MainWindow(QMainWindow):
         settings = view.document.settings
         elements = len(scene.elements())
         connections = len(scene.connections())
-        self.count_label.setText(f"{elements} Bausteine · {connections} Verbindungen")
+        self.count_label.setText(tr("{elements} Bausteine · {connections} Verbindungen",
+                                    elements=elements, connections=connections))
         selected = len(scene.selectedItems())
-        self.selection_label.setText(f"{selected} ausgewählt" if selected else "")
-        grid_state = f"Raster {settings.grid_size}" + ("" if settings.grid_visible else " (aus)")
-        grid_state += " · Einrasten " + ("an" if settings.snap_to_grid else "aus")
+        self.selection_label.setText(tr("{n} ausgewählt", n=selected) if selected else "")
+        size = settings.grid_size
+        if settings.grid_visible and settings.snap_to_grid:
+            grid_state = tr("Raster {size} · Einrasten an", size=size)
+        elif settings.grid_visible:
+            grid_state = tr("Raster {size} · Einrasten aus", size=size)
+        elif settings.snap_to_grid:
+            grid_state = tr("Raster {size} (aus) · Einrasten an", size=size)
+        else:
+            grid_state = tr("Raster {size} (aus) · Einrasten aus", size=size)
         self.grid_label.setText(grid_state)
         zoom_text = f"{round(view.zoom * 100)} %"
         self.zoom_label.setText(zoom_text)

@@ -7,6 +7,8 @@ ein einziger Undo-Schritt um.
 
 from __future__ import annotations
 
+from app.i18n import N_
+
 ALIGN_LEFT = "left"
 ALIGN_RIGHT = "right"
 ALIGN_TOP = "top"
@@ -17,16 +19,17 @@ DISTRIBUTE_H = "distribute_h"
 DISTRIBUTE_V = "distribute_v"
 SNAP_TO_GRID = "snap"
 
+# Deutscher Quelltext (Schlüssel der Übersetzung); angezeigt wird tr(LABELS[modus])
 LABELS = {
-    ALIGN_LEFT: "Links ausrichten",
-    ALIGN_RIGHT: "Rechts ausrichten",
-    ALIGN_TOP: "Oben ausrichten",
-    ALIGN_BOTTOM: "Unten ausrichten",
-    ALIGN_CENTER_X: "Mittig ausrichten (Spalte)",
-    ALIGN_CENTER_Y: "Mittig ausrichten (Zeile)",
-    DISTRIBUTE_H: "Horizontal verteilen",
-    DISTRIBUTE_V: "Vertikal verteilen",
-    SNAP_TO_GRID: "Am Raster ausrichten",
+    ALIGN_LEFT: N_("Links ausrichten"),
+    ALIGN_RIGHT: N_("Rechts ausrichten"),
+    ALIGN_TOP: N_("Oben ausrichten"),
+    ALIGN_BOTTOM: N_("Unten ausrichten"),
+    ALIGN_CENTER_X: N_("Mittig ausrichten (Spalte)"),
+    ALIGN_CENTER_Y: N_("Mittig ausrichten (Zeile)"),
+    DISTRIBUTE_H: N_("Horizontal verteilen"),
+    DISTRIBUTE_V: N_("Vertikal verteilen"),
+    SNAP_TO_GRID: N_("Am Raster ausrichten"),
 }
 
 MIN_ITEMS = {

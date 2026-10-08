@@ -68,6 +68,7 @@ from app.fileformat.project import (CURRENT_FORMAT_VERSION, EXTENSION_NAMESPACE,
                                     PAP_APP_VERSION, PAP_CHECKSUM, PAP_ELEMENT_FORMAT,
                                     PAP_FRAME_FORMAT, PAP_FRAME_GUID, PAP_TIME_FORMAT,
                                     ProjectFileError, check_version)
+from app.i18n import tr
 from app.model.diagram import (ConnectionData, Diagram, DiagramSettings, ElementData,
                                ProjectMeta, new_id, now_iso)
 from app.model.element_types import (ALL_PORTS, LOOP_BEGIN, LOOP_END, LOOP_PART_KEY, TRUNK_IN_KEY,
@@ -478,7 +479,7 @@ class _NoDoctypeBuilder(ET.TreeBuilder):
     """Lehnt Dokumenttyp-Definitionen (und damit eigene Entitäten) ab."""
 
     def doctype(self, name, pubid, system):
-        raise ProjectFileError("Die Datei enthält nicht unterstützte XML-Definitionen.")
+        raise ProjectFileError(tr("Die Datei enthält nicht unterstützte XML-Definitionen."))
 
 
 def _parse(raw: bytes):
@@ -491,8 +492,10 @@ def _parse(raw: bytes):
     except Exception as exc:  # ParseError, unbekannte Kodierung, …
         # XML beginnt (nach einer Kodierungsmarke) immer mit „<“
         looks_like_xml = raw.lstrip(b"\xef\xbb\xbf\xff\xfe\x00 \t\r\n")[:1] == b"<"
-        message = ("Die Datei ist beschädigt und kann nicht gelesen werden." if looks_like_xml
-                   else "Die Datei ist kein Programmablaufplan im Format .pap.")
+        if looks_like_xml:
+            message = tr("Die Datei ist beschädigt und kann nicht gelesen werden.")
+        else:
+            message = tr("Die Datei ist kein Programmablaufplan im Format .pap.")
         raise ProjectFileError(message, str(exc)) from exc
 
 
@@ -518,7 +521,7 @@ def _settings_from(layout, warnings: list) -> DiagramSettings:
     if raw_grid is not None:
         grid, ok = _number(raw_grid, config.DEFAULT_GRID_SIZE)
         if not ok or not grid.is_integer() or not (config.MIN_GRID_SIZE <= grid <= config.MAX_GRID_SIZE):
-            warnings.append("Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.")
+            warnings.append(tr("Eine ungültige Rastergröße wurde auf den Standardwert gesetzt."))
             grid = config.DEFAULT_GRID_SIZE
         settings.grid_size = int(grid)
     settings.grid_visible = _flag(layout.get(_key("GRID_VISIBLE")), config.DEFAULT_GRID_VISIBLE)
@@ -549,7 +552,7 @@ def _properties_from(figure, etype: ElementType, subtype: str, native: bool, war
                     raise ValueError("kein Objekt")
                 _check_properties(extra)
             except (TypeError, ValueError, RecursionError):
-                warnings.append("Ungültige Zusatzeigenschaften eines Bausteins wurden verworfen.")
+                warnings.append(tr("Ungültige Zusatzeigenschaften eines Bausteins wurden verworfen."))
             else:
                 properties.update(extra)
         for key, name in _TRUNK_ATTRIBUTES:
@@ -559,7 +562,7 @@ def _properties_from(figure, etype: ElementType, subtype: str, native: bool, war
             elif not isinstance(properties.get(key, ""), str):
                 # Verweise auf Verbindungen sind immer IDs (Texte)
                 del properties[key]
-                warnings.append("Ungültige Zusatzeigenschaften eines Bausteins wurden verworfen.")
+                warnings.append(tr("Ungültige Zusatzeigenschaften eines Bausteins wurden verworfen."))
     if etype is ElementType.LOOP:
         properties[LOOP_PART_KEY] = LOOP_END if subtype == "PapLoopEnd" else LOOP_BEGIN
     return properties
@@ -572,7 +575,7 @@ def _routing_from(node, native: bool, warnings: list) -> dict:
     value, ok = _number(node.get(_key("ROUTE_VALUE")), 0.0)
     if axis in ("x", "y") and ok:
         return {"mode": "manual", "axis": axis, "value": value}
-    warnings.append("Eine ungültige Linienführung wurde auf „automatisch“ zurückgesetzt.")
+    warnings.append(tr("Eine ungültige Linienführung wurde auf „automatisch“ zurückgesetzt."))
     return {"mode": "auto"}
 
 
@@ -585,7 +588,7 @@ def _path_from(node, native: bool, warnings: list) -> list | None:
     except ValueError:  # Punkt ohne genau zwei Angaben
         path = None
     if path is None:
-        warnings.append("Ein ungültiger Linienverlauf wurde verworfen; die Linie wird neu geführt.")
+        warnings.append(tr("Ein ungültiger Linienverlauf wurde verworfen; die Linie wird neu geführt."))
     return path
 
 
@@ -596,7 +599,7 @@ def _size_from(entry, native: bool, default_width: float, default_height: float,
         raw = entry.get(_key(name)) if native else None
         value, ok = _number(raw, default)
         if raw is not None and (not ok or value <= 0):
-            warnings.append("Eine ungültige Größe wurde auf die Standardgröße gesetzt.")
+            warnings.append(tr("Eine ungültige Größe wurde auf die Standardgröße gesetzt."))
             value = float(default)
         result.append(max(1.0, value))
     return tuple(result)
@@ -635,7 +638,7 @@ def diagram_from_xml(raw: bytes | str, fallback_name: str = "") -> LoadResult:
     except ProjectFileError:
         raise
     except Exception as exc:  # letzte Absicherung gegen unerwartete Inhalte
-        raise ProjectFileError("Die Datei ist beschädigt oder inkompatibel.", repr(exc)) from exc
+        raise ProjectFileError(tr("Die Datei ist beschädigt oder inkompatibel."), repr(exc)) from exc
 
 
 def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
@@ -643,13 +646,13 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
         raw = raw.encode("utf-8")
     raw = bytes(raw)
     if not raw.strip():
-        raise ProjectFileError("Die Datei ist leer oder beschädigt.")
+        raise ProjectFileError(tr("Die Datei ist leer oder beschädigt."))
     if raw[:1] in b" \t\r\n" and raw.lstrip(b" \t\r\n")[:1] == b"<":
         raw = raw.lstrip(b" \t\r\n")  # Leerzeilen vor dem Inhalt stören den XML-Parser
     root = _parse(raw)
     project = root if root.tag == "PROJECT" else root.find("PROJECT")
     if root.tag not in ("FRAME", "PROJECT") or project is None:
-        raise ProjectFileError("Die Datei ist keine PAP-Datei.")
+        raise ProjectFileError(tr("Die Datei ist keine PAP-Datei."))
     native = check_version(root.get(_key("VERSION")))
 
     warnings: list[str] = []
@@ -676,7 +679,7 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 continue
             number = _reference(figure.get("ID")) or f"auto{len(figures)}"
             if number in figures:
-                warnings.append("Ein doppelt vergebener Baustein wurde übersprungen.")
+                warnings.append(tr("Ein doppelt vergebener Baustein wurde übersprungen."))
                 continue
             subtype = figure.get("SUBTYPE", "")
             etype = SUBTYPES.get(subtype)
@@ -693,26 +696,26 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 if ok_x and ok_y:
                     x, y, placed = exact_x, exact_y, True
                 else:
-                    warnings.append("Ein Element mit ungültiger Position wurde nach dem Raster "
-                                    "der Datei eingeordnet.")
+                    warnings.append(tr("Ein Element mit ungültiger Position wurde nach dem Raster "
+                                       "der Datei eingeordnet."))
             if not placed:
                 # Positionen aus dem Raster auf das Zeichenraster (20) setzen
                 x, y = round(x / 20) * 20, round(y / 20) * 20
             if abs(x) > limit or abs(y) > limit:
-                warnings.append("Bausteine außerhalb der Arbeitsfläche wurden an deren Rand gesetzt.")
+                warnings.append(tr("Bausteine außerhalb der Arbeitsfläche wurden an deren Rand gesetzt."))
                 x, y = max(-limit, min(limit, x)), max(-limit, min(limit, y))
             width, height = _size_from(entry, native, spec.default_width, spec.default_height, warnings)
             raw_z = entry.get(_key("Z")) if native else None
             z, ok_z = _number(raw_z, 0.0)
             if raw_z is not None and not ok_z:
-                warnings.append("Eine ungültige Ebene eines Bausteins wurde zurückgesetzt.")
+                warnings.append(tr("Eine ungültige Ebene eines Bausteins wurde zurückgesetzt."))
             element_id = figure.get(_key("UID")) if native else None
             if not element_id or not element_id.strip():
                 if native:
-                    warnings.append("Ein Element ohne gültige ID hat eine neue ID erhalten.")
+                    warnings.append(tr("Ein Element ohne gültige ID hat eine neue ID erhalten."))
                 element_id = new_id()
             if element_id in seen_ids:
-                warnings.append("Ein Element mit doppelter ID hat eine neue ID erhalten.")
+                warnings.append(tr("Ein Element mit doppelter ID hat eine neue ID erhalten."))
                 element_id = new_id()
             seen_ids.add(element_id)
             element = ElementData(
@@ -734,21 +737,21 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
             source = figures.get(_reference(node.get("FROM")))
             target = figures.get(_reference(node.get("TO")))
             if source is None or target is None:
-                warnings.append("Eine Verbindung zu einem nicht vorhandenen Element wurde entfernt.")
+                warnings.append(tr("Eine Verbindung zu einem nicht vorhandenen Element wurde entfernt."))
                 continue
             (s_elem, s_cell), (t_elem, t_cell) = source, target
             s_port = node.get(_key("SOURCE_PORT")) if native else None
             t_port = node.get(_key("TARGET_PORT")) if native else None
             if s_port in ALL_PORTS and t_port in ALL_PORTS:
                 if s_elem is t_elem and s_port == t_port:
-                    warnings.append("Eine Verbindung ohne Länge (gleicher Anschluss) wurde entfernt.")
+                    warnings.append(tr("Eine Verbindung ohne Länge (gleicher Anschluss) wurde entfernt."))
                     continue
             else:
                 # ohne (gültige) gespeicherte Anschlüsse: aus der Lage im Raster ableiten
                 if s_port is not None or t_port is not None:
-                    warnings.append("Ungültige Anschlüsse einer Verbindung wurden neu bestimmt.")
+                    warnings.append(tr("Ungültige Anschlüsse einer Verbindung wurden neu bestimmt."))
                 if s_elem is t_elem:
-                    warnings.append("Eine Verbindung eines Bausteins mit sich selbst wurde übersprungen.")
+                    warnings.append(tr("Eine Verbindung eines Bausteins mit sich selbst wurde übersprungen."))
                     continue
                 used = used_ports.setdefault(s_elem.id, set())
                 s_port, t_port = _grid_ports(s_elem.type, s_cell, t_cell, used)
@@ -774,10 +777,10 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
 
     if not native and figure_count == 0:
         # Nur ein mit diesem Programm gespeichertes Projekt darf leer sein
-        raise ProjectFileError("Die Datei enthält keinen Programmablaufplan.")
+        raise ProjectFileError(tr("Die Datei enthält keinen Programmablaufplan."))
     if unknown_types:
-        warnings.append("Unbekannte Bausteintypen wurden als Vorgang übernommen: "
-                        + ", ".join(sorted(unknown_types)))
+        warnings.append(tr("Unbekannte Bausteintypen wurden als Vorgang übernommen: {types}",
+                           types=", ".join(sorted(unknown_types))))
     return LoadResult(diagram=diagram, warnings=_dedupe(warnings), native=native)
 
 
@@ -787,11 +790,11 @@ def save_diagram(diagram: Diagram, path: str) -> None:
     try:
         payload = diagram_to_xml(diagram).encode("utf-8")
     except (TypeError, ValueError) as exc:
-        raise ProjectFileError("Das Projekt konnte nicht in das Dateiformat umgewandelt werden.",
+        raise ProjectFileError(tr("Das Projekt konnte nicht in das Dateiformat umgewandelt werden."),
                                str(exc)) from exc
     directory = os.path.dirname(os.path.abspath(path)) or "."
     if not os.path.isdir(directory):
-        raise ProjectFileError(f"Der Ordner „{directory}“ existiert nicht.")
+        raise ProjectFileError(tr("Der Ordner „{directory}“ existiert nicht.", directory=directory))
     fd, temp_path = None, None
     try:
         fd, temp_path = tempfile.mkstemp(prefix=".pap-", suffix=".tmp", dir=directory)
@@ -803,11 +806,11 @@ def save_diagram(diagram: Diagram, path: str) -> None:
         os.replace(temp_path, path)
         temp_path = None
     except PermissionError as exc:
-        raise ProjectFileError("Die Datei konnte nicht gespeichert werden: Keine Schreibberechtigung "
-                               "(ist die Datei schreibgeschützt oder in einem anderen Programm geöffnet?).",
+        raise ProjectFileError(tr("Die Datei konnte nicht gespeichert werden: Keine Schreibberechtigung "
+                                  "(ist die Datei schreibgeschützt oder in einem anderen Programm geöffnet?)."),
                                str(exc)) from exc
     except OSError as exc:
-        raise ProjectFileError(f"Die Datei konnte nicht gespeichert werden: {exc.strerror or exc}",
+        raise ProjectFileError(tr("Die Datei konnte nicht gespeichert werden: {reason}", reason=exc.strerror or exc),
                                str(exc)) from exc
     finally:
         if fd is not None:
@@ -827,18 +830,18 @@ def load_diagram(path: str) -> LoadResult:
     try:
         size = os.path.getsize(path)
         if size > MAX_FILE_SIZE:
-            raise ProjectFileError("Die Datei ist zu groß, um als Projekt geöffnet zu werden.")
+            raise ProjectFileError(tr("Die Datei ist zu groß, um als Projekt geöffnet zu werden."))
         with open(path, "rb") as handle:
             raw = handle.read()
     except ProjectFileError:
         raise
     except FileNotFoundError as exc:
-        raise ProjectFileError(f"Die Datei „{path}“ wurde nicht gefunden.", str(exc)) from exc
+        raise ProjectFileError(tr("Die Datei „{path}“ wurde nicht gefunden.", path=path), str(exc)) from exc
     except IsADirectoryError as exc:
-        raise ProjectFileError(f"„{path}“ ist ein Ordner und keine Projektdatei.", str(exc)) from exc
+        raise ProjectFileError(tr("„{path}“ ist ein Ordner und keine Projektdatei.", path=path), str(exc)) from exc
     except PermissionError as exc:
-        raise ProjectFileError("Keine Berechtigung, die Datei zu lesen.", str(exc)) from exc
+        raise ProjectFileError(tr("Keine Berechtigung, die Datei zu lesen."), str(exc)) from exc
     except (OSError, ValueError) as exc:  # ValueError: unzulässige Zeichen im Pfad
-        raise ProjectFileError(f"Die Datei konnte nicht gelesen werden: {getattr(exc, 'strerror', None) or exc}",
-                               str(exc)) from exc
+        raise ProjectFileError(tr("Die Datei konnte nicht gelesen werden: {reason}",
+                                  reason=getattr(exc, "strerror", None) or exc), str(exc)) from exc
     return diagram_from_xml(raw, os.path.splitext(os.path.basename(path))[0])

@@ -25,7 +25,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.model.element_types import ElementType, spec_for
+from app import labels
+from app.i18n import tr
+from app.model.element_types import ElementType, display_name_for, spec_for
 
 
 @dataclass(frozen=True)
@@ -63,11 +65,11 @@ def blocking_error(source: ConnectionEnd, target: ConnectionEnd) -> str | None:
     source_spec = spec_for(source.element_type)
     target_spec = spec_for(target.element_type)
     if source.port not in source_spec.ports:
-        return f"„{source_spec.display_name}“ besitzt keinen Anschluss an dieser Stelle."
+        return tr("„{name}“ besitzt keinen Anschluss an dieser Stelle.", name=display_name_for(source.element_type))
     if target.port not in target_spec.ports:
-        return f"„{target_spec.display_name}“ besitzt keinen Anschluss an dieser Stelle."
+        return tr("„{name}“ besitzt keinen Anschluss an dieser Stelle.", name=display_name_for(target.element_type))
     if source.element_id == target.element_id and source.port == target.port:
-        return "Anfang und Ende der Verbindung liegen am selben Anschluss."
+        return tr("Anfang und Ende der Verbindung liegen am selben Anschluss.")
     return None
 
 
@@ -79,9 +81,9 @@ def _warning_for(info: ConnectionInfo, seen_pairs: set, seen_annotations: set, o
         duplicate = pair in seen_annotations
         seen_annotations.add(pair)
         if info.source_type is ElementType.COMMENT and info.target_type is ElementType.COMMENT:
-            return "Kommentare werden normalerweise nicht miteinander verbunden."
+            return tr("Kommentare werden normalerweise nicht miteinander verbunden.")
         if duplicate:
-            return "Der Kommentar ist diesem Baustein bereits zugeordnet."
+            return tr("Der Kommentar ist diesem Baustein bereits zugeordnet.")
         return None
 
     pair = (info.source_id, info.target_id)
@@ -91,19 +93,21 @@ def _warning_for(info: ConnectionInfo, seen_pairs: set, seen_annotations: set, o
     outgoing[info.source_id] = count + 1
 
     if info.source_id == info.target_id:
-        return "Der Baustein ist mit sich selbst verbunden."
+        return tr("Der Baustein ist mit sich selbst verbunden.")
     if not source_spec.can_be_source:
-        return f"Ein „{source_spec.display_name}“-Element hat normalerweise keine ausgehende Verbindung."
+        return tr("Ein „{name}“-Element hat normalerweise keine ausgehende Verbindung.",
+                  name=display_name_for(info.source_type))
     if not target_spec.can_be_target:
-        return f"Ein „{target_spec.display_name}“-Element hat normalerweise keine eingehende Verbindung."
+        return tr("Ein „{name}“-Element hat normalerweise keine eingehende Verbindung.",
+                  name=display_name_for(info.target_type))
     if duplicate:
-        return "Diese Verbindung existiert bereits."
+        return tr("Diese Verbindung existiert bereits.")
     if source_spec.max_outgoing is not None and count >= source_spec.max_outgoing:
         if info.source_type is ElementType.JUNCTION:
-            return ("Abzweigung ohne Verzweigung: Der Ablauf teilt sich hier ohne Bedingung. "
-                    "Für mehrere Ausgänge ist normalerweise eine Verzweigung vorgesehen.")
-        return (f"„{source_spec.display_name}“ hat normalerweise nur einen Ausgang. "
-                "Für mehrere Ausgänge ist eine Verzweigung vorgesehen.")
+            return tr("Abzweigung ohne Verzweigung: Der Ablauf teilt sich hier ohne Bedingung. "
+                      "Für mehrere Ausgänge ist normalerweise eine Verzweigung vorgesehen.")
+        return tr("„{name}“ hat normalerweise nur einen Ausgang. "
+                  "Für mehrere Ausgänge ist eine Verzweigung vorgesehen.", name=display_name_for(info.source_type))
     return None
 
 
@@ -151,9 +155,9 @@ def validate_connection(source: ConnectionEnd, target: ConnectionEnd,
 
 def suggest_decision_label(existing_labels: list[str]) -> str:
     """Schlägt für einen weiteren Ausgang einer Verzweigung eine Beschriftung vor."""
-    normalized = {label.strip().lower() for label in existing_labels}
-    if "ja" not in normalized:
-        return "ja"
-    if "nein" not in normalized:
-        return "nein"
+    # vorhandene Beschriftungen stammen aus der Projektdatei und können in jeder Sprache stehen
+    if not any(labels.is_yes(label) for label in existing_labels):
+        return labels.yes_label()
+    if not any(labels.is_no(label) for label in existing_labels):
+        return labels.no_label()
     return ""

@@ -49,6 +49,7 @@ import zipfile
 from dataclasses import dataclass
 
 from app import config, resources
+from app.i18n import tr
 
 log = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ def releases_page(repo: str | None = None) -> str:
 
 def _open(url: str, timeout: float):
     if not url.lower().startswith("https://"):
-        raise UpdateError("Updates werden nur über eine gesicherte Verbindung geladen.")
+        raise UpdateError(tr("Updates werden nur über eine gesicherte Verbindung geladen."))
     request = urllib.request.Request(url, headers={
         "User-Agent": f"{config.EXECUTABLE_NAME}/{config.APP_VERSION}", "Accept": "*/*"})
     return urllib.request.urlopen(request, timeout=timeout, context=ssl.create_default_context())
@@ -130,16 +131,16 @@ def parse_manifest(raw: bytes, repo: str) -> UpdateInfo:
     try:
         data = json.loads(raw.decode("utf-8-sig"))
     except (ValueError, UnicodeDecodeError) as exc:
-        raise UpdateError("Die Angaben zur neuesten Version sind unlesbar.", str(exc)) from exc
+        raise UpdateError(tr("Die Angaben zur neuesten Version sind unlesbar."), str(exc)) from exc
     if not isinstance(data, dict):
-        raise UpdateError("Die Angaben zur neuesten Version sind unlesbar.")
+        raise UpdateError(tr("Die Angaben zur neuesten Version sind unlesbar."))
     version = str(data.get("version", "")).strip()
     file_name = str(data.get("file") or config.UPDATE_PACKAGE_NAME).strip()
     checksum = str(data.get("sha256", "")).strip().lower()
     tag = str(data.get("tag") or f"v{version}").strip()
     if not parse_version(version) or not re.fullmatch(r"[0-9a-f]{64}", checksum) \
             or not re.fullmatch(r"[A-Za-z0-9_.-]+\.zip", file_name) or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
-        raise UpdateError("Die Angaben zur neuesten Version sind unvollständig.")
+        raise UpdateError(tr("Die Angaben zur neuesten Version sind unvollständig."))
     try:
         size = max(0, int(data.get("size") or 0))
     except (TypeError, ValueError):
@@ -166,12 +167,12 @@ def fetch_update_info(timeout: float = 8.0, opener=_open) -> UpdateInfo | None:
         raise
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            raise UpdateError("Es wurde noch keine Version veröffentlicht.", str(exc)) from exc
-        raise UpdateError("Der Update-Server hat die Anfrage abgelehnt.", str(exc)) from exc
+            raise UpdateError(tr("Es wurde noch keine Version veröffentlicht."), str(exc)) from exc
+        raise UpdateError(tr("Der Update-Server hat die Anfrage abgelehnt."), str(exc)) from exc
     except Exception as exc:  # keine Verbindung, Zeitüberschreitung, Zertifikat, …
-        raise UpdateError("Es konnte keine Verbindung zum Update-Server hergestellt werden.", str(exc)) from exc
+        raise UpdateError(tr("Es konnte keine Verbindung zum Update-Server hergestellt werden."), str(exc)) from exc
     if len(raw) > MANIFEST_MAX_BYTES:
-        raise UpdateError("Die Angaben zur neuesten Version sind unlesbar.")
+        raise UpdateError(tr("Die Angaben zur neuesten Version sind unlesbar."))
     return parse_manifest(raw, repo)
 
 
@@ -313,7 +314,7 @@ def install_user_program(new_dir: str, version: str) -> str:
     """Legt die entpackte neue Version im Benutzerordner ab. Gibt deren Ordner zurück."""
     name = _version_folder_name(version)
     if not name:
-        raise UpdateError("Die Versionsnummer des Updates ist ungültig.")
+        raise UpdateError(tr("Die Versionsnummer des Updates ist ungültig."))
     target = os.path.join(user_update_root(), name)
     try:
         os.makedirs(user_update_root(), exist_ok=True)
@@ -324,7 +325,7 @@ def install_user_program(new_dir: str, version: str) -> str:
             handle.write(name)
     except OSError as exc:
         _remove(target)
-        raise UpdateError("Die neue Version konnte nicht abgelegt werden.", str(exc)) from exc
+        raise UpdateError(tr("Die neue Version konnte nicht abgelegt werden."), str(exc)) from exc
     return target
 
 
@@ -393,16 +394,16 @@ def extract_package(archive: str, target: str) -> None:
         with zipfile.ZipFile(archive) as package:
             members = package.infolist()
             if sum(member.file_size for member in members) > UNPACKED_MAX_BYTES:
-                raise UpdateError("Das Update-Paket ist unerwartet groß.")
+                raise UpdateError(tr("Das Update-Paket ist unerwartet groß."))
             for member in members:
                 destination = os.path.abspath(os.path.join(target, member.filename))
                 if os.path.commonpath([target, destination]) != target:
-                    raise UpdateError("Das Update-Paket enthält unzulässige Pfade.")
+                    raise UpdateError(tr("Das Update-Paket enthält unzulässige Pfade."))
             package.extractall(target)
     except UpdateError:
         raise
     except (zipfile.BadZipFile, OSError, ValueError) as exc:
-        raise UpdateError("Das Update-Paket konnte nicht entpackt werden.", str(exc)) from exc
+        raise UpdateError(tr("Das Update-Paket konnte nicht entpackt werden."), str(exc)) from exc
 
 
 def locate_program(directory: str) -> str:
@@ -411,7 +412,7 @@ def locate_program(directory: str) -> str:
     for candidate in candidates:
         if os.path.isfile(os.path.join(candidate, config.EXECUTABLE_NAME)):
             return candidate
-    raise UpdateError("Das Update-Paket enthält das Programm nicht.")
+    raise UpdateError(tr("Das Update-Paket enthält das Programm nicht."))
 
 
 def download_package(info: UpdateInfo, app_dir: str, progress=None, cancelled=None, opener=_open) -> str:
@@ -440,14 +441,14 @@ def download_package(info: UpdateInfo, app_dir: str, progress=None, cancelled=No
                     break
                 done += len(chunk)
                 if done > PACKAGE_MAX_BYTES:
-                    raise UpdateError("Das Update-Paket ist unerwartet groß.")
+                    raise UpdateError(tr("Das Update-Paket ist unerwartet groß."))
                 digest.update(chunk)
                 handle.write(chunk)
                 if progress is not None:
                     progress(done, total)
         if digest.hexdigest() != info.sha256:
-            raise UpdateError("Das Update-Paket ist beschädigt (Prüfsumme stimmt nicht). "
-                              "Es wurde nichts verändert.")
+            raise UpdateError(tr("Das Update-Paket ist beschädigt (Prüfsumme stimmt nicht). "
+                                 "Es wurde nichts verändert."))
         unpacked = os.path.join(staging, "neu")
         extract_package(archive, unpacked)
         os.remove(archive)
@@ -457,7 +458,7 @@ def download_package(info: UpdateInfo, app_dir: str, progress=None, cancelled=No
         raise
     except Exception as exc:
         _remove(staging)
-        raise UpdateError("Das Update konnte nicht heruntergeladen werden.", str(exc)) from exc
+        raise UpdateError(tr("Das Update konnte nicht heruntergeladen werden."), str(exc)) from exc
 
 
 # -------------------------------------------------------------- Installieren
@@ -467,7 +468,7 @@ def start_installer(new_dir: str, app_dir: str) -> None:
     try:
         subprocess.Popen([executable, APPLY_FLAG, app_dir, str(os.getpid())], cwd=new_dir, close_fds=True)
     except OSError as exc:
-        raise UpdateError("Die neue Version konnte nicht gestartet werden.", str(exc)) from exc
+        raise UpdateError(tr("Die neue Version konnte nicht gestartet werden."), str(exc)) from exc
 
 
 def launch_program(app_dir: str, wait_pid: int | None = None) -> None:
@@ -521,9 +522,9 @@ def apply_update(source_dir: str, app_dir: str, retry_seconds: float = 15.0) -> 
     try:
         names = sorted(os.listdir(source_dir))
     except OSError as exc:
-        raise UpdateError("Die neue Version wurde nicht gefunden.", str(exc)) from exc
+        raise UpdateError(tr("Die neue Version wurde nicht gefunden."), str(exc)) from exc
     if config.EXECUTABLE_NAME not in names or not os.path.isdir(app_dir):
-        raise UpdateError("Die neue Version ist unvollständig. Es wurde nichts verändert.")
+        raise UpdateError(tr("Die neue Version ist unvollständig. Es wurde nichts verändert."))
     backups: list[tuple[str, str]] = []
     created: list[str] = []
     try:
@@ -549,8 +550,8 @@ def apply_update(source_dir: str, app_dir: str, retry_seconds: float = 15.0) -> 
                 os.rename(backup, target)
             except OSError:
                 log.exception("Alter Stand konnte nicht zurückgeholt werden: %s", target)
-        raise UpdateError("Das Update konnte nicht installiert werden (fehlen Schreibrechte im "
-                          "Programmordner?). Die bisherige Version bleibt erhalten.", str(exc)) from exc
+        raise UpdateError(tr("Das Update konnte nicht installiert werden (fehlen Schreibrechte im "
+                             "Programmordner?). Die bisherige Version bleibt erhalten."), str(exc)) from exc
     for _target, backup in backups:
         _remove(backup)
 

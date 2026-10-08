@@ -13,6 +13,7 @@ import os
 import sys
 
 from app import config, resources
+from app.i18n import tr
 
 
 def is_supported() -> bool:
@@ -41,7 +42,7 @@ def icon_location() -> str:
 def register() -> None:
     """Trägt die Dateizuordnung ein. Wirft ``OSError`` bei Fehlern."""
     if not is_supported():
-        raise OSError("Die Dateizuordnung ist nur unter Windows verfügbar.")
+        raise OSError(tr("Die Dateizuordnung ist nur unter Windows verfügbar."))
     import winreg
 
     base = r"Software\Classes"
@@ -49,7 +50,7 @@ def register() -> None:
         winreg.SetValueEx(key, "", 0, winreg.REG_SZ, config.FILE_PROG_ID)
         winreg.SetValueEx(key, "Content Type", 0, winreg.REG_SZ, "application/xml")
     with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"{base}\{config.FILE_PROG_ID}") as key:
-        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, config.FILE_TYPE_DESCRIPTION)
+        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, config.file_type_description())
     icon = icon_location()
     if icon:
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"{base}\{config.FILE_PROG_ID}\DefaultIcon") as key:
@@ -62,7 +63,7 @@ def register() -> None:
 
 def unregister() -> None:
     if not is_supported():
-        raise OSError("Die Dateizuordnung ist nur unter Windows verfügbar.")
+        raise OSError(tr("Die Dateizuordnung ist nur unter Windows verfügbar."))
     import winreg
 
     base = r"Software\Classes"

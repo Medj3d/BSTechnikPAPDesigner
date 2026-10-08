@@ -14,9 +14,17 @@ from app.analysis.graph import FlowGraph
 from app.analysis.structure import structure_diagram
 from app.codegen.generators import with_title
 from app.export import ExportError
+from app.i18n import tr
 from app.nsd.renderer import export_nsd, render_image
 
-FILTERS = {"PNG": "PNG-Bild (*.png)", "SVG": "SVG-Grafik (*.svg)", "PDF": "PDF-Dokument (*.pdf)"}
+FORMATS = ("PNG", "SVG", "PDF")
+
+
+def export_filters() -> dict[str, str]:
+    """Dateitypen des Speichern-Dialogs in der eingestellten Sprache: Format → Filtertext."""
+    return {"PNG": tr("PNG-Bild ({pattern})", pattern="*.png"),
+            "SVG": tr("SVG-Grafik ({pattern})", pattern="*.svg"),
+            "PDF": tr("PDF-Dokument ({pattern})", pattern="*.pdf")}
 
 
 class StructogramDialog(QDialog):
@@ -25,7 +33,7 @@ class StructogramDialog(QDialog):
     def __init__(self, document, parent=None):
         super().__init__(parent)
         self.document = document
-        self.setWindowTitle("Struktogramm")
+        self.setWindowTitle(tr("Struktogramm"))
         self.resize(900, 720)
         try:
             programs = structure_diagram(FlowGraph.from_scene(document.scene))
@@ -34,15 +42,15 @@ class StructogramDialog(QDialog):
         self.programs = with_title(programs, document.meta.name)
         self._zoom_index = self.ZOOMS.index(1.0)
 
-        title = QLabel("Struktogramm (Nassi-Shneiderman)")
+        title = QLabel(tr("Struktogramm (Nassi-Shneiderman)"))
         title.setObjectName("DialogTitle")
         zoom_out = QToolButton()
         zoom_out.setIcon(icons.icon("zoom_out"))
-        zoom_out.setToolTip("Verkleinern")
+        zoom_out.setToolTip(tr("Verkleinern"))
         zoom_out.clicked.connect(lambda: self.set_zoom_index(self._zoom_index - 1))
         zoom_in = QToolButton()
         zoom_in.setIcon(icons.icon("zoom_in"))
-        zoom_in.setToolTip("Vergrößern")
+        zoom_in.setToolTip(tr("Vergrößern"))
         zoom_in.clicked.connect(lambda: self.set_zoom_index(self._zoom_index + 1))
         self.zoom_label = QLabel("100 %")
         top = QHBoxLayout()
@@ -64,10 +72,10 @@ class StructogramDialog(QDialog):
         self.notes.setObjectName("Muted")
         self.notes.setWordWrap(True)
 
-        export = QPushButton("Exportieren …")
+        export = QPushButton(tr("Exportieren …"))
         export.clicked.connect(self.export)
         export.setEnabled(bool(self.programs))
-        close = QPushButton("Schließen")
+        close = QPushButton(tr("Schließen"))
         close.setDefault(True)
         close.clicked.connect(self.accept)
         buttons = QHBoxLayout()
@@ -84,11 +92,11 @@ class StructogramDialog(QDialog):
 
         warnings = [w for program in self.programs for w in program.warnings]
         if not self.programs:
-            self.notes.setText("Der Plan enthält kein Start-Element – es gibt kein Struktogramm.")
+            self.notes.setText(tr("Der Plan enthält kein Start-Element – es gibt kein Struktogramm."))
         elif warnings:
-            self.notes.setText("Hinweise: " + " ".join(dict.fromkeys(warnings)))
+            self.notes.setText(tr("Hinweise: {warnings}", warnings=" ".join(dict.fromkeys(warnings))))
         else:
-            self.notes.setText("Nicht strukturierte Teile des Plans werden gestrichelt dargestellt.")
+            self.notes.setText(tr("Nicht strukturierte Teile des Plans werden gestrichelt dargestellt."))
         self.render()
 
     def set_zoom_index(self, index: int) -> None:
@@ -125,14 +133,15 @@ class StructogramDialog(QDialog):
 
     def export(self) -> None:
         base_dir = os.path.dirname(self.document.file_path) if self.document.file_path else ""
-        suggestion = os.path.join(base_dir, f"{self.document.display_name} – Struktogramm.png")
-        path, selected = QFileDialog.getSaveFileName(self, "Struktogramm exportieren", suggestion,
-                                                     ";;".join(FILTERS.values()))
+        suggestion = os.path.join(base_dir, tr("{name} – Struktogramm", name=self.document.display_name) + ".png")
+        filters = export_filters()
+        path, selected = QFileDialog.getSaveFileName(self, tr("Struktogramm exportieren"), suggestion,
+                                                     ";;".join(filters.values()))
         if not path:
             return
-        fmt = next((key for key, value in FILTERS.items() if value == selected), None)
+        fmt = next((key for key, value in filters.items() if value == selected), None)
         extension = os.path.splitext(path)[1].lower().lstrip(".").upper()
-        if extension in FILTERS:
+        if extension in FORMATS:
             fmt = extension
         fmt = fmt or "PNG"
         if not path.lower().endswith("." + fmt.lower()):
@@ -140,6 +149,7 @@ class StructogramDialog(QDialog):
         try:
             export_nsd(self.programs, path, fmt, styles.LIGHT)
         except ExportError as exc:
-            QMessageBox.warning(self, "Export nicht möglich", str(exc))
+            QMessageBox.warning(self, tr("Export nicht möglich"), str(exc))
         except Exception:
-            QMessageBox.warning(self, "Export nicht möglich", "Beim Export ist ein unerwarteter Fehler aufgetreten.")
+            QMessageBox.warning(self, tr("Export nicht möglich"),
+                                tr("Beim Export ist ein unerwarteter Fehler aufgetreten."))

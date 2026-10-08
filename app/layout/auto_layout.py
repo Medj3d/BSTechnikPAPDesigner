@@ -26,6 +26,7 @@ from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndSt
                               Unstructured, WhileLoop)
 from app.analysis.graph import FlowGraph
 from app.analysis.structure import structure_diagram
+from app.i18n import tr
 from app.model.element_types import PORT_DIRECTIONS, TRUNK_IN_KEY, TRUNK_OUT_KEY
 
 V_GAP = 60.0          # Abstand zwischen Unterkante und Oberkante
@@ -374,12 +375,17 @@ def _place_comments(scene, items: dict, positions: dict) -> None:
         positions[item.element_id] = (item.pos().x() + dx, item.pos().y() + dy)
 
 
-def apply_layout(scene, plan: LayoutPlan, text: str = "Automatisch anordnen") -> bool:
-    """Wendet eine Anordnung als ein Rückgängig-Schritt an."""
+def apply_layout(scene, plan: LayoutPlan, text: str | None = None) -> bool:
+    """Wendet eine Anordnung als ein Rückgängig-Schritt an.
+
+    ``text``: Beschriftung des Rückgängig-Schritts (schon übersetzt); ohne Angabe „Automatisch anordnen“.
+    """
     from app.commands import MoveItemsCommand, SetRoutingCommand
 
     if plan.is_empty():
         return False
+    if text is None:
+        text = tr("Automatisch anordnen")
     scene.prepare_for_command()
     stack = scene.undo_stack
     stack.beginMacro(text)

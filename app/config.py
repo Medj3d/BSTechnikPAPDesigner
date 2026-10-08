@@ -40,10 +40,21 @@ def file_dialog_filter() -> str:
     from app.i18n import tr
 
     return tr("Programmablaufpläne ({pattern})", pattern=f"*{FILE_EXTENSION}")
+
+
 # ProgID für die Windows-Dateizuordnung
 FILE_PROG_ID = "BSTechnik.PAPDesigner.Project"
 
+# Deutscher Quelltext; angezeigt wird default_project_name() (übersetzt)
 DEFAULT_PROJECT_NAME = "Unbenannt"
+
+
+def default_project_name() -> str:
+    """Name eines neuen, noch unbenannten Projekts in der eingestellten Sprache („Unbenannt“, „Untitled“, …)."""
+    from app.i18n import tr
+
+    return tr("Unbenannt")
+
 
 # Automatisches Speichern: Ein bereits gespeichertes Projekt wird so lange nach
 # der letzten Änderung von selbst in seine Datei geschrieben (Millisekunden).

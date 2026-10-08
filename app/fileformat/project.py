@@ -19,6 +19,7 @@ Leser in ``serializer.py`` behandelt ältere Versionen dann gezielt.
 from __future__ import annotations
 
 from app import config
+from app.i18n import tr
 
 CURRENT_FORMAT_VERSION = 1
 
@@ -57,13 +58,14 @@ def check_version(value: str | None) -> bool:
     try:
         version = int(str(value).strip())
     except ValueError:
-        raise ProjectFileError("Die Dateiformat-Version der Datei ist ungültig.") from None
+        raise ProjectFileError(tr("Die Dateiformat-Version der Datei ist ungültig.")) from None
     if version < 1:
-        raise ProjectFileError("Die Dateiformat-Version der Datei ist ungültig.")
+        raise ProjectFileError(tr("Die Dateiformat-Version der Datei ist ungültig."))
     if version > CURRENT_FORMAT_VERSION:
-        raise ProjectFileError(
-            f"Die Datei wurde mit einer neueren Programmversion erstellt "
-            f"(Dateiformat-Version {version}).\n\n"
-            f"Diese Version von {config.APP_NAME} unterstützt Dateien bis Version "
-            f"{CURRENT_FORMAT_VERSION}. Bitte aktualisieren Sie das Programm.")
+        raise ProjectFileError(tr(
+            "Die Datei wurde mit einer neueren Programmversion erstellt "
+            "(Dateiformat-Version {version}).\n\n"
+            "Diese Version von {app} unterstützt Dateien bis Version "
+            "{supported}. Bitte aktualisieren Sie das Programm.",
+            version=version, app=config.APP_NAME, supported=CURRENT_FORMAT_VERSION))
     return True

@@ -8,6 +8,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QLabel, QListWidget, QListWidgetItem,
                                QVBoxLayout)
 
+from app.i18n import tr
+
 
 def _format_time(value: str) -> str:
     try:
@@ -24,34 +26,35 @@ class RecoveryDialog(QDialog):
 
     def __init__(self, entries, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Projekte wiederherstellen")
+        self.setWindowTitle(tr("Projekte wiederherstellen"))
         self.setMinimumWidth(520)
         self._entries = list(entries)
 
-        title = QLabel("Projekte wiederherstellen")
+        title = QLabel(tr("Projekte wiederherstellen"))
         title.setObjectName("DialogTitle")
-        text = QLabel("Das Programm wurde nicht ordnungsgemäß beendet. Folgende ungespeicherte "
-                      "Projekte können wiederhergestellt werden:")
+        text = QLabel(tr("Das Programm wurde nicht ordnungsgemäß beendet. Folgende ungespeicherte "
+                         "Projekte können wiederhergestellt werden:"))
         text.setWordWrap(True)
 
         self.list = QListWidget()
         for entry in self._entries:
-            location = entry.original_path or "(noch nicht gespeichert)"
-            item = QListWidgetItem(f"{entry.display_name}\n{location} · gesichert {_format_time(entry.saved_at)}")
+            location = entry.original_path or tr("(noch nicht gespeichert)")
+            details = tr("{location} · gesichert {time}", location=location, time=_format_time(entry.saved_at))
+            item = QListWidgetItem(f"{entry.display_name}\n{details}")
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked)
             self.list.addItem(item)
 
-        hint = QLabel("Nicht ausgewählte Sicherungen werden verworfen.")
+        hint = QLabel(tr("Nicht ausgewählte Sicherungen werden verworfen."))
         hint.setObjectName("Muted")
 
         buttons = QDialogButtonBox()
-        restore = buttons.addButton("Wiederherstellen", QDialogButtonBox.ButtonRole.AcceptRole)
+        restore = buttons.addButton(tr("Wiederherstellen"), QDialogButtonBox.ButtonRole.AcceptRole)
         restore.setDefault(True)
-        discard = buttons.addButton("Alle verwerfen", QDialogButtonBox.ButtonRole.DestructiveRole)
+        discard = buttons.addButton(tr("Alle verwerfen"), QDialogButtonBox.ButtonRole.DestructiveRole)
         discard.clicked.connect(lambda: self.done(self.DISCARD_ALL))
-        later = buttons.addButton("Später", QDialogButtonBox.ButtonRole.RejectRole)
-        later.setToolTip("Nichts wiederherstellen; beim nächsten Start erneut anbieten")
+        later = buttons.addButton(tr("Später"), QDialogButtonBox.ButtonRole.RejectRole)
+        later.setToolTip(tr("Nichts wiederherstellen; beim nächsten Start erneut anbieten"))
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 

@@ -13,9 +13,11 @@ from PySide6.QtWidgets import QApplication, QLabel, QScrollArea, QSizePolicy, QV
 
 from app import styles
 from app.canvas import ELEMENT_MIME_TYPE
+from app.i18n import tr
 from app.items.shapes import geometry_for, paint_shape, render_shape_pixmap
 from app.model.element_types import (FLOW_TERMINALS, LOOP_BEGIN, LOOP_END, LOOP_PART_KEY,
-                                     PALETTE_ORDER, ElementType, spec_for)
+                                     PALETTE_ORDER, ElementType, description_for, display_name_for,
+                                     spec_for)
 
 PREVIEW_WIDTH = 58.0
 PREVIEW_HEIGHT = 30.0
@@ -30,15 +32,16 @@ class PaletteEntry(QWidget):
         super().__init__(parent)
         self.element_type = ElementType(element_type)
         self.spec = spec_for(self.element_type)
+        self.label = display_name_for(self.element_type)
         self._hovered = False
         self._pressed_pos: QPoint | None = None
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.setFixedHeight(44)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setToolTip(f"<b>{self.spec.display_name}</b><br>{self.spec.description}<br><br>"
-                        "Auf die Arbeitsfläche ziehen oder klicken zum Einfügen.")
-        self.setAccessibleName(self.spec.display_name)
+        self.setToolTip(f"<b>{self.label}</b><br>{description_for(self.element_type)}<br><br>"
+                        + tr("Auf die Arbeitsfläche ziehen oder klicken zum Einfügen."))
+        self.setAccessibleName(self.label)
 
     def sizeHint(self) -> QSize:
         return QSize(170, 44)
@@ -78,8 +81,7 @@ class PaletteEntry(QWidget):
         # Bezeichnung
         p.setPen(QColor(theme.text if self.isEnabled() else theme.text_disabled))
         text_rect = rect.adjusted(12 + PREVIEW_WIDTH + 14, 0, -4, 0)
-        p.drawText(text_rect, int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
-                   self.spec.display_name)
+        p.drawText(text_rect, int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft), self.label)
         p.end()
 
     def enterEvent(self, event) -> None:
@@ -146,16 +148,16 @@ class ToolPalette(QWidget):
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 4, 0, 8)
         layout.setSpacing(0)
-        layout.addWidget(self._section("BAUSTEINE"))
+        layout.addWidget(self._section(tr("BAUSTEINE")))
         for element_type in PALETTE_ORDER:
             layout.addWidget(self._entry(element_type))
-        layout.addWidget(self._section("ABLAUF"))
+        layout.addWidget(self._section(tr("ABLAUF", ctx="Palette")))
         for element_type in FLOW_TERMINALS:
             layout.addWidget(self._entry(element_type))
         layout.addStretch(1)
-        hint = QLabel("Ziehen oder klicken zum Einfügen.\n"
-                      "Verbinden: vom Anschlusspunkt auf Baustein oder Pfeil ziehen.\n"
-                      "Rot = möglicherweise falsche Verbindung.")
+        hint = QLabel("\n".join((tr("Ziehen oder klicken zum Einfügen."),
+                                 tr("Verbinden: vom Anschlusspunkt auf Baustein oder Pfeil ziehen."),
+                                 tr("Rot = möglicherweise falsche Verbindung."))))
         hint.setObjectName("Muted")
         hint.setWordWrap(True)
         hint.setContentsMargins(12, 8, 8, 4)

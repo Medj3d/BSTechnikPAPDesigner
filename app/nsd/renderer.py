@@ -26,6 +26,8 @@ from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndSt
                               Program,
                               Unstructured, WhileLoop)
 from app.export import ExportError
+from app.i18n import N_, tr
+from app.labels import no_label as default_no_label, yes_label as default_yes_label
 
 PAD_X = 8.0
 PAD_Y = 6.0
@@ -141,7 +143,7 @@ class _If(_Node):
     def __init__(self, condition: str, yes: _Node, no: _Node, yes_label: str, no_label: str):
         self.condition = " ".join(condition.split())
         self.yes, self.no = yes, no
-        self.yes_label, self.no_label = yes_label or "ja", no_label or "nein"
+        self.yes_label, self.no_label = yes_label or default_yes_label(), no_label or default_no_label()
 
     def split(self, width, fm) -> float:
         a, b = self.yes.pref_width(fm), self.no.pref_width(fm)
@@ -263,36 +265,55 @@ def _build(block: Block, top_level: bool = False) -> _Node:
     return _Sequence([node for node in (_stmt(s) for s in statements) if node is not None])
 
 
+# Vorsatz einer Ein-/Ausgabe oder eines Aufrufs im Struktogramm (deutscher Quelltext, angezeigt mit ``tr``)
+_PREFIXES = {"input": N_("Eingabe: "), "output": N_("Ausgabe: "), "subprogram": N_("Aufruf: ")}
+
+
+def _action_text(kind: str, text: str) -> str:
+    """Text einer Anweisung, bei Ein-/Ausgabe und Aufruf mit Vorsatz („Eingabe: x“).
+
+    Beginnt der Text des Bausteins schon mit dem Wort (auf Deutsch – der Sprache der Plantexte – oder in der
+    Sprache der Oberfläche), bleibt der Vorsatz weg.
+    """
+    source = _PREFIXES.get(kind)
+    if not source:
+        return text
+    prefix = tr(source)
+    lowered = text.lower()
+    if any(word and lowered.startswith(word) for word in (source.lower().rstrip(": "), prefix.lower().rstrip(": "))):
+        return text
+    return prefix + text
+
+
 def _stmt(stmt) -> _Node | None:
     if isinstance(stmt, Action):
         if stmt.kind == "junction":
             return None
-        prefix = {"input": "Eingabe: ", "output": "Ausgabe: ", "subprogram": "Aufruf: "}.get(stmt.kind, "")
-        text = stmt.text.strip()
-        if prefix and text.lower().startswith(prefix.lower().rstrip(": ")):
-            prefix = ""
-        return _Text(prefix + text, "sub" if stmt.kind == "subprogram" else "fill")
+        return _Text(_action_text(stmt.kind, stmt.text.strip()), "sub" if stmt.kind == "subprogram" else "fill")
     if isinstance(stmt, If):
         return _If(stmt.condition, _build(stmt.then_block), _build(stmt.else_block), stmt.then_label,
                    stmt.else_label)
     if isinstance(stmt, WhileLoop):
-        condition = f"solange nicht ({stmt.condition.strip()})" if stmt.negate else f"solange {stmt.condition.strip()}"
+        text = stmt.condition.strip()
+        condition = tr("solange nicht ({condition})", condition=text) if stmt.negate \
+            else tr("solange {condition}", condition=text)
         return _Loop(condition, _build(stmt.body), None)
     if isinstance(stmt, DoWhileLoop):
-        condition = f"bis {stmt.condition.strip()}" if stmt.negate else f"solange {stmt.condition.strip()}"
+        text = stmt.condition.strip()
+        condition = tr("bis {condition}", condition=text) if stmt.negate else tr("solange {condition}", condition=text)
         return _Loop(None, _build(stmt.body), condition)
     if isinstance(stmt, LimitLoop):
         return _Loop(stmt.header, _build(stmt.body), stmt.footer or None)
     if isinstance(stmt, Loop):
-        return _Loop("wiederhole", _build(stmt.body), None)
+        return _Loop(tr("wiederhole"), _build(stmt.body), None)
     if isinstance(stmt, Continue):
-        return _Text("nächster Durchlauf", "head", center=True)
+        return _Text(tr("nächster Durchlauf"), "head", center=True)
     if isinstance(stmt, Break):
-        return _Text("Schleife verlassen", "head", center=True)
+        return _Text(tr("Schleife verlassen"), "head", center=True)
     if isinstance(stmt, EndStmt):
-        return _Text("Ende", "head", center=True)
+        return _Text(tr("Ende", ctx="Struktogramm"), "head", center=True)
     if isinstance(stmt, Unstructured):
-        return _Text(f"Nicht strukturierbar: {stmt.note}", "fill", dashed=True)
+        return _Text(tr("Nicht strukturierbar: {note}", note=stmt.note), "fill", dashed=True)
     return None
 
 
@@ -390,12 +411,12 @@ def export_nsd(programs: list[Program], path: str, fmt: str, theme=None) -> None
     """Exportiert das Struktogramm als PNG, SVG oder PDF. Wirft ``ExportError``."""
     theme = theme or styles.LIGHT
     if not programs:
-        raise ExportError("Es gibt kein Struktogramm zu exportieren (kein Start-Element).")
+        raise ExportError(tr("Es gibt kein Struktogramm zu exportieren (kein Start-Element)."))
     fmt = fmt.upper()
     name = os.path.basename(path)
     if fmt == "PNG":
         if not render_image(programs, theme, 2.0).save(path, "PNG"):
-            raise ExportError(f"Die Datei „{name}“ konnte nicht geschrieben werden.")
+            raise ExportError(tr("Die Datei „{name}“ konnte nicht geschrieben werden.", name=name))
         return
     size = total_size(programs, theme)
     painter = QPainter()
@@ -406,9 +427,9 @@ def export_nsd(programs: list[Program], path: str, fmt: str, theme=None) -> None
         device.setFileName(path)
         device.setSize(QSize(int(size.width()), int(size.height())))
         device.setViewBox(QRectF(0, 0, size.width(), size.height()))
-        device.setTitle(f"Struktogramm – {config.APP_NAME}")
+        device.setTitle(tr("Struktogramm – {app}", app=config.APP_NAME))
         if not painter.begin(device):
-            raise ExportError(f"Die Datei „{name}“ konnte nicht geschrieben werden.")
+            raise ExportError(tr("Die Datei „{name}“ konnte nicht geschrieben werden.", name=name))
         try:
             painter.fillRect(QRectF(0, 0, size.width(), size.height()), QColor("#FFFFFF"))
             paint_programs(painter, programs, theme)
@@ -420,10 +441,10 @@ def export_nsd(programs: list[Program], path: str, fmt: str, theme=None) -> None
         writer.setCreator(config.APP_NAME)
         writer.setResolution(300)
         page = QPageSize(QSizeF(size.width() * 72 / 96, size.height() * 72 / 96), QPageSize.Unit.Point,
-                         "Struktogramm", QPageSize.SizeMatchPolicy.ExactMatch)
+                         tr("Struktogramm"), QPageSize.SizeMatchPolicy.ExactMatch)
         writer.setPageLayout(QPageLayout(page, QPageLayout.Orientation.Portrait, QMarginsF(0, 0, 0, 0)))
         if not painter.begin(writer):
-            raise ExportError(f"Die Datei „{name}“ konnte nicht geschrieben werden.")
+            raise ExportError(tr("Die Datei „{name}“ konnte nicht geschrieben werden.", name=name))
         try:
             factor = writer.width() / size.width()
             painter.scale(factor, factor)
@@ -431,4 +452,4 @@ def export_nsd(programs: list[Program], path: str, fmt: str, theme=None) -> None
         finally:
             painter.end()
         return
-    raise ExportError(f"Unbekanntes Format „{fmt}“.")
+    raise ExportError(tr("Unbekanntes Format „{format}“.", format=fmt))

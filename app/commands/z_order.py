@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from PySide6.QtGui import QUndoCommand
 
+from app.i18n import tr
+
 
 class ZOrderCommand(QUndoCommand):
     """``changes`` = {element_id: (alt_z, neu_z)}"""
 
-    def __init__(self, scene, changes: dict, text: str = "Reihenfolge ändern", parent=None):
-        super().__init__(text, parent)
+    def __init__(self, scene, changes: dict, text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Reihenfolge ändern"), parent)
         self._scene = scene
         self._changes = dict(changes)
 

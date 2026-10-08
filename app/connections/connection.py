@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject
 from app import styles
 from app.connections import routing
 from app.connections.label import ConnectionLabel
+from app.i18n import tr
 from app.items.base_item import LAYER_CONNECTION, FlowItem
 from app.model.diagram import ConnectionData
 from app.model.element_types import TRUNK_IN_KEY
@@ -122,7 +123,7 @@ class ConnectionItem(QGraphicsObject):
     def set_warning(self, message: str | None) -> None:
         if message != self._warning:
             self._warning = message
-            self.setToolTip(f"Hinweis: {message}" if message else "")
+            self.setToolTip(tr("Hinweis: {message}", message=message) if message else "")
             self.update()
             self.label.update()
 

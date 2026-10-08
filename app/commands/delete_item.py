@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from PySide6.QtGui import QUndoCommand
 
+from app.i18n import tr
+
 
 class DeleteCommand(QUndoCommand):
     """Löscht Bausteine inklusive aller zugehörigen Verbindungen.
@@ -13,8 +15,8 @@ class DeleteCommand(QUndoCommand):
     """
 
     def __init__(self, scene, element_ids: list[str], connection_ids: list[str] = (),
-                 text: str = "Löschen", parent=None):
-        super().__init__(text, parent)
+                 text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Löschen"), parent)
         self._scene = scene
         self._items = [scene.element(eid) for eid in element_ids]
         self._items = [item for item in self._items if item is not None]

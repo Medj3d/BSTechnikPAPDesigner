@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6.QtGui import QUndoCommand
 
 from app.connections.connection import ConnectionItem
+from app.i18n import tr
 from app.items.factory import create_item
 from app.model.diagram import ConnectionData, ElementData
 
@@ -20,9 +21,9 @@ class AddElementsCommand(QUndoCommand):
     """
 
     def __init__(self, scene, elements: list[ElementData], connections: list[ConnectionData] = (),
-                 text: str = "Baustein einfügen", select: bool = True, parent=None,
+                 text: str | None = None, select: bool = True, parent=None,
                  select_ids: list[str] | None = None):
-        super().__init__(text, parent)
+        super().__init__(text if text is not None else tr("Baustein einfügen"), parent)
         self._scene = scene
         self._element_data = [e.copy() for e in elements]
         self._connection_data = [c.copy() for c in connections]

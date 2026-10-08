@@ -6,14 +6,16 @@ import copy
 
 from PySide6.QtGui import QUndoCommand
 
+from app.i18n import tr
+
 
 class SetElementPropertyCommand(QUndoCommand):
     """Setzt eine Elementeigenschaft (z. B. Schleifenbeginn/-ende) und optional den Text."""
 
     def __init__(self, scene, element_id: str, key: str, old_value, new_value,
                  old_text: str | None = None, new_text: str | None = None,
-                 text: str = "Eigenschaft ändern", parent=None):
-        super().__init__(text, parent)
+                 text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Eigenschaft ändern"), parent)
         self._scene = scene
         self._element_id = element_id
         self._key = key
@@ -42,8 +44,8 @@ class ProjectPropertiesCommand(QUndoCommand):
     """Ändert Projektmetadaten und Rastergröße eines Dokuments."""
 
     def __init__(self, document, old_meta, new_meta, old_grid: int, new_grid: int,
-                 text: str = "Projekteigenschaften ändern", parent=None):
-        super().__init__(text, parent)
+                 text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Projekteigenschaften ändern"), parent)
         self._document = document
         self._old_meta = old_meta.copy()
         self._new_meta = new_meta.copy()

@@ -134,6 +134,8 @@ def all_translations(text: str, ctx: str | None = None) -> set[str]:
         translated = load_catalog(code).get(key) or load_catalog(code).get(text)
         if translated:
             found.add(translated)
+    if _language == PSEUDO_LANGUAGE:
+        found.add(_pseudo(text))  # die Testsprache verhält sich wie eine echte Sprache
     return found
 
 
@@ -229,12 +231,15 @@ def _fill(translated: str, source: str, values: dict) -> str:
         return source.format(**values)
 
 
-def tr(text: str, *, ctx: str | None = None, **values) -> str:
-    """Übersetzt einen (deutschen) Text in die eingestellte Sprache; ``values`` füllen die Platzhalter."""
+def tr(text: str, /, *, ctx: str | None = None, **values) -> str:
+    """Übersetzt einen (deutschen) Text in die eingestellte Sprache; ``values`` füllen die Platzhalter.
+
+    Der Text wird nur der Position nach übergeben – so darf auch ein Platzhalter ``{text}`` heißen.
+    """
     return _fill(_lookup(text, ctx), text, values)
 
 
-def N_(text: str, *, ctx: str | None = None) -> str:
+def N_(text: str, /, *, ctx: str | None = None) -> str:
     """Markiert einen Text zum Übersetzen, ohne ihn zu übersetzen (für Tabellen und Konstanten).
 
     Angezeigt wird er später mit ``tr(variable)``.
@@ -242,7 +247,7 @@ def N_(text: str, *, ctx: str | None = None) -> str:
     return text
 
 
-def tr_code(text: str, *, ctx: str | None = None, **values) -> str:
+def tr_code(text: str, /, *, ctx: str | None = None, **values) -> str:
     """Wie ``tr``, aber für erzeugten Programmtext (Pseudocode, Kommentare in Python/Java): Deutsch bleibt
     Deutsch, jede andere Oberflächensprache erzeugt englischen Programmtext."""
     if _language in (SOURCE_LANGUAGE, PSEUDO_LANGUAGE):

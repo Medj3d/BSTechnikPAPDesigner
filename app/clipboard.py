@@ -17,6 +17,7 @@ from PySide6.QtWidgets import QApplication
 from app.commands import AddElementsCommand, DeleteCommand
 from app.fileformat.project import ProjectFileError
 from app.fileformat.serializer import diagram_from_xml, diagram_to_xml
+from app.i18n import tr
 from app.model.diagram import Diagram, new_id
 from app.model.element_types import TRUNK_IN_KEY, TRUNK_OUT_KEY
 
@@ -52,7 +53,7 @@ def cut_selection(scene) -> bool:
         return False
     element_ids = [item.element_id for item in scene.selected_elements()]
     connection_ids = [conn.connection_id for conn in scene.selected_connections()]
-    scene.undo_stack.push(DeleteCommand(scene, element_ids, connection_ids, text="Ausschneiden"))
+    scene.undo_stack.push(DeleteCommand(scene, element_ids, connection_ids, text=tr("Ausschneiden")))
     return True
 
 
@@ -79,8 +80,13 @@ def payload_bounds(payload: Diagram) -> QRectF:
 
 
 def paste_payload(scene, payload: Diagram, target_center: QPointF | None = None,
-                  offset: QPointF | None = None, text: str = "Einfügen") -> list[str]:
-    """Fügt den Inhalt als neue Elemente ein. Gibt die neuen IDs zurück."""
+                  offset: QPointF | None = None, text: str | None = None) -> list[str]:
+    """Fügt den Inhalt als neue Elemente ein. Gibt die neuen IDs zurück.
+
+    ``text``: Beschriftung des Undo-Schritts (schon übersetzt); ohne Angabe „Einfügen“.
+    """
+    if text is None:
+        text = tr("Einfügen")
     scene.prepare_for_command()
     elements = []
     id_map: dict[str, str] = {}

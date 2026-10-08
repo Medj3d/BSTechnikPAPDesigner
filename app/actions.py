@@ -2,75 +2,92 @@
 
 from __future__ import annotations
 
+import re
+
 from PySide6.QtGui import QAction, QKeySequence
 
 from app import icons
 from app.alignment import (ALIGN_BOTTOM, ALIGN_CENTER_X, ALIGN_CENTER_Y, ALIGN_LEFT, ALIGN_RIGHT,
                            ALIGN_TOP, DISTRIBUTE_H, DISTRIBUTE_V, LABELS, SNAP_TO_GRID)
-from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, spec_for
+from app.i18n import N_, tr
+from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, description_for, display_name_for
 
 K = QKeySequence.StandardKey
 
+# Kurzschreibung der Mnemonik in ostasiatischen Sprachen: „ファイル(&F)“, „文件（&F）“
+_EAST_ASIAN_MNEMONIC = re.compile(r"\s*[(（]&[^)）&][)）]")
+# Auslassungspunkte am Ende („Öffnen …“, „Open...“, „开(&O)…“) – mit oder ohne Leerzeichen davor
+_TRAILING_ELLIPSIS = re.compile(r"\s*(?:\.\.\.|…)+\s*$")
+# „&x“ markiert den Mnemonik-Buchstaben, „&&“ ist ein echtes „&“
+_MNEMONIC_AMPERSAND = re.compile(r"&(&?)")
+
 # name: (Text, Icon, Tastenkürzel, Statuszeilen-Hinweis)
+# Text und Hinweis sind deutscher Quelltext (mit N_ markiert); übersetzt wird beim Anlegen der QActions.
 _DEFINITIONS = {
     # Datei
-    "new": ("&Neu", "new", [K.New], "Neues, leeres Projekt anlegen"),
-    "open": ("Ö&ffnen …", "open", [K.Open], "Projektdatei öffnen"),
-    "save": ("&Speichern", "save", [K.Save], "Projekt speichern"),
-    "save_as": ("Speichern &unter …", "save_as", ["Ctrl+Shift+S"], "Projekt unter neuem Namen speichern"),
-    "auto_save": ("&Automatisch speichern", None, [],
-                  "Bereits gespeicherte Projekte nach jeder Änderung von selbst speichern"),
-    "export_png": ("Als &PNG-Bild …", None, [], "Diagramm als PNG-Bild exportieren"),
-    "export_svg": ("Als &SVG-Grafik …", None, [], "Diagramm als SVG-Vektorgrafik exportieren"),
-    "export_pdf": ("Als P&DF-Dokument …", None, [], "Diagramm als PDF exportieren"),
-    "print": ("&Drucken …", "print", [K.Print], "Diagramm drucken"),
-    "print_preview": ("Druck&vorschau …", None, [], "Druckvorschau anzeigen"),
-    "properties": ("Projekt&eigenschaften …", "properties", [], "Projektname, Autor, Beschreibung und Raster"),
-    "close": ("S&chließen", "close", [K.Close], "Aktuelles Projekt schließen"),
-    "quit": ("&Beenden", None, ["Ctrl+Q"], "Programm beenden"),
+    "new": (N_("&Neu"), "new", [K.New], N_("Neues, leeres Projekt anlegen")),
+    "open": (N_("Ö&ffnen …"), "open", [K.Open], N_("Projektdatei öffnen")),
+    "save": (N_("&Speichern"), "save", [K.Save], N_("Projekt speichern")),
+    "save_as": (N_("Speichern &unter …"), "save_as", ["Ctrl+Shift+S"], N_("Projekt unter neuem Namen speichern")),
+    "auto_save": (N_("&Automatisch speichern"), None, [],
+                  N_("Bereits gespeicherte Projekte nach jeder Änderung von selbst speichern")),
+    "export_png": (N_("Als &PNG-Bild …"), None, [], N_("Diagramm als PNG-Bild exportieren")),
+    "export_svg": (N_("Als &SVG-Grafik …"), None, [], N_("Diagramm als SVG-Vektorgrafik exportieren")),
+    "export_pdf": (N_("Als P&DF-Dokument …"), None, [], N_("Diagramm als PDF exportieren")),
+    "print": (N_("&Drucken …"), "print", [K.Print], N_("Diagramm drucken")),
+    "print_preview": (N_("Druck&vorschau …"), None, [], N_("Druckvorschau anzeigen")),
+    "properties": (N_("Projekt&eigenschaften …"), "properties", [],
+                   N_("Projektname, Autor, Beschreibung und Raster")),
+    "close": (N_("S&chließen"), "close", [K.Close], N_("Aktuelles Projekt schließen")),
+    "quit": (N_("&Beenden"), None, ["Ctrl+Q"], N_("Programm beenden")),
     # Bearbeiten
-    "undo": ("&Rückgängig", "undo", [K.Undo], "Letzte Aktion rückgängig machen"),
-    "redo": ("&Wiederholen", "redo", ["Ctrl+Y", "Ctrl+Shift+Z"], "Rückgängig gemachte Aktion wiederholen"),
-    "cut": ("&Ausschneiden", "cut", [K.Cut], "Auswahl ausschneiden"),
-    "copy": ("&Kopieren", "copy", [K.Copy], "Auswahl kopieren"),
-    "paste": ("&Einfügen", "paste", [K.Paste], "Aus der Zwischenablage einfügen"),
-    "duplicate": ("&Duplizieren", "duplicate", ["Ctrl+D"], "Auswahl duplizieren"),
-    "delete": ("&Löschen", "delete", [K.Delete], "Auswahl löschen"),
-    "select_all": ("Alles au&swählen", "select_all", [K.SelectAll], "Alle Elemente auswählen"),
-    "deselect": ("Auswahl au&fheben", None, ["Esc"], "Auswahl aufheben bzw. Aktion abbrechen"),
-    "edit_text": ("&Text bearbeiten", None, ["F2"], "Text des ausgewählten Bausteins bearbeiten"),
+    "undo": (N_("&Rückgängig"), "undo", [K.Undo], N_("Letzte Aktion rückgängig machen")),
+    "redo": (N_("&Wiederholen"), "redo", ["Ctrl+Y", "Ctrl+Shift+Z"], N_("Rückgängig gemachte Aktion wiederholen")),
+    "cut": (N_("&Ausschneiden"), "cut", [K.Cut], N_("Auswahl ausschneiden")),
+    "copy": (N_("&Kopieren"), "copy", [K.Copy], N_("Auswahl kopieren")),
+    "paste": (N_("&Einfügen"), "paste", [K.Paste], N_("Aus der Zwischenablage einfügen")),
+    "duplicate": (N_("&Duplizieren"), "duplicate", ["Ctrl+D"], N_("Auswahl duplizieren")),
+    "delete": (N_("&Löschen"), "delete", [K.Delete], N_("Auswahl löschen")),
+    "select_all": (N_("Alles au&swählen"), "select_all", [K.SelectAll], N_("Alle Elemente auswählen")),
+    "deselect": (N_("Auswahl au&fheben"), None, ["Esc"], N_("Auswahl aufheben bzw. Aktion abbrechen")),
+    "edit_text": (N_("&Text bearbeiten"), None, ["F2"], N_("Text des ausgewählten Bausteins bearbeiten")),
     # Ansicht
-    "zoom_in": ("Zoom &+", "zoom_in", [K.ZoomIn, "Ctrl+="], "Hineinzoomen"),
-    "zoom_out": ("Zoom &−", "zoom_out", [K.ZoomOut], "Herauszoomen"),
-    "zoom_reset": ("Auf &100 %", "zoom_reset", ["Ctrl+0"], "Zoom auf 100 % setzen"),
-    "zoom_fit": ("Diagramm &einpassen", "zoom_fit", ["Ctrl+1"], "Ganzes Diagramm anzeigen"),
-    "toggle_grid": ("&Raster anzeigen", "grid", ["Ctrl+G"], "Punktraster ein-/ausblenden"),
-    "toggle_snap": ("Am Raster &einrasten", "snap", ["Ctrl+Shift+G"], "Bausteine beim Verschieben einrasten"),
-    # Anordnen
-    ALIGN_LEFT: (LABELS[ALIGN_LEFT], "align_left", [], "Linke Kanten ausrichten"),
-    ALIGN_RIGHT: (LABELS[ALIGN_RIGHT], "align_right", [], "Rechte Kanten ausrichten"),
-    ALIGN_TOP: (LABELS[ALIGN_TOP], "align_top", [], "Obere Kanten ausrichten"),
-    ALIGN_BOTTOM: (LABELS[ALIGN_BOTTOM], "align_bottom", [], "Untere Kanten ausrichten"),
-    ALIGN_CENTER_X: (LABELS[ALIGN_CENTER_X], "align_center_x", [], "Auf gemeinsame senkrechte Mittelachse"),
-    ALIGN_CENTER_Y: (LABELS[ALIGN_CENTER_Y], "align_center_y", [], "Auf gemeinsame waagerechte Mittelachse"),
-    DISTRIBUTE_H: (LABELS[DISTRIBUTE_H], "distribute_h", [], "Gleiche horizontale Abstände"),
-    DISTRIBUTE_V: (LABELS[DISTRIBUTE_V], "distribute_v", [], "Gleiche vertikale Abstände"),
-    SNAP_TO_GRID: (LABELS[SNAP_TO_GRID], "snap", [], "Ausgewählte Bausteine auf das Raster setzen"),
-    "bring_front": ("Nach &vorne", "front", ["Ctrl+Shift+Up"], "In den Vordergrund"),
-    "send_back": ("Nach &hinten", "back", ["Ctrl+Shift+Down"], "In den Hintergrund"),
-    "toggle_loop_part": ("Schleifenbeginn/-ende &umschalten", None, [], "Teil der Schleifenbegrenzung wechseln"),
-    "reset_routing": ("Linienführung &zurücksetzen", None, [], "Automatische Linienführung wiederherstellen"),
+    "zoom_in": (N_("Zoom &+"), "zoom_in", [K.ZoomIn, "Ctrl+="], N_("Hineinzoomen")),
+    "zoom_out": (N_("Zoom &−"), "zoom_out", [K.ZoomOut], N_("Herauszoomen")),
+    "zoom_reset": (N_("Auf &100 %"), "zoom_reset", ["Ctrl+0"], N_("Zoom auf 100 % setzen")),
+    "zoom_fit": (N_("Diagramm &einpassen"), "zoom_fit", ["Ctrl+1"], N_("Ganzes Diagramm anzeigen")),
+    "toggle_grid": (N_("&Raster anzeigen"), "grid", ["Ctrl+G"], N_("Punktraster ein-/ausblenden")),
+    "toggle_snap": (N_("Am Raster &einrasten"), "snap", ["Ctrl+Shift+G"], N_("Bausteine beim Verschieben einrasten")),
+    # Anordnen (die Texte stehen in app/alignment.py und sind dort mit N_ markiert)
+    ALIGN_LEFT: (LABELS[ALIGN_LEFT], "align_left", [], N_("Linke Kanten ausrichten")),
+    ALIGN_RIGHT: (LABELS[ALIGN_RIGHT], "align_right", [], N_("Rechte Kanten ausrichten")),
+    ALIGN_TOP: (LABELS[ALIGN_TOP], "align_top", [], N_("Obere Kanten ausrichten")),
+    ALIGN_BOTTOM: (LABELS[ALIGN_BOTTOM], "align_bottom", [], N_("Untere Kanten ausrichten")),
+    ALIGN_CENTER_X: (LABELS[ALIGN_CENTER_X], "align_center_x", [], N_("Auf gemeinsame senkrechte Mittelachse")),
+    ALIGN_CENTER_Y: (LABELS[ALIGN_CENTER_Y], "align_center_y", [], N_("Auf gemeinsame waagerechte Mittelachse")),
+    DISTRIBUTE_H: (LABELS[DISTRIBUTE_H], "distribute_h", [], N_("Gleiche horizontale Abstände")),
+    DISTRIBUTE_V: (LABELS[DISTRIBUTE_V], "distribute_v", [], N_("Gleiche vertikale Abstände")),
+    SNAP_TO_GRID: (LABELS[SNAP_TO_GRID], "snap", [], N_("Ausgewählte Bausteine auf das Raster setzen")),
+    "bring_front": (N_("Nach &vorne"), "front", ["Ctrl+Shift+Up"], N_("In den Vordergrund")),
+    "send_back": (N_("Nach &hinten"), "back", ["Ctrl+Shift+Down"], N_("In den Hintergrund")),
+    "toggle_loop_part": (N_("Schleifenbeginn/-ende &umschalten"), None, [],
+                         N_("Teil der Schleifenbegrenzung wechseln")),
+    "reset_routing": (N_("Linienführung &zurücksetzen"), None, [], N_("Automatische Linienführung wiederherstellen")),
     # Extras
-    "generate_code": ("&Code erzeugen …", "code", ["Ctrl+Shift+C"], "Pseudocode, Python oder Java aus dem PAP erzeugen"),
-    "structogram": ("&Struktogramm …", "structogram", ["Ctrl+Shift+N"], "Ablauf als Struktogramm (Nassi-Shneiderman)"),
-    "auto_layout": ("&Automatisch anordnen", "layout", ["Ctrl+L"], "Bausteine übersichtlich neu anordnen"),
-    "theme_dark": ("&Dunkel", None, [], "Dunkles Farbschema"),
-    "theme_light": ("&Hell", None, [], "Helles Farbschema (z. B. für Beamer)"),
+    "generate_code": (N_("&Code erzeugen …"), "code", ["Ctrl+Shift+C"],
+                      N_("Pseudocode, Python oder Java aus dem PAP erzeugen")),
+    "structogram": (N_("&Struktogramm …"), "structogram", ["Ctrl+Shift+N"],
+                    N_("Ablauf als Struktogramm (Nassi-Shneiderman)")),
+    "auto_layout": (N_("&Automatisch anordnen"), "layout", ["Ctrl+L"], N_("Bausteine übersichtlich neu anordnen")),
+    "theme_dark": (N_("&Dunkel"), None, [], N_("Dunkles Farbschema")),
+    "theme_light": (N_("&Hell"), None, [], N_("Helles Farbschema (z. B. für Beamer)")),
     # Hilfe
-    "shortcuts": ("&Tastenkürzel und Bedienung", "keyboard", [K.HelpContents], "Übersicht der Bedienung"),
-    "register_filetype": (f"Dateityp registrieren …", "register", [], "Projektdateien mit diesem Programm öffnen"),
-    "check_updates": ("Nach &Updates suchen …", None, [], "Prüfen, ob eine neuere Version veröffentlicht wurde"),
-    "about": ("Ü&ber das Programm", "info", [], "Version, Urheber und Informationen über das Programm"),
+    "shortcuts": (N_("&Tastenkürzel und Bedienung"), "keyboard", [K.HelpContents], N_("Übersicht der Bedienung")),
+    "register_filetype": (N_("Dateityp registrieren …"), "register", [],
+                          N_("Projektdateien mit diesem Programm öffnen")),
+    "check_updates": (N_("Nach &Updates suchen …"), None, [],
+                      N_("Prüfen, ob eine neuere Version veröffentlicht wurde")),
+    "about": (N_("Ü&ber das Programm"), "info", [], N_("Version, Urheber und Informationen über das Programm")),
 }
 
 ALIGN_ACTIONS = [ALIGN_LEFT, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM, ALIGN_CENTER_X, ALIGN_CENTER_Y,
@@ -87,7 +104,8 @@ class ActionRegistry:
     def __init__(self, parent):
         self._actions: dict[str, QAction] = {}
         self._icon_names: dict[str, str] = {}
-        for name, (text, icon_name, shortcuts, tip) in _DEFINITIONS.items():
+        for name, (text_source, icon_name, shortcuts, tip_source) in _DEFINITIONS.items():
+            text = tr(text_source)
             action = QAction(text, parent)
             if icon_name:
                 action.setIcon(icons.icon(icon_name))
@@ -100,14 +118,15 @@ class ActionRegistry:
                     sequences.extend(QKeySequence.keyBindings(shortcut))
             if sequences:
                 action.setShortcuts(sequences)
-            action.setStatusTip(tip)
+            action.setStatusTip(tr(tip_source))
             action.setToolTip(self._tooltip(text, sequences))
             self._actions[name] = action
         for element_type in PALETTE_ORDER + FLOW_TERMINALS:
-            spec = spec_for(element_type)
-            action = QAction(spec.display_name, parent)
+            block_name = display_name_for(element_type)
+            action = QAction(block_name, parent)
             action.setIcon(icons.element_icon(element_type))
-            action.setStatusTip(f"{spec.display_name} einfügen – {spec.description}")
+            action.setStatusTip(tr("{name} einfügen – {description}", name=block_name,
+                                   description=description_for(element_type)))
             action.setData(element_type)
             self._actions[insert_action_name(element_type)] = action
         for name in ("toggle_grid", "toggle_snap"):
@@ -125,7 +144,14 @@ class ActionRegistry:
 
     @staticmethod
     def _tooltip(text: str, sequences) -> str:
-        clean = text.replace("&", "").replace(" …", "")
+        """Menütext ohne Mnemonik und ohne Auslassungspunkte, ggf. mit Tastenkürzel: „Speichern (Strg+S)“.
+
+        Erkennt auch die ostasiatische Schreibweise der Mnemonik („保存(&S)…“) und Auslassungspunkte ohne
+        Leerzeichen davor, damit auch übersetzte Menütexte saubere Kurzinfos ergeben.
+        """
+        clean = _EAST_ASIAN_MNEMONIC.sub("", text)
+        clean = _TRAILING_ELLIPSIS.sub("", clean)
+        clean = _MNEMONIC_AMPERSAND.sub(r"\1", clean)
         if sequences:
             return f"{clean} ({sequences[0].toString(QKeySequence.SequenceFormat.NativeText)})"
         return clean

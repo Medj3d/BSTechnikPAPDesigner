@@ -33,7 +33,9 @@ from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndSt
                               Program, Unstructured, WhileLoop)
 from app.analysis.graph import Edge, FlowGraph, has_yes_no_labels, yes_no_edges
 from app.analysis.text import branch_condition, is_choice
-from app.model.element_types import ElementType
+from app.i18n import tr
+from app.labels import no_label, yes_label
+from app.model.element_types import ElementType, default_text_for
 
 ACTION_KINDS = {
     ElementType.INPUT: "input",
@@ -119,13 +121,14 @@ class _Structurer:
         self.emitted.add(start_id)
         outs = self.g.outgoing(start_id)
         body = Block()
+        name = start.text or default_text_for(ElementType.START)
         if outs:
             if len(outs) > 1:
-                self.warn(f"„{start.text or 'Start'}“ hat mehrere Ausgänge; nur der erste wird verwendet.")
+                self.warn(tr("„{name}“ hat mehrere Ausgänge; nur der erste wird verwendet.", name=name))
             body, _ = self.block(outs[0].target, frozenset())
         else:
-            self.warn(f"„{start.text or 'Start'}“ ist mit keinem Baustein verbunden.")
-        return Program(start.text or "Start", start_id, self.end_id, self.end_text, body, self.warnings)
+            self.warn(tr("„{name}“ ist mit keinem Baustein verbunden.", name=name))
+        return Program(name, start_id, self.end_id, self.end_text, body, self.warnings)
 
     # ------------------------------------------------------------ Hilfen
     def node(self, nid: str):
@@ -155,9 +158,9 @@ class _Structurer:
 
     def _lost_jump(self, block: Block, target: str, convert: str | None = None) -> None:
         """Ein Zweig führt an eine Stelle, an der der Code nicht weitermachen kann."""
-        block.statements.append(Unstructured(f"Sprung zu „{self.label(target)}“", [target], fatal=True))
-        self.warn(f"Der Sprung zu „{self.label(target)}“ lässt sich nicht als strukturiertes Programm "
-                  "darstellen.")
+        block.statements.append(Unstructured(tr("Sprung zu „{name}“", name=self.label(target)), [target], fatal=True))
+        self.warn(tr("Der Sprung zu „{name}“ lässt sich nicht als strukturiertes Programm darstellen.",
+                     name=self.label(target)))
         self._rebuild_as_general_loop(convert)
 
     def reach(self, start: str, blocked: frozenset | set, expand_start: bool = False) -> dict[str, int]:
@@ -263,25 +266,26 @@ class _Structurer:
             if stop_at_loop_end and node.is_loop_end:
                 return Block(stmts), cur
             if self._depth > MAX_DEPTH:
-                stmts.append(Unstructured("Verschachtelung zu tief.", [cur], fatal=True))
+                stmts.append(Unstructured(tr("Verschachtelung zu tief."), [cur], fatal=True))
                 return Block(stmts), None
             if cur in self.emitted and node.type is not ElementType.END:
                 if cur in self._replaying:
                     self._rebuild_as_general_loop(cur)  # echter Kreis: nächster Versuch mit allgemeiner Schleife
                 replay = self._replay(cur, stop, stop_at_loop_end)
                 if replay is None:
-                    stmts.append(Unstructured(f"Sprung zu „{self.label(cur)}“", [cur], fatal=True))
-                    self.warn(f"Der Ablauf springt zu „{self.label(cur)}“ zurück, ohne dass sich das als "
-                              "Schleife darstellen lässt.")
+                    stmts.append(Unstructured(tr("Sprung zu „{name}“", name=self.label(cur)), [cur], fatal=True))
+                    self.warn(tr("Der Ablauf springt zu „{name}“ zurück, ohne dass sich das als "
+                                 "Schleife darstellen lässt.", name=self.label(cur)))
                     return Block(stmts), None
                 block, stopped = replay
                 stmts.extend(block.statements)
                 return Block(stmts), stopped
 
             if node.type is ElementType.END:
-                stmts.append(EndStmt(node.text or "Ende", cur))
+                end_text = node.text or default_text_for(ElementType.END)
+                stmts.append(EndStmt(end_text, cur))
                 if self.end_id is None:
-                    self.end_id, self.end_text = cur, node.text or "Ende"
+                    self.end_id, self.end_text = cur, end_text
                 self.emitted.add(cur)
                 return Block(stmts), None
 
@@ -314,7 +318,7 @@ class _Structurer:
             if node.is_loop_end:
                 # Schleifenende ohne passenden Beginn
                 self.emitted.add(cur)
-                stmts.append(Unstructured(f"Schleifenende „{node.text}“ ohne Schleifenbeginn", [cur]))
+                stmts.append(Unstructured(tr("Schleifenende „{name}“ ohne Schleifenbeginn", name=node.text), [cur]))
                 cur = self._single_next(cur)
                 continue
 
@@ -366,12 +370,12 @@ class _Structurer:
         if not outs:
             node = self.node(nid)
             if node.type is not ElementType.END:
-                self.warn(f"„{node.text or node.type.value}“ hat keinen Nachfolger.")
+                self.warn(tr("„{name}“ hat keinen Nachfolger.", name=node.text or node.type.value))
             return None
         if len(outs) > 1:
             node = self.node(nid)
-            self.warn(f"„{node.text or node.type.value}“ hat mehrere Ausgänge ohne Bedingung; "
-                      "nur der erste wird berücksichtigt.")
+            self.warn(tr("„{name}“ hat mehrere Ausgänge ohne Bedingung; nur der erste wird berücksichtigt.",
+                         name=node.text or node.type.value))
         return outs[0].target
 
     # ------------------------------------------------------ Verzweigung
@@ -444,28 +448,28 @@ class _Structurer:
         inner_stop = stop | ({merge} if merge else set())
         then_block, then_stop = self._branch(then_edge.target, merge, inner_stop, stop_at_loop_end)
         else_block, else_stop = self._branch(else_edge.target, merge, inner_stop, stop_at_loop_end)
-        stmt = If(node.text, cur, then_block, else_block, then_edge.label or "ja", else_edge.label or "nein",
-                  self.comments(cur))
+        stmt = If(node.text, cur, then_block, else_block, then_edge.label or yes_label(),
+                  else_edge.label or no_label(), self.comments(cur))
         return stmt, self._continuation(merge, [(then_block, then_stop), (else_block, else_stop)])
 
     def _unlabelled_hint(self, cur: str, outs: list[Edge]) -> None:
         if not has_yes_no_labels(outs):
-            self.warn(f"Die Ausgänge der Verzweigung „{self.label(cur)}“ sind nicht mit ja/nein beschriftet; "
-                      "der erste Ausgang gilt als „ja“.")
+            self.warn(tr("Die Ausgänge der Verzweigung „{name}“ sind nicht mit ja/nein beschriftet; "
+                         "der erste Ausgang gilt als „ja“.", name=self.label(cur)))
 
     def _one_exit_decision(self, cur: str):
         """Verzweigung mit nur einem Ausgang: Beim anderen Ergebnis endet der Ablauf."""
         node = self.node(cur)
         self.emitted.add(cur)
         yes_edge, no_edge = yes_no_edges(self.g.outgoing(cur))
-        self.warn(f"Die Verzweigung „{self.label(cur)}“ hat nur einen Ausgang; beim anderen Ergebnis endet "
-                  "der Ablauf.")
+        self.warn(tr("Die Verzweigung „{name}“ hat nur einen Ausgang; beim anderen Ergebnis endet der Ablauf.",
+                     name=self.label(cur)))
         dead_end = Block([EndStmt("kein Ausgang", cur, repeated=True)])
         if yes_edge is not None:
-            return If(node.text, cur, Block(), dead_end, yes_edge.label or "ja", "nein", self.comments(cur)), \
-                yes_edge.target
-        return If(node.text, cur, dead_end, Block(), "ja", no_edge.label or "nein", self.comments(cur)), \
-            no_edge.target
+            return If(node.text, cur, Block(), dead_end, yes_edge.label or yes_label(), no_label(),
+                      self.comments(cur)), yes_edge.target
+        return If(node.text, cur, dead_end, Block(), yes_label(), no_edge.label or no_label(),
+                  self.comments(cur)), no_edge.target
 
     def _multi_branch(self, cur: str, outs: list[Edge], stop: frozenset, stop_at_loop_end: bool):
         """Verzweigung über beschriftete Ausgänge → verschachtelte Wenn-Folge."""
@@ -491,12 +495,13 @@ class _Structurer:
             for edge in edges:
                 conditions.append(branch_condition(node.text, edge.label) or f"{subject} = ?")
                 if not edge.label.strip():
-                    self.warn(f"Ein Ausgang der Verzweigung „{self.label(cur)}“ ist nicht beschriftet.")
-            else_block = Block([If(" oder ".join(conditions), cur, block, else_block, "ja", "nein",
+                    self.warn(tr("Ein Ausgang der Verzweigung „{name}“ ist nicht beschriftet.", name=self.label(cur)))
+            # „oder“ verbindet Bedingungen im Plantext: Schlüsselwort der Plansprache, wird vom Programm ausgewertet
+            else_block = Block([If(" oder ".join(conditions), cur, block, else_block, yes_label(), no_label(),
                                    self.comments(cur))])
         if not chain:
             # alle Ausgänge führen zum selben Baustein
-            else_block = Block([If(node.text, cur, Block(), Block(), "ja", "nein", self.comments(cur))])
+            else_block = Block([If(node.text, cur, Block(), Block(), yes_label(), no_label(), self.comments(cur))])
         continuation = self._continuation(merge, [(block, stopped) for _, block, stopped in built])
         return else_block.statements[0], continuation
 
@@ -650,7 +655,7 @@ class _Structurer:
         nxt = self._single_next(begin)
         end = self._matching_loop_end(begin)
         if end is None:
-            self.warn(f"Zum Schleifenbeginn „{node.text}“ wurde kein Schleifenende gefunden.")
+            self.warn(tr("Zum Schleifenbeginn „{name}“ wurde kein Schleifenende gefunden.", name=node.text))
             body, stopped = self.block(nxt, stop, stop_at_loop_end=True) if nxt else (Block(), None)
             return LimitLoop(node.text, "", begin, None, body, self.comments(begin)), stopped
         after = self.g.outgoing(end)
@@ -660,7 +665,7 @@ class _Structurer:
         finally:
             self._loops.pop()
         if stopped is not None and stopped != end:
-            self.warn(f"Der Rumpf der Schleife „{node.text}“ führt an ihrem Schleifenende vorbei.")
+            self.warn(tr("Der Rumpf der Schleife „{name}“ führt an ihrem Schleifenende vorbei.", name=node.text))
             self._lost_jump(body, stopped)
         self.emitted.add(end)
         return LimitLoop(node.text, self.node(end).text, begin, end, body, self.comments(begin)), \

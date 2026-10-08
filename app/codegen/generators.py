@@ -17,13 +17,22 @@ import ast
 import math
 import re
 
+from app import i18n
 from app.analysis import text as T
 from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndStmt, If, LimitLoop, Loop,
                               Program, Unstructured, WhileLoop)
 from app.analysis.variables import BOOLEAN, DEFAULTS, DOUBLE, STRING, Variables, static_type
+from app.i18n import N_, tr, tr_code
+from app.labels import generic_program_names
 
-LANGUAGES = {"pseudo": "Pseudocode", "python": "Python", "java": "Java"}
+# Zielsprachen des Dialogs: Schlüssel → Name (angezeigt wird ``language_name``)
+LANGUAGES = {"pseudo": N_("Pseudocode"), "python": "Python", "java": "Java"}
 INDENT = "    "
+
+
+def language_name(key: str) -> str:
+    """Name der Zielsprache in der Oberfläche („Python“ und „Java“ heißen überall gleich)."""
+    return tr(LANGUAGES[key]) if key == "pseudo" else LANGUAGES[key]
 
 
 def generate(programs: list[Program], language: str, title: str | None = None) -> str:
@@ -51,12 +60,9 @@ def _numeric_literal(expr: str) -> float | None:
         return None
 
 
-GENERIC_START_NAMES = {"start", "beginn", "anfang", ""}
-
-
 def with_title(programs: list[Program], title: str | None) -> list[Program]:
-    """Heißt das erste Start-Element nur „Start“, wird der Projektname verwendet."""
-    if not programs or not title or programs[0].name.strip().lower() not in GENERIC_START_NAMES:
+    """Heißt das erste Start-Element nur „Start“ (in irgendeiner Sprache), wird der Projektname verwendet."""
+    if not programs or not title or programs[0].name.strip().lower() not in generic_program_names():
         return programs
     first = programs[0]
     renamed = Program(title, first.start_id, first.end_id, first.end_text, first.body, first.warnings)
@@ -67,7 +73,45 @@ def _escape(text: str) -> str:
     return _one_line(text).replace("\\", "\\\\").replace('"', '\\"')
 
 
-UNSTRUCTURED_MESSAGE = "Dieser Sprung im Plan lässt sich nicht als strukturiertes Programm darstellen"
+# Meldung im erzeugten Programm (deutscher Quelltext); eingesetzt wird sie mit ``tr_code(UNSTRUCTURED_MESSAGE)``
+UNSTRUCTURED_MESSAGE = N_("Dieser Sprung im Plan lässt sich nicht als strukturiertes Programm darstellen")
+
+
+def _hint_text(note: str) -> str:
+    """Hinweis auf einen Sprung, der sich nicht strukturiert darstellen lässt (Kommentar im erzeugten Programm)."""
+    return tr_code("Hinweis: nicht strukturierbar – {note}", note=note)
+
+
+def _warning_text(warning: str) -> str:
+    """Hinweis der Analyse als Kommentar im erzeugten Programm."""
+    return tr_code("Hinweis: {warning}", warning=warning)
+
+
+def _docstring(text: str) -> str:
+    """Docstring aus einem (übersetzten) Text; ein Anführungszeichen am Ende würde den Abschluss stören."""
+    return '"""' + text + (" " if text.endswith('"') else "") + '"""'
+
+
+def _quoted_names(names) -> str:
+    """Namen aus dem Plan in Anführungszeichen, durch Kommas getrennt: „a“, „b“."""
+    return ", ".join(tr_code("„{name}“", name=name) for name in names)
+
+
+def _jump_note() -> str:
+    """Vermerk für ein „break“ oder „continue“, das aus einer Schleife heraus springt."""
+    return tr_code("Sprung aus einer Schleife")
+
+
+def _yes_no_letters() -> tuple[str, str]:
+    """Antwortbuchstaben, die ein erzeugtes Programm bei einer Rückfrage erwartet.
+
+    Wie bei ``tr_code``: Deutsch bleibt Deutsch („j/n“), jede andere Oberflächensprache erzeugt Englisch („y/n“).
+    Es sind Buchstaben, mit denen das Programm rechnet – deshalb nicht über den Katalog (im Testmodus ``xx`` würden
+    sonst Zeichen davorstehen).
+    """
+    if i18n.language() in (i18n.SOURCE_LANGUAGE, i18n.PSEUDO_LANGUAGE):
+        return "j", "n"
+    return "y", "n"
 
 
 def _has_break(block: Block) -> bool:
@@ -163,13 +207,13 @@ class PseudoGenerator:
 
     def generate(self) -> str:
         if not self.programs:
-            return "// Der Plan enthält kein Start-Element."
+            return "// " + tr_code("Der Plan enthält kein Start-Element.")
         for index, program in enumerate(self.programs):
             if index:
                 self.lines.append("")
-            self.lines.append(f"PROGRAMM {_one_line(program.name)}")
+            self.lines.append(tr_code("PROGRAMM {name}", name=_one_line(program.name)))
             self.block(program.body, 1, top_level=True)
-            self.lines.append(f"ENDE {_one_line(program.name)}".rstrip())
+            self.lines.append(tr_code("ENDE {name}", name=_one_line(program.name)).rstrip())
         return "\n".join(self.lines) + "\n"
 
     def emit(self, depth: int, text: str) -> None:
@@ -189,55 +233,68 @@ class PseudoGenerator:
     def stmt(self, stmt, depth: int) -> None:
         if isinstance(stmt, Action):
             self.comments(depth, stmt.comments)
-            prefix = {"input": "EINGABE: ", "output": "AUSGABE: ", "subprogram": "AUFRUF: "}.get(stmt.kind, "")
             lines = [line for line in stmt.text.splitlines() if line.strip()] or [""]
             for line in lines:
                 if stmt.kind == "junction":
                     continue
-                self.emit(depth, prefix + line.strip())
+                text = line.strip()
+                if stmt.kind == "input":
+                    text = tr_code("EINGABE: {text}", text=text)
+                elif stmt.kind == "output":
+                    text = tr_code("AUSGABE: {text}", text=text)
+                elif stmt.kind == "subprogram":
+                    text = tr_code("AUFRUF: {text}", text=text)
+                self.emit(depth, text)
         elif isinstance(stmt, If):
             self.comments(depth, stmt.comments)
-            self.emit(depth, f"WENN {_one_line(stmt.condition)} DANN")
+            self.emit(depth, tr_code("WENN {condition} DANN", condition=_one_line(stmt.condition)))
             self.block(stmt.then_block, depth + 1)
             if len(stmt.else_block):
-                self.emit(depth, "SONST")
+                self.emit(depth, tr_code("SONST"))
                 self.block(stmt.else_block, depth + 1)
-            self.emit(depth, "ENDE WENN")
+            self.emit(depth, tr_code("ENDE WENN"))
         elif isinstance(stmt, WhileLoop):
             self.comments(depth, stmt.comments)
             cond = _one_line(stmt.condition)
-            self.emit(depth, f"SOLANGE {'NICHT (' + cond + ')' if stmt.negate else cond} WIEDERHOLE")
+            if stmt.negate:
+                self.emit(depth, tr_code("SOLANGE NICHT ({condition}) WIEDERHOLE", condition=cond))
+            else:
+                self.emit(depth, tr_code("SOLANGE {condition} WIEDERHOLE", condition=cond))
             self.block(stmt.body, depth + 1)
-            self.emit(depth, "ENDE SOLANGE")
+            self.emit(depth, tr_code("ENDE SOLANGE"))
         elif isinstance(stmt, DoWhileLoop):
             self.comments(depth, stmt.comments)
-            self.emit(depth, "WIEDERHOLE")
+            self.emit(depth, tr_code("WIEDERHOLE"))
             self.block(stmt.body, depth + 1)
             cond = _one_line(stmt.condition)
-            self.emit(depth, f"BIS {cond}" if stmt.negate else f"SOLANGE {cond}")
+            if stmt.negate:
+                self.emit(depth, tr_code("BIS {condition}", condition=cond))
+            else:
+                self.emit(depth, tr_code("SOLANGE {condition}", condition=cond))
         elif isinstance(stmt, LimitLoop):
             self.comments(depth, stmt.comments)
             header = T.parse_loop_header(stmt.header)
-            keyword = "FÜR" if header.kind == "for" else "SCHLEIFE"
             text = _one_line(stmt.header)
             if header.kind == "for" and text.lower().startswith(("für", "fuer", "for")):
                 text = text.split(None, 1)[1] if len(text.split(None, 1)) > 1 else text
-            self.emit(depth, f"{keyword} {text}")
+            counting = header.kind == "for"
+            self.emit(depth, tr_code("FÜR {text}", text=text) if counting else tr_code("SCHLEIFE {text}", text=text))
             self.block(stmt.body, depth + 1)
             footer = _one_line(stmt.footer)
-            self.emit(depth, f"ENDE {keyword}" + (f" ({footer})" if footer else ""))
+            end = tr_code("ENDE FÜR") if counting else tr_code("ENDE SCHLEIFE")
+            self.emit(depth, end + (f" ({footer})" if footer else ""))
         elif isinstance(stmt, Loop):
-            self.emit(depth, "WIEDERHOLE")
+            self.emit(depth, tr_code("WIEDERHOLE"))
             self.block(stmt.body, depth + 1)
-            self.emit(depth, "ENDE WIEDERHOLE")
+            self.emit(depth, tr_code("ENDE WIEDERHOLE"))
         elif isinstance(stmt, Continue):
-            self.emit(depth, "NÄCHSTER DURCHLAUF")
+            self.emit(depth, tr_code("NÄCHSTER DURCHLAUF"))
         elif isinstance(stmt, Break):
-            self.emit(depth, "SCHLEIFE VERLASSEN")
+            self.emit(depth, tr_code("SCHLEIFE VERLASSEN"))
         elif isinstance(stmt, EndStmt):
-            self.emit(depth, "ENDE (Programm beenden)")
+            self.emit(depth, tr_code("ENDE (Programm beenden)"))
         elif isinstance(stmt, Unstructured):
-            self.emit(depth, f"// Hinweis: nicht strukturierbar – {_one_line(stmt.note)}")
+            self.emit(depth, f"// {_hint_text(_one_line(stmt.note))}")
 
 
 # ====================================================================== Python
@@ -318,7 +375,7 @@ class PythonGenerator:
 
     def generate(self) -> str:
         if not self.programs:
-            return "# Der Plan enthält kein Start-Element.\n"
+            return "# " + tr_code("Der Plan enthält kein Start-Element.") + "\n"
         variables = Variables(self.programs)
         self.known = set(variables.names)
         self.types, self.dynamic = variables.types, variables.dynamic
@@ -339,9 +396,10 @@ class PythonGenerator:
                 # alle Abläufe arbeiten mit denselben Variablen
                 self.lines.append(f"{INDENT}global {', '.join(shared)}")
             for warning in program.warnings:
-                self.lines.append(f"{INDENT}# Hinweis: {_one_line(warning)}")
+                self.lines.append(f"{INDENT}# {_warning_text(_one_line(warning))}")
             if index == 0 and unset:
-                self.lines.append(f"{INDENT}# Startwerte: Diese Variablen bekommen nicht auf jedem Weg einen Wert.")
+                self.lines.append(f"{INDENT}# " + tr_code("Startwerte: Diese Variablen bekommen nicht auf jedem Weg "
+                                                          "einen Wert."))
                 for name in unset:
                     self.lines.append(f"{INDENT}{self.var(name)} = {DEFAULTS[self.types[name]]!r}"
                                       .replace("''", '""'))
@@ -351,10 +409,12 @@ class PythonGenerator:
             body.append("")
         stubs = []
         for fname, label in self.called.items():
-            stubs += [f"def {fname}(*argumente):", f'{INDENT}"""Unterprogramm „{_escape(label)}“."""',
-                      f"{INDENT}pass  # TODO: Unterprogramm ausarbeiten", "", ""]
-        header = [f"# Automatisch erzeugt aus dem Programmablaufplan „{_escape(self.programs[0].name)}“",
-                  "# (BS Technik PAP Designer). Nicht erkannte Texte sind als TODO markiert.", ""]
+            stubs += [f"def {fname}(*argumente):",
+                      INDENT + _docstring(tr_code("Unterprogramm „{label}“.", label=_escape(label))),
+                      f"{INDENT}pass  # TODO: " + tr_code("Unterprogramm ausarbeiten"), "", ""]
+        header = ["# " + tr_code("Automatisch erzeugt aus dem Programmablaufplan „{name}“",
+                                 name=_escape(self.programs[0].name)),
+                  "# " + tr_code("(BS Technik PAP Designer). Nicht erkannte Texte sind als TODO markiert."), ""]
         footer = ['if __name__ == "__main__":', f"{INDENT}main()"]
         return "\n".join(header + self._imports() + [""] + self._helpers() + stubs + body + footer) + "\n"
 
@@ -374,7 +434,8 @@ class PythonGenerator:
         helpers = []
         if self.uses_eingabe:
             helpers += [f"def {self.input_fn}(text, nur_zahl=True):",
-                        f'{one}"""Liest eine Zahl ein (auch mit Komma); fragt bei Tippfehlern erneut."""',
+                        one + _docstring(tr_code("Liest eine Zahl ein (auch mit Komma); fragt bei Tippfehlern "
+                                                 "erneut.")),
                         f"{one}while True:",
                         f"{two}wert = input(text).strip()",
                         f"{two}for typ in (int, float):",
@@ -385,15 +446,16 @@ class PythonGenerator:
                         f'{three}if "_" not in wert and zahl == zahl and abs(zahl) != float("inf"):',
                         f"{four}return zahl",
                         f"{two}if not nur_zahl:",
-                        f"{three}return wert  # keine Zahl: Text",
-                        f'{two}print("Bitte eine Zahl eingeben.")', "", ""]
+                        f"{three}return wert  # " + tr_code("keine Zahl: Text"),
+                        f'{two}print("' + _escape(tr_code("Bitte eine Zahl eingeben.")) + '")', "", ""]
         if self.uses_frage:
+            yes, no = _yes_no_letters()
             helpers += [f"def {self.ask_fn}(text):",
-                        f'{one}"""Nicht automatisch auswertbare Bedingung: den Benutzer fragen."""',
-                        f'{one}return input(text + " (j/n) ").strip().lower().startswith("j")', "", ""]
+                        one + _docstring(tr_code("Nicht automatisch auswertbare Bedingung: den Benutzer fragen.")),
+                        f'{one}return input(text + " ({yes}/{no}) ").strip().lower().startswith("{yes}")', "", ""]
         if self.uses_runden:
             helpers += [f"def {self.round_fn}(x, stellen=0):",
-                        f'{one}"""Kaufmännisch runden: ab 5 wird aufgerundet (2,5 wird 3)."""',
+                        one + _docstring(tr_code("Kaufmännisch runden: ab 5 wird aufgerundet (2,5 wird 3).")),
                         f"{one}faktor = 10 ** int(stellen)",
                         f"{one}wert = int(abs(x) * faktor + 0.5) / faktor",
                         f"{one}wert = wert if x >= 0 else -wert",
@@ -560,17 +622,18 @@ class PythonGenerator:
             self.emit(depth, "while True:")
             self.loop_body(stmt.body, depth + 1)
         elif isinstance(stmt, Continue) and self._loops:
-            self.emit(depth, "continue  # nächster Durchlauf")
+            self.emit(depth, "continue  # " + tr_code("nächster Durchlauf"))
         elif isinstance(stmt, Break) and self._loops:
-            self.emit(depth, "break  # Schleife verlassen")
+            self.emit(depth, "break  # " + tr_code("Schleife verlassen"))
         elif isinstance(stmt, EndStmt):
-            self.emit(depth, "return  # Ende")
+            self.emit(depth, "return  # " + tr_code("Ende", ctx="Kommentar"))
         elif isinstance(stmt, (Unstructured, Break, Continue)):
-            note = stmt.note if isinstance(stmt, Unstructured) else "Sprung aus einer Schleife"
-            self.emit(depth, f"# Hinweis: nicht strukturierbar – {_one_line(note)}")
+            note = stmt.note if isinstance(stmt, Unstructured) else _jump_note()
+            self.emit(depth, f"# {_hint_text(_one_line(note))}")
             if not isinstance(stmt, Unstructured) or stmt.fatal:
                 # lieber deutlich anhalten als mit falschem Ablauf weiterlaufen
-                self.emit(depth, f'raise SystemExit("{UNSTRUCTURED_MESSAGE}: {_escape(note)}")')
+                message = _escape(tr_code(UNSTRUCTURED_MESSAGE))
+                self.emit(depth, f'raise SystemExit("{message}: {_escape(note)}")')
 
     def loop_body(self, block: Block, depth: int) -> None:
         self._loops += 1
@@ -627,7 +690,7 @@ class PythonGenerator:
     def action_input(self, stmt: Action, depth: int) -> None:
         names = T.input_variables(stmt.text)
         if not names:
-            self.emit(depth, f'input("{_escape(stmt.text)}: ")  # TODO: Variable festlegen')
+            self.emit(depth, f'input("{_escape(stmt.text)}: ")  # TODO: ' + tr_code("Variable festlegen"))
             return
         for name in names:
             kind, target = self.types.get(name, DOUBLE), self.var(name)
@@ -667,11 +730,12 @@ class PythonGenerator:
                 if code is not None:
                     self.emit(depth, f"{self.var(name)} = {code}")
                 else:
-                    missing = ", ".join(f"„{n}“" for n in T.unknown_names(expr, self.known))
-                    self.emit(depth, f"{self.var(name)} = 0  # TODO: {name} = {expr} – {missing} erhält im Plan "
-                                     "keinen Wert")
+                    missing = _quoted_names(T.unknown_names(expr, self.known))
+                    self.emit(depth, f"{self.var(name)} = 0  # TODO: "
+                              + tr_code("{name} = {expr} – {missing} erhält im Plan keinen Wert",
+                                        name=name, expr=expr, missing=missing))
             return
-        for line in [line for line in stmt.text.splitlines() if line.strip()] or ["(leer)"]:
+        for line in [line for line in stmt.text.splitlines() if line.strip()] or [tr_code("(leer)")]:
             self.emit(depth, f"# TODO: {line.strip()}")
 
     def action_subprogram(self, stmt: Action, depth: int) -> None:
@@ -1035,8 +1099,10 @@ class JavaGenerator:
 
     def _class_name(self) -> str:
         first = self.programs[0].name
-        name = T.camel(first if first.strip().lower() not in GENERIC_START_NAMES else "Programm")[:60]
-        return name + "Programm" if name in _JAVA_CLASS_NAMES or name in _JAVA_RESERVED else name
+        # Der Klassenname ist Teil des erzeugten Programms: Deutsch bleibt „Programm“, sonst englisch
+        fallback = T.camel(tr_code("Programm", ctx="Klassenname")) or "Programm"
+        name = T.camel(first if first.strip().lower() not in generic_program_names() else fallback, fallback)[:60]
+        return name + fallback if name in _JAVA_CLASS_NAMES or name in _JAVA_RESERVED else name
 
     # ---------------------------------------------------------- Ausdrücke
     def _translate(self, expr: str | None, how):
@@ -1087,7 +1153,7 @@ class JavaGenerator:
     # ------------------------------------------------------------ Programm
     def generate(self) -> str:
         if not self.programs:
-            return "// Der Plan enthält kein Start-Element.\n"
+            return "// " + tr_code("Der Plan enthält kein Start-Element.") + "\n"
         variables = Variables(self.programs)
         self.known = set(variables.names)
         self.types, self.dynamic = variables.types, variables.dynamic
@@ -1100,7 +1166,7 @@ class JavaGenerator:
                 f"static void {self.methods[index]}()"
             self.lines.append(f"{INDENT}// {_java_comment(program.name)}")
             for warning in program.warnings:
-                self.lines.append(f"{INDENT}// Hinweis: {_java_comment(warning)}")
+                self.lines.append(f"{INDENT}// {_warning_text(_java_comment(warning))}")
             self.lines.append(f"{INDENT}{signature} {{")
             self.block(program.body, 2, top_level=True)
             self.lines.append(f"{INDENT}}}")
@@ -1114,12 +1180,13 @@ class JavaGenerator:
             fields.append("")
         stubs = []
         for name, label in self.called.items():
-            stubs += [f"{INDENT}// Unterprogramm „{_java_comment(label)}“",
+            stubs += [f"{INDENT}// " + tr_code("Unterprogramm „{label}“", label=_java_comment(label)),
                       f"{INDENT}static void {name}(Object... argumente) {{",
-                      f"{INDENT}{INDENT}// TODO: Unterprogramm ausarbeiten", f"{INDENT}}}", ""]
+                      f"{INDENT}{INDENT}// TODO: " + tr_code("Unterprogramm ausarbeiten"), f"{INDENT}}}", ""]
         uses_scanner = self.uses_eingabe or self.uses_eingabe_text or self.uses_frage
-        head = [f"// Automatisch erzeugt aus dem Programmablaufplan „{_java_comment(self.programs[0].name)}“",
-                "// (BS Technik PAP Designer). Nicht erkannte Texte sind als TODO markiert.", ""]
+        head = ["// " + tr_code("Automatisch erzeugt aus dem Programmablaufplan „{name}“",
+                                name=_java_comment(self.programs[0].name)),
+                "// " + tr_code("(BS Technik PAP Designer). Nicht erkannte Texte sind als TODO markiert."), ""]
         if uses_scanner:
             head += ["import java.util.Scanner;", ""]
         head.append(f"public class {self._class_name()} {{")
@@ -1134,7 +1201,7 @@ class JavaGenerator:
         one, two, three = INDENT, INDENT * 2, INDENT * 3
         helpers = []
         if self.uses_eingabe:
-            helpers += [f"{one}// Liest eine Zahl ein (auch mit Komma); fragt bei Tippfehlern erneut.",
+            helpers += [f"{one}// " + tr_code("Liest eine Zahl ein (auch mit Komma); fragt bei Tippfehlern erneut."),
                         f"{one}static double eingabe(String text) {{",
                         f"{two}while (true) {{",
                         f"{three}System.out.print(text);",
@@ -1145,24 +1212,25 @@ class JavaGenerator:
                         f"{three}{two}return wert;",
                         f"{three}{one}}}",
                         f"{three}}} catch (NumberFormatException fehler) {{",
-                        f"{three}{one}// keine Zahl: noch einmal fragen",
+                        f"{three}{one}// " + tr_code("keine Zahl: noch einmal fragen"),
                         f"{three}}}",
-                        f'{three}System.out.println("Bitte eine Zahl eingeben.");',
+                        f'{three}System.out.println("' + _escape(tr_code("Bitte eine Zahl eingeben.")) + '");',
                         f"{two}}}",
                         f"{one}}}", ""]
         if self.uses_eingabe_text:
-            helpers += [f"{one}// Liest einen Text ein.",
+            helpers += [f"{one}// " + tr_code("Liest einen Text ein."),
                         f"{one}static String eingabeText(String text) {{",
                         f"{two}System.out.print(text);",
                         f"{two}return SCANNER.nextLine().trim();",
                         f"{one}}}", ""]
         if self.uses_frage:
+            yes, no = _yes_no_letters()
             helpers += [f"{one}static boolean frage(String text) {{",
-                        f'{two}System.out.print(text + " (j/n) ");',
-                        f'{two}return SCANNER.nextLine().trim().toLowerCase().startsWith("j");',
+                        f'{two}System.out.print(text + " ({yes}/{no}) ");',
+                        f'{two}return SCANNER.nextLine().trim().toLowerCase().startsWith("{yes}");',
                         f"{one}}}", ""]
         if "text" in self.helpers:
-            helpers += [f"{one}// Zahl als Text: 7 statt 7.0 – wie im Schreibtischtest.",
+            helpers += [f"{one}// " + tr_code("Zahl als Text: 7 statt 7.0 – wie im Schreibtischtest."),
                         f"{one}static String text(double x) {{",
                         f"{two}if (x == Math.rint(x) && Math.abs(x) < 1e15) {{",
                         f"{three}return String.valueOf((long) x);",
@@ -1170,7 +1238,8 @@ class JavaGenerator:
                         f"{two}return String.valueOf(x);",
                         f"{one}}}", ""]
         if "zahl" in self.helpers:
-            helpers += [f"{one}// Text als Zahl (auch mit Komma). Ist der Text keine Zahl, kommt NaN heraus.",
+            helpers += [f"{one}// " + tr_code("Text als Zahl (auch mit Komma). Ist der Text keine Zahl, kommt NaN "
+                                              "heraus."),
                         f"{one}static double zahl(String text) {{",
                         f"{two}try {{",
                         f"{three}return Double.parseDouble(text.trim().replace(',', '.'));",
@@ -1179,12 +1248,13 @@ class JavaGenerator:
                         f"{two}}}",
                         f"{one}}}", ""]
         if "mod" in self.helpers:
-            helpers += [f"{one}// Rest der Division; das Ergebnis hat das Vorzeichen des Teilers (-7 mod 3 = 2).",
+            helpers += [f"{one}// " + tr_code("Rest der Division; das Ergebnis hat das Vorzeichen des Teilers "
+                                              "(-7 mod 3 = 2)."),
                         f"{one}static double mod(double a, double b) {{",
                         f"{two}return a - b * Math.floor(a / b);",
                         f"{one}}}", ""]
         if "runden" in self.helpers:
-            helpers += [f"{one}// Kaufmännisch runden: ab 5 wird aufgerundet (2,5 wird 3).",
+            helpers += [f"{one}// " + tr_code("Kaufmännisch runden: ab 5 wird aufgerundet (2,5 wird 3)."),
                         f"{one}static double runden(double x) {{",
                         f"{two}return runden(x, 0);",
                         f"{one}}}", "",
@@ -1210,12 +1280,13 @@ class JavaGenerator:
             if _never_runs(stmt):
                 # „while (false)“ lässt javac nicht zu: der Rumpf wäre unerreichbar
                 text = stmt.condition if isinstance(stmt, WhileLoop) else stmt.header
-                self.emit(depth, f"// Hinweis: Die Schleife „{_java_comment(text)}“ wird nie durchlaufen.")
+                self.emit(depth, "// " + tr_code("Hinweis: Die Schleife „{text}“ wird nie durchlaufen.",
+                                                 text=_java_comment(text)))
                 continue
             self.stmt(stmt, depth)
             if not _completes(stmt) and index < len(statements) - 1:
                 # Java lehnt Anweisungen ab, die nie erreicht werden
-                self.emit(depth, "// Hinweis: Die folgenden Bausteine des Plans werden nie erreicht.")
+                self.emit(depth, "// " + tr_code("Hinweis: Die folgenden Bausteine des Plans werden nie erreicht."))
                 break
 
     def loop_body(self, block: Block, depth: int) -> None:
@@ -1254,17 +1325,18 @@ class JavaGenerator:
             self.loop_body(stmt.body, depth + 1)
             self.emit(depth, "}")
         elif isinstance(stmt, Continue) and self._loops:
-            self.emit(depth, "continue; // nächster Durchlauf")
+            self.emit(depth, "continue; // " + tr_code("nächster Durchlauf"))
         elif isinstance(stmt, Break) and self._loops:
-            self.emit(depth, "break; // Schleife verlassen")
+            self.emit(depth, "break; // " + tr_code("Schleife verlassen"))
         elif isinstance(stmt, EndStmt):
-            self.emit(depth, "return; // Ende")
+            self.emit(depth, "return; // " + tr_code("Ende", ctx="Kommentar"))
         elif isinstance(stmt, (Unstructured, Break, Continue)):
-            note = stmt.note if isinstance(stmt, Unstructured) else "Sprung aus einer Schleife"
-            self.emit(depth, f"// Hinweis: nicht strukturierbar – {_java_comment(note)}")
+            note = stmt.note if isinstance(stmt, Unstructured) else _jump_note()
+            self.emit(depth, f"// {_hint_text(_java_comment(note))}")
             if not isinstance(stmt, Unstructured) or stmt.fatal:
                 # lieber deutlich anhalten als mit falschem Ablauf weiterlaufen
-                self.emit(depth, f'throw new IllegalStateException("{UNSTRUCTURED_MESSAGE}: {_escape(note)}");')
+                message = _escape(tr_code(UNSTRUCTURED_MESSAGE))
+                self.emit(depth, f'throw new IllegalStateException("{message}: {_escape(note)}");')
 
     def limit_loop(self, stmt: LimitLoop, depth: int) -> None:
         self.comments(depth, stmt.comments)
@@ -1329,7 +1401,7 @@ class JavaGenerator:
         names = T.input_variables(stmt.text)
         if not names:
             self.uses_eingabe_text = True
-            self.emit(depth, f'eingabeText("{_escape(stmt.text)}: "); // TODO: Variable festlegen')
+            self.emit(depth, f'eingabeText("{_escape(stmt.text)}: "); // TODO: ' + tr_code("Variable festlegen"))
             return
         for name in names:
             kind = self.types.get(name, DOUBLE)
@@ -1357,13 +1429,14 @@ class JavaGenerator:
                 self.emit(depth, f"System.out.println({separator.join(parts)});")
                 return
             strings = " ".join(value for kind, value in spec.parts if kind == "string") or _one_line(stmt.text)
-            self.emit(depth, f'System.out.println("{_escape(strings)}"); // TODO: Werte ausgeben')
+            self.emit(depth, f'System.out.println("{_escape(strings)}"); // TODO: ' + tr_code("Werte ausgeben"))
         elif spec.kind == "expression":
             code = self.printable(spec.value)
             if code is not None:
                 self.emit(depth, f"System.out.println({code});")
             else:
-                self.emit(depth, f'System.out.println("{_escape(stmt.text)}"); // TODO: Ausdruck übersetzen')
+                self.emit(depth, f'System.out.println("{_escape(stmt.text)}"); // TODO: '
+                          + tr_code("Ausdruck übersetzen"))
         elif spec.kind == "variables":
             parts = " + \", \" + ".join(self.variable_text(name) for name in spec.variables)
             self.emit(depth, f'System.out.println("{_escape(spec.value)}: " + {parts});')
@@ -1373,7 +1446,7 @@ class JavaGenerator:
     def action_process(self, stmt: Action, depth: int) -> None:
         assignments = T.parse_assignments(stmt.text)
         if not assignments:
-            for line in [line for line in stmt.text.splitlines() if line.strip()] or ["(leer)"]:
+            for line in [line for line in stmt.text.splitlines() if line.strip()] or [tr_code("(leer)")]:
                 self.emit(depth, f"// TODO: {_java_comment(line)}")
             return
         for name, expr in assignments:
@@ -1398,8 +1471,12 @@ class JavaGenerator:
                     code = None
             if code is None:
                 missing = T.unknown_names(expr, self.known)
-                reason = f" – {', '.join(f'„{n}“' for n in missing)} erhält im Plan keinen Wert" if missing else ""
-                self.emit(depth, f"// TODO: {_java_comment(f'{name} = {expr}')}{_java_comment(reason)}")
+                if missing:
+                    todo = tr_code("{name} = {expr} – {missing} erhält im Plan keinen Wert",
+                                   name=name, expr=expr, missing=_quoted_names(missing))
+                else:
+                    todo = f"{name} = {expr}"
+                self.emit(depth, f"// TODO: {_java_comment(todo)}")
             else:
                 self.emit(depth, f"{target} = {code};")
 

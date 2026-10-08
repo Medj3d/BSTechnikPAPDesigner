@@ -151,7 +151,7 @@ def test_start_without_files_just_brings_the_window_forward(qapp, server):
 
 def test_the_reply_names_the_running_program_so_it_may_take_the_foreground(qapp, server):
     server.set_handler(Receiver())
-    reply = raw_exchange(qapp, server.name, frame(b'{"action": "open", "files": []}'))
+    reply = raw_exchange(qapp, server.name, frame(b'{"action": "open", "files": []}'), expect_reply=True)
     message = json.loads(reply[4:].decode("utf-8"))
     assert message == {"ok": True, "pid": os.getpid(), "protocol": single_instance.PROTOCOL}
 
@@ -296,18 +296,28 @@ def test_unresponsive_program_does_not_block_the_new_start_forever(name):
 
 
 # ------------------------------------------------- fehlerhafte und feindliche Eingaben
-def raw_exchange(qapp, name, data: bytes, wait_ms: int = 600) -> bytes:
-    """Schickt rohe Bytes an den Server und liefert, was zurückkommt (während hier die Ereignisse laufen)."""
+def raw_exchange(qapp, name, data: bytes, wait_ms: int = 600, expect_reply: bool = False) -> bytes:
+    """Schickt rohe Bytes an den Server und liefert, was zurückkommt (während hier die Ereignisse laufen).
+
+    ``expect_reply``: auf eine Antwort notfalls länger warten (ein ausgelasteter Rechner antwortet später) und
+    zurückkehren, sobald sie vollständig da ist.
+    """
     socket = QLocalSocket()
     socket.connectToServer(name)
     assert socket.waitForConnected(1000)
     socket.write(data)
     socket.flush()
     received = bytearray()
-    deadline = time.monotonic() + wait_ms / 1000
+    deadline = time.monotonic() + (max(wait_ms, 5000) if expect_reply else wait_ms) / 1000
+    last_data = None
     while time.monotonic() < deadline:
         qapp.processEvents()
-        received += bytes(socket.readAll())
+        chunk = bytes(socket.readAll())
+        if chunk:
+            received += chunk
+            last_data = time.monotonic()
+        elif expect_reply and last_data is not None and time.monotonic() - last_data > 0.1:
+            break
         time.sleep(0.005)
     socket.abort()
     return bytes(received)
@@ -321,7 +331,7 @@ def frame(payload: bytes) -> bytes:
 def test_invalid_messages_are_refused_and_never_opened(qapp, server, payload):
     receiver = Receiver()
     server.set_handler(receiver)
-    reply = raw_exchange(qapp, server.name, frame(payload))
+    reply = raw_exchange(qapp, server.name, frame(payload), expect_reply=True)
     assert b'"ok": false' in reply
     pump(qapp, lambda: False, 0.4)
     assert receiver.calls == []

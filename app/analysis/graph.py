@@ -11,12 +11,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from app import labels
 from app.model.diagram import ConnectionData, ElementData
 from app.model.element_types import LOOP_END, LOOP_PART_KEY, ElementType
 
-YES_LABELS = {"ja", "j", "yes", "y", "wahr", "true", "1", "w", "t", "+", "richtig", "stimmt", "ok", "erfüllt"}
-NO_LABELS = {"nein", "n", "no", "falsch", "false", "0", "f", "-", "stimmt nicht", "nicht erfüllt"}
-ELSE_LABELS = {"sonst", "andernfalls", "ansonsten", "else", "default", "sonstiges"}
+# Die Wörter stehen in ``app.labels`` (alle Sprachen); die Namen bleiben hier für Aufrufer erhalten
+YES_LABELS = labels.YES_WORDS
+NO_LABELS = labels.NO_WORDS
+ELSE_LABELS = labels.ELSE_WORDS
 PORT_ORDER = {"bottom": 0, "right": 1, "left": 2, "top": 3}
 
 
@@ -47,18 +49,18 @@ class Edge:
     source_port: str = "bottom"
     target_port: str = "top"
 
+    # Die Beschriftung steht in der Projektdatei, in der Sprache des Plans: erkannt werden die Wörter aller Sprachen
     @property
     def is_yes(self) -> bool:
-        return self.label.strip().lower() in YES_LABELS
+        return labels.is_yes(self.label)
 
     @property
     def is_no(self) -> bool:
-        label = " ".join(self.label.split()).lower()
-        return label in NO_LABELS or label.startswith(("nicht ", "kein ", "keine "))
+        return labels.is_no(self.label)
 
     @property
     def is_else(self) -> bool:
-        return self.label.strip().lower() in ELSE_LABELS
+        return labels.is_else(self.label)
 
 
 def yes_no_edges(outs: list) -> tuple:

@@ -10,8 +10,18 @@ from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox, QProgressDialog
 
 from app import config, updater
+from app.i18n import tr
 
 log = logging.getLogger(__name__)
+
+
+def _available_text(info: updater.UpdateInfo) -> str:
+    """„Version X (Datum) ist verfügbar – installiert ist Version Y.“"""
+    if info.released:
+        return tr("Version {version} ({released}) ist verfügbar – installiert ist Version {installed}.",
+                  version=info.version, released=info.released, installed=config.APP_VERSION)
+    return tr("Version {version} ist verfügbar – installiert ist Version {installed}.",
+              version=info.version, installed=config.APP_VERSION)
 
 
 class UpdateController(QObject):
@@ -61,7 +71,7 @@ class UpdateController(QObject):
             except updater.UpdateError as exc:
                 error = exc
             except Exception as exc:  # pragma: no cover - Absicherung
-                error = updater.UpdateError("Die Update-Prüfung ist fehlgeschlagen.", repr(exc))
+                error = updater.UpdateError(tr("Die Update-Prüfung ist fehlgeschlagen."), repr(exc))
             self._checked.emit(info, error, manual)
 
         threading.Thread(target=work, name="update-check", daemon=True).start()
@@ -71,17 +81,18 @@ class UpdateController(QObject):
         if error is not None:
             log.info("Update-Prüfung: %s (%s)", error.message, error.details)
             if manual:
-                QMessageBox.warning(self._window, "Nach Updates suchen", error.message)
+                QMessageBox.warning(self._window, tr("Nach Updates suchen"), error.message)
             return
         if info is None:
             if manual:
-                QMessageBox.information(self._window, "Nach Updates suchen",
-                                        "Für dieses Programm ist noch keine Update-Quelle eingerichtet.")
+                QMessageBox.information(self._window, tr("Nach Updates suchen"),
+                                        tr("Für dieses Programm ist noch keine Update-Quelle eingerichtet."))
             return
         if not updater.is_newer(info.version, config.APP_VERSION):
             if manual:
-                QMessageBox.information(self._window, "Nach Updates suchen",
-                                        f"Das Programm ist auf dem neuesten Stand (Version {config.APP_VERSION}).")
+                QMessageBox.information(self._window, tr("Nach Updates suchen"),
+                                        tr("Das Programm ist auf dem neuesten Stand (Version {version}).",
+                                           version=config.APP_VERSION))
             return
         blocker = self.install_blocker()
         if blocker:
@@ -108,42 +119,41 @@ class UpdateController(QObject):
         Beim Start nur ein ruhiger Hinweis in der Statuszeile; über das Menü
         eine Auskunft mit dem Link zur neuen Version.
         """
-        if blocker == "rights":
-            reason = "das Programm kann sich hier nicht selbst aktualisieren, bitte beim Administrator melden"
-        else:
-            reason = "dieses Programm läuft aus dem Quelltext und aktualisiert sich nicht selbst"
         if not manual:
-            self._window.statusBar().showMessage(
-                f"Neue Version {info.version} verfügbar – {reason}.", self.STATUS_NOTE_MS)
+            if blocker == "rights":
+                note = tr("Neue Version {version} verfügbar – das Programm kann sich hier nicht selbst "
+                          "aktualisieren, bitte beim Administrator melden.", version=info.version)
+            else:
+                note = tr("Neue Version {version} verfügbar – dieses Programm läuft aus dem Quelltext und "
+                          "aktualisiert sich nicht selbst.", version=info.version)
+            self._window.statusBar().showMessage(note, self.STATUS_NOTE_MS)
             return
-        released = f" ({info.released})" if info.released else ""
-        text = f"Version {info.version}{released} ist verfügbar – installiert ist Version {config.APP_VERSION}."
+        paragraphs = [_available_text(info)]
         if blocker == "rights":
-            text += ("\n\nDas Programm darf seinen Ordner hier nicht ändern und kann auch keine neue Version "
-                     "im Benutzerordner ablegen oder starten. Bitte beim Administrator melden; er "
-                     "installiert die neue Version mit dem Setup.")
+            paragraphs.append(tr("Das Programm darf seinen Ordner hier nicht ändern und kann auch keine neue "
+                                 "Version im Benutzerordner ablegen oder starten. Bitte beim Administrator "
+                                 "melden; er installiert die neue Version mit dem Setup."))
         else:
-            text += "\n\nDieses Programm läuft aus dem Quelltext und aktualisiert sich nicht selbst."
+            paragraphs.append(tr("Dieses Programm läuft aus dem Quelltext und aktualisiert sich nicht selbst."))
         if info.notes:
-            text += f"\n\nNeu in dieser Version:\n{info.notes}"
+            paragraphs.append(tr("Neu in dieser Version:\n{notes}", notes=info.notes))
         repo = updater.repository()
         if repo:
-            text += (f"\n\nDie neue Version gibt es hier:\n"
-                     f"https://github.com/{repo}/releases/latest/download/{config.SETUP_FILE_NAME}")
-        QMessageBox.information(self._window, "Update verfügbar", text)
+            paragraphs.append(tr("Die neue Version gibt es hier:\n{url}",
+                                 url=f"https://github.com/{repo}/releases/latest/download/{config.SETUP_FILE_NAME}"))
+        QMessageBox.information(self._window, tr("Update verfügbar"), "\n\n".join(paragraphs))
 
     def ask_install(self, info: updater.UpdateInfo) -> bool:
         box = QMessageBox(self._window)
         box.setIcon(QMessageBox.Icon.Information)
-        box.setWindowTitle("Update verfügbar")
-        released = f" ({info.released})" if info.released else ""
-        box.setText(f"Version {info.version}{released} ist verfügbar – installiert ist Version {config.APP_VERSION}.")
-        details = "Das Programm wird dazu kurz beendet und startet danach neu."
+        box.setWindowTitle(tr("Update verfügbar"))
+        box.setText(_available_text(info))
+        details = tr("Das Programm wird dazu kurz beendet und startet danach neu.")
         if info.notes:
-            details = f"Neu in dieser Version:\n{info.notes}\n\n{details}"
+            details = tr("Neu in dieser Version:\n{notes}", notes=info.notes) + "\n\n" + details
         box.setInformativeText(details)
-        install = box.addButton("Jetzt aktualisieren", QMessageBox.ButtonRole.AcceptRole)
-        later = box.addButton("Später", QMessageBox.ButtonRole.RejectRole)
+        install = box.addButton(tr("Jetzt aktualisieren"), QMessageBox.ButtonRole.AcceptRole)
+        later = box.addButton(tr("Später"), QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(install)
         box.setEscapeButton(later)
         box.exec()
@@ -153,16 +163,16 @@ class UpdateController(QObject):
     def install(self, info: updater.UpdateInfo) -> None:
         mode = updater.update_mode()
         if mode == "source":
-            QMessageBox.information(self._window, "Update",
-                                    "Updates werden nur im fertigen Programm (exe) installiert – "
-                                    "dieses Programm läuft gerade aus dem Quelltext.")
+            QMessageBox.information(self._window, tr("Update"),
+                                    tr("Updates werden nur im fertigen Programm (exe) installiert – "
+                                       "dieses Programm läuft gerade aus dem Quelltext."))
             return
         if mode == "blocked":
-            QMessageBox.warning(self._window, "Update nicht möglich",
-                                "Das Programm darf seinen Ordner hier nicht ändern und kann auch keine neue "
-                                "Version im Benutzerordner starten, deshalb kann es sich nicht selbst "
-                                "aktualisieren.\n\nDie neue Version gibt es hier:\n"
-                                f"{updater.releases_page()}")
+            QMessageBox.warning(self._window, tr("Update nicht möglich"),
+                                tr("Das Programm darf seinen Ordner hier nicht ändern und kann auch keine neue "
+                                   "Version im Benutzerordner starten, deshalb kann es sich nicht selbst "
+                                   "aktualisieren.\n\nDie neue Version gibt es hier:\n{url}",
+                                   url=updater.releases_page()))
             return
         app_dir = updater.application_directory()
         # beschreibbarer Programmordner: dort wird ersetzt; sonst kommt die Kopie in den Benutzerordner
@@ -173,8 +183,8 @@ class UpdateController(QObject):
             if not self._window.maybe_save(view.document):
                 return
         self._cancel.clear()
-        dialog = QProgressDialog("Update wird heruntergeladen …", "Abbrechen", 0, 0, self._window)
-        dialog.setWindowTitle("Update")
+        dialog = QProgressDialog(tr("Update wird heruntergeladen …"), tr("Abbrechen"), 0, 0, self._window)
+        dialog.setWindowTitle(tr("Update"))
         dialog.setWindowModality(Qt.WindowModality.WindowModal)
         dialog.setMinimumDuration(0)
         dialog.setAutoClose(False)
@@ -193,7 +203,7 @@ class UpdateController(QObject):
             except updater.UpdateError as exc:
                 self._downloaded.emit(None, exc)
             except Exception as exc:  # pragma: no cover - Absicherung
-                self._downloaded.emit(None, updater.UpdateError("Das Update ist fehlgeschlagen.", repr(exc)))
+                self._downloaded.emit(None, updater.UpdateError(tr("Das Update ist fehlgeschlagen."), repr(exc)))
 
         threading.Thread(target=work, name="update-download", daemon=True).start()
 
@@ -203,8 +213,8 @@ class UpdateController(QObject):
         if total > 0:
             self._dialog.setMaximum(100)
             self._dialog.setValue(min(100, int(done * 100 / total)))
-            self._dialog.setLabelText(f"Update wird heruntergeladen … {done // (1024 * 1024)} von "
-                                      f"{max(1, total // (1024 * 1024))} MB")
+            self._dialog.setLabelText(tr("Update wird heruntergeladen … {done} von {total} MB",
+                                         done=done // (1024 * 1024), total=max(1, total // (1024 * 1024))))
 
     def _on_downloaded(self, new_dir, error) -> None:
         if self._dialog is not None:
@@ -214,7 +224,7 @@ class UpdateController(QObject):
         app_dir = updater.application_directory()
         if error is not None:
             log.warning("Update fehlgeschlagen: %s (%s)", error.message, error.details)
-            QMessageBox.warning(self._window, "Update nicht möglich", error.message)
+            QMessageBox.warning(self._window, tr("Update nicht möglich"), error.message)
             return
         if new_dir is None or app_dir is None:
             return  # abgebrochen
@@ -227,7 +237,7 @@ class UpdateController(QObject):
                 updater.cleanup_user_programs()  # Zwischenreste und veraltete Kopien entfernen
                 self._launch_after_quit(folder)  # die neue Kopie startet, sobald dieses Programm beendet ist
         except updater.UpdateError as exc:
-            QMessageBox.warning(self._window, "Update nicht möglich", exc.message)
+            QMessageBox.warning(self._window, tr("Update nicht möglich"), exc.message)
             return
         QTimer.singleShot(0, self._window.close)
 
