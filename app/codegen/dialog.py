@@ -10,7 +10,6 @@ from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QFileDialog, QHBoxLayout, QLabel,
                                QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout)
 
-from app.analysis.graph import FlowGraph
 from app.analysis.structure import structure_diagram
 from app.codegen.generators import LANGUAGES, generate, language_name
 from app.i18n import N_, tr
@@ -34,7 +33,7 @@ class CodeDialog(QDialog):
         self.setWindowTitle(tr("Code erzeugen"))
         self.resize(780, 640)
         try:
-            self.programs = structure_diagram(FlowGraph.from_scene(document.scene))
+            self.programs = structure_diagram(document.flow_graph())
         except Exception:  # Analyse darf den Dialog nie verhindern
             self.programs = []
 

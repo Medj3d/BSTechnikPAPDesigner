@@ -16,6 +16,7 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Bereich | Umsetzung |
 |---|---|
 | Bausteine | Start, Ende, Eingabe, Ausgabe, Vorgang, Unterprogramm, Verzweigung, Schleife, Kommentar |
+| Unterprogramme | jedes Projekt hat neben dem **Hauptprogramm** beliebig viele **Unterprogramme auf eigenen Seiten** (Reiter unter der Arbeitsfläche, wie im PapDesigner). **„+ Unterprogramm“** bzw. **Einfügen → Neues Unterprogramm** (Strg+Umschalt+U) legt eine Seite mit Start „Name“ → Ende an. Ein Unterprogramm-Baustein mit diesem Namen ruft es auf (auch mit Argumenten, z. B. `berechne(x, y)`); **Strg+Doppelklick** oder Rechtsklick auf den Baustein öffnet das Unterprogramm bzw. legt es an. Doppelklick auf einen Seitenreiter benennt um – alle Aufrufe werden mit angepasst; Rechtsklick auf den Reiter löscht. Schreibtischtest, Code, Struktogramm, Hinweise, PDF und Druck umfassen alle Seiten |
 | Formen | Start/Ende = abgerundet · Eingabe/Ausgabe = Parallelogramm · Vorgang = Rechteck · Unterprogramm = Rechteck mit doppelten Seitenlinien · Verzweigung = Raute · Schleife = Schleifenbegrenzung (Beginn oben / Ende unten abgeschrägt, DIN 66001) · Kommentar = Text mit offener Klammer |
 | Arbeitsfläche | praktisch unbegrenzt, dunkles Punktraster (adaptiv je Zoomstufe), präzises Einrasten |
 | Zoom / Schwenken | Mausrad zoomt am Mauszeiger (25 % – 400 %), rechte oder mittlere Maustaste bzw. Leertaste + linke Maustaste schwenkt |
@@ -43,7 +44,7 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Farbschema | **Ansicht → Farbschema**: dunkel oder hell (z. B. für Beamer), wird gespeichert |
 | Sprachen | **Ansicht → Sprache / Language**: Deutsch, English, Français, Español, Português (Brasil), Русский, العربية, 中文 und 日本語; „Automatisch“ richtet sich nach der Sprache von Windows. Die Sprache gilt nach einem Neustart, den das Programm gleich anbietet (gespeicherte Projekte werden danach wieder geöffnet). Arabisch wird von rechts nach links dargestellt. Pläne aus jeder Sprache lassen sich in jeder Sprache öffnen: Standardtexte und die Beschriftungen ja/nein/sonst werden in allen Sprachen erkannt |
 | Ein Fenster | wird eine weitere Datei geöffnet (Doppelklick im Explorer, „Öffnen mit“), erscheint sie als neuer Reiter im schon laufenden Programm statt in einem zweiten Fenster; das Fenster kommt dabei nach vorne |
-| PapDesigner-Dateien | `.pap`-Dateien aus dem alten PapDesigner werden wie jedes andere Projekt geöffnet (**Datei → Öffnen** oder ins Fenster ziehen), auch mit mehreren Diagrammen/Unterprogrammen; die Anordnung wird aus dem Raster der Datei übernommen. Vor dem ersten Überschreiben einer solchen Datei fragt das Programm nach |
+| PapDesigner-Dateien | `.pap`-Dateien aus dem alten PapDesigner werden wie jedes andere Projekt geöffnet (**Datei → Öffnen** oder ins Fenster ziehen), weitere Diagramme der Datei werden zu Unterprogramm-Seiten; die Anordnung wird aus dem Raster der Datei übernommen. Vor dem ersten Überschreiben einer solchen Datei fragt das Programm nach |
 | Robustheit | verständliche Fehlermeldungen statt Tracebacks, Fehlerprotokoll unter `%LOCALAPPDATA%\BSTechnik\PAPDesigner\logs` |
 
 Alle Grafiken (Bausteine, Icons, Programmsymbol) werden programmatisch mit
@@ -97,6 +98,9 @@ Eine vollständige Übersicht gibt es im Programm unter **Hilfe → Tastenkürze
 | Zoomen | Mausrad · Strg++ / Strg+- · Strg+0 (100 %) · Strg+1 (einpassen) |
 | Auswahl aufheben / Aktion abbrechen | Esc (bricht auch laufendes Verschieben, Verbinden und Texteingabe ab) |
 | Kontextmenü | Rechtsklick oder Kontextmenü-Taste / Umschalt+F10 |
+| Unterprogramm anlegen | „+ Unterprogramm“ unter der Arbeitsfläche · Strg+Umschalt+U · Rechtsklick auf einen Unterprogramm-Baustein → „Unterprogramm … anlegen“ |
+| Unterprogramm öffnen | Seitenreiter anklicken · Strg+Doppelklick auf den Unterprogramm-Baustein · Strg+Bild ab / Strg+Bild auf blättert durch die Seiten |
+| Unterprogramm umbenennen / löschen | Doppelklick bzw. Rechtsklick auf den Seitenreiter (Umbenennen passt auch alle Aufrufe an) |
 
 ### PAP-Regeln und Warnungen
 
@@ -196,7 +200,15 @@ UTF-8-kodiertes XML im Aufbau des PapDesigners:
   Anordnung aus dem Raster abgeleitet; beim nächsten Speichern kommen die
   Angaben dazu. Vor dem ersten Überschreiben einer solchen Datei fragt das
   Programm nach (Überschreiben / Speichern unter / Abbrechen), weil die Datei
-  dabei neu geschrieben wird und mehrere Diagramme zu einem Plan werden.
+  dabei neu geschrieben wird.
+* **Unterprogramme**: Das erste `DIAGRAM` ist das Hauptprogramm, jedes weitere
+  eine Unterprogramm-Seite (wie im PapDesigner); `NAME` ist der Name der Seite,
+  aufgerufen wird ein Unterprogramm über den Text seines Start-Elements. Die
+  Nummern (`ID`) sind in der ganzen Datei eindeutig, Zoom und Bildmitte
+  (`bst:ZOOM`, `bst:VIEW_X`, `bst:VIEW_Y`) gelten je Seite. Projekte mit
+  Unterprogramm-Seiten tragen `bst:VERSION="2"` – ältere Programmversionen
+  bitten dann um ein Update, statt die Seiten übereinanderzulegen; Projekte
+  ohne Unterprogramm-Seiten bleiben bei Version 1.
 * Geöffnet werden ausschließlich Dateien mit der Endung `.pap` (Dialog,
   Befehlszeile, Hineinziehen, „Zuletzt geöffnet“); gespeichert wird immer als
   `.pap`.
@@ -226,10 +238,12 @@ app/
   styles.py                  Farbschemata (dunkel/hell) und Stylesheet
   icons.py                   selbst gezeichnete Vektor-Icons
   main_window.py             Hauptfenster: Menüs, Werkzeugleiste, Tabs, Statusleiste, Dateioperationen
+  page_bar.py                Seitenleiste: Hauptprogramm und Unterprogramme eines Projekts
+  subprograms.py             Unterprogramme anlegen, umbenennen (samt Aufrufen), löschen, Namen prüfen
   actions.py                 alle Befehle mit Text, Icon und Tastenkürzel
   canvas.py                  Arbeitsfläche (QGraphicsView): Raster, Zoom, Schwenken, Drag & Drop
   scene.py                   Diagrammszene (QGraphicsScene): Registry, Snap, Verbinden, Inline-Editor
-  document.py                ein Projekt (Szene + Undo-Stapel + Metadaten + Dateipfad)
+  document.py                ein Projekt: Seiten (je eine Szene), Undo-Stapel, Metadaten, Dateipfad
   palette.py                 Werkzeugpalette mit Formvorschau
   inline_editor.py           Inline-Texteditor
   clipboard.py               Kopieren/Einfügen/Duplizieren
@@ -261,8 +275,8 @@ app/
   items/                     Bausteine (eine Klasse je Typ, inkl. Verbindungspunkt), Formen, Drop-Vorschau
   connections/               Verbindung, Beschriftung, Linienführung (routing.py),
                              Verbindungsziele Block/Knoten/Pfeil (endpoints.py)
-  commands/                  Undo/Redo-Befehle
-  dialogs/                   Projekteigenschaften, Über, Tastenkürzel, Exportoptionen
+  commands/                  Undo/Redo-Befehle (auch Seiten anlegen, löschen, umbenennen)
+  dialogs/                   Projekteigenschaften, Über, Tastenkürzel, Exportoptionen, Name eines Unterprogramms
   fileformat/                Lesen und Schreiben von .pap (serializer.py), Kennungen und Version (project.py)
 assets/                      erzeugte Programm-/Dateisymbole (.ico/.png), Schullogo
 assets/translations/         Übersetzungen (eine JSON-Datei je Sprache: deutscher Text → Übersetzung)
@@ -448,14 +462,16 @@ dritte Zahl kleine Nachbesserungen.
 | 1.5.3 | 08.10.2026 | ohne Schreibrechte im Programmordner (z. B. Installation für alle Benutzer) nur noch ein Hinweis in der Statuszeile statt einer Update-Frage |
 | 1.6 | 08.10.2026 | Updates funktionieren auch ohne Schreibrechte im Programmordner: Die neue Version wird im Benutzerordner abgelegt und von dort gestartet |
 | 1.7 | 08.10.2026 | neun Sprachen (Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch); weitere Dateien öffnen sich als Reiter im laufenden Programm; Schullogo im Ladebildschirm vollständig und mittig |
+| 1.8 | 26.10.2026 | Unterprogramme auf eigenen Seiten (Hauptprogramm + Unterprogramme als Reiter, anlegen, öffnen per Strg+Doppelklick, umbenennen samt Aufrufen); Schreibtischtest springt ins Unterprogramm; PDF und Druck mit allen Seiten |
 
 ---
 
 ## Hinweise
 
 * Die Spezifikation endete bei Abschnitt 58 („Drucken“). Umgesetzt wurden
-  Drucken und Druckvorschau: das Diagramm wird seitenfüllend auf eine Seite
-  gedruckt (automatisch Hoch-/Querformat).
+  Drucken und Druckvorschau: jedes Diagramm (Hauptprogramm und jedes
+  Unterprogramm) wird seitenfüllend auf eine eigene Seite gedruckt
+  (Hoch-/Querformat nach dem Hauptprogramm).
 * Einstellungen wie „Raster anzeigen“ und „Einrasten“ werden mit dem Projekt
   gespeichert, gelten aber als Ansichtseinstellung und markieren das Projekt
   nicht als geändert.

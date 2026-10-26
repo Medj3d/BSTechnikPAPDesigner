@@ -105,36 +105,55 @@ def export_svg(scene, path: str, options: ExportOptions) -> None:
         raise ExportError(_not_written(path))
 
 
-def export_pdf(scene, path: str, options: ExportOptions) -> None:
-    source = _source_rect(scene, options.margin)
+def _scene_list(scenes) -> list:
+    """Eine Szene oder eine Liste von Szenen (Seiten eines Projekts) als Liste."""
+    return list(scenes) if isinstance(scenes, (list, tuple)) else [scenes]
+
+
+def _pdf_layout(source: QRectF) -> QPageLayout:
+    # Seitengröße = Diagrammgröße (96 dpi → Punkt: 72/96)
+    page_size = QPageSize(QSizeF(source.width() * 72 / 96, source.height() * 72 / 96),
+                          QPageSize.Unit.Point, tr("Diagramm"), QPageSize.SizeMatchPolicy.ExactMatch)
+    return QPageLayout(page_size, QPageLayout.Orientation.Portrait, QMarginsF(0, 0, 0, 0))
+
+
+def export_pdf(scenes, path: str, options: ExportOptions) -> None:
+    """PDF mit einer Seite je Szene (Hauptprogramm und Unterprogramme), jede so groß wie ihr Diagramm."""
+    scenes = _scene_list(scenes)
+    sources = [_source_rect(scene, options.margin) for scene in scenes]
     writer = QPdfWriter(path)
     writer.setCreator(config.APP_NAME)
     writer.setTitle(tr("Programmablaufplan"))
     writer.setResolution(300)
-    # Seitengröße = Diagrammgröße (96 dpi → Punkt: 72/96)
-    page_size = QPageSize(QSizeF(source.width() * 72 / 96, source.height() * 72 / 96),
-                          QPageSize.Unit.Point, tr("Diagramm"), QPageSize.SizeMatchPolicy.ExactMatch)
-    writer.setPageLayout(QPageLayout(page_size, QPageLayout.Orientation.Portrait, QMarginsF(0, 0, 0, 0)))
+    writer.setPageLayout(_pdf_layout(sources[0]))
     painter = QPainter()
     if not painter.begin(writer):
         raise ExportError(_not_written(path))
     try:
-        target = QRectF(0, 0, writer.width(), writer.height())
-        _render(scene, painter, target, source, options, fill_background=True)
+        for index, (scene, source) in enumerate(zip(scenes, sources)):
+            if index:
+                writer.setPageLayout(_pdf_layout(source))
+                writer.newPage()
+            target = QRectF(0, 0, writer.width(), writer.height())
+            _render(scene, painter, target, source, options, fill_background=True)
     finally:
         painter.end()
 
 
-def print_scene(scene, printer, options: ExportOptions) -> None:
-    """Druckt das Diagramm auf eine Seite (seitenfüllend, Seitenverhältnis bleibt)."""
-    source = _source_rect(scene, options.margin)
+def print_scene(scenes, printer, options: ExportOptions) -> None:
+    """Druckt jedes Diagramm auf eine eigene Seite (seitenfüllend, Seitenverhältnis bleibt)."""
+    scenes = _scene_list(scenes)
+    sources = [_source_rect(scene, options.margin) for scene in scenes]
     painter = QPainter()
     if not painter.begin(printer):
         raise ExportError(tr("Der Druck konnte nicht gestartet werden."))
     try:
-        page = QRectF(printer.pageLayout().paintRectPixels(printer.resolution()))
-        page = QRectF(0, 0, page.width(), page.height())
-        _render(scene, painter, page, source, options, fill_background=False)
+        for index, (scene, source) in enumerate(zip(scenes, sources)):
+            if index and not printer.newPage():
+                raise ExportError(tr("Der Druck konnte nicht gestartet werden."))
+            page = QRectF(printer.pageLayout().paintRectPixels(printer.resolution()))
+            page = QRectF(0, 0, page.width(), page.height())
+            _render(scene, painter, page, source, options, fill_background=False)
     finally:
         painter.end()
 

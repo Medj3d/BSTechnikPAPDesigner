@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (QDialog, QFileDialog, QHBoxLayout, QLabel, QMessa
                                QScrollArea, QToolButton, QVBoxLayout)
 
 from app import icons, styles
-from app.analysis.graph import FlowGraph
 from app.analysis.structure import structure_diagram
 from app.codegen.generators import with_title
 from app.export import ExportError
@@ -36,7 +35,7 @@ class StructogramDialog(QDialog):
         self.setWindowTitle(tr("Struktogramm"))
         self.resize(900, 720)
         try:
-            programs = structure_diagram(FlowGraph.from_scene(document.scene))
+            programs = structure_diagram(document.flow_graph())
         except Exception:
             programs = []
         self.programs = with_title(programs, document.meta.name)

@@ -1,7 +1,8 @@
 """Das Hauptfenster.
 
 Aufbau: Menüleiste · kompakte Werkzeugleiste · Werkzeugpalette (rechts) ·
-Arbeitsfläche mit Tabs (ein Projekt pro Tab) · Statusleiste.
+Arbeitsfläche mit Tabs (ein Projekt pro Tab) · Seitenleiste (Hauptprogramm
+und Unterprogramme des Projekts) · Statusleiste.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ import logging
 import os
 import time
 
+import shiboken6
+
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QActionGroup, QKeySequence, QUndoGroup
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QLabel,
@@ -17,7 +20,7 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayo
                                QTabBar, QTabWidget, QToolBar, QToolButton, QVBoxLayout, QWidget)
 
 from app import (alignment, clipboard, config, export, file_association, i18n, icons, restart, single_instance,
-                 styles)
+                 styles, subprograms)
 from app import theme as theme_module
 from app.actions import ALIGN_ACTIONS, ActionRegistry, insert_action_name
 from app.autosave import AutosaveManager
@@ -35,10 +38,12 @@ from app.dialogs.about import AboutDialog
 from app.dialogs.export_options import ExportOptionsDialog
 from app.dialogs.project_properties import ProjectPropertiesDialog
 from app.dialogs.shortcuts import ShortcutsDialog
+from app.dialogs.subprogram_name import SubprogramNameDialog
 from app.document import DiagramDocument
 from app.fileformat.project import ProjectFileError
 from app.items.base_item import FlowItem
 from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType
+from app.page_bar import PageBar
 from app.palette import ToolPalette
 from app.i18n import N_, tr
 from app.settings_store import SettingsStore
@@ -164,9 +169,21 @@ class MainWindow(QMainWindow):
         self.tabs.setElideMode(Qt.TextElideMode.ElideMiddle)
         self.tabs.tabCloseRequested.connect(self.close_tab)
         self.tabs.currentChanged.connect(self._on_tab_changed)
+        # Seiten des angezeigten Projekts: Hauptprogramm und Unterprogramme
+        self.page_bar = PageBar()
+        self.page_bar.page_selected.connect(self.show_page)
+        self.page_bar.add_requested.connect(self.new_subprogram)
+        self.page_bar.rename_requested.connect(self.rename_subprogram)
+        self.page_bar.delete_requested.connect(self.delete_subprogram)
+        self.workspace = QWidget()
+        workspace_layout = QVBoxLayout(self.workspace)
+        workspace_layout.setContentsMargins(0, 0, 0, 0)
+        workspace_layout.setSpacing(0)
+        workspace_layout.addWidget(self.tabs, 1)
+        workspace_layout.addWidget(self.page_bar)
         self.empty_state = EmptyState(self)
         self.stack = QStackedWidget()
-        self.stack.addWidget(self.tabs)
+        self.stack.addWidget(self.workspace)
         self.stack.addWidget(self.empty_state)
         self.setCentralWidget(self.stack)
 
@@ -217,6 +234,9 @@ class MainWindow(QMainWindow):
             theme_menu.addAction(a[name])
         self._build_language_menu(view_menu)
         view_menu.addSeparator()
+        for name in ("open_subprogram", "next_page", "previous_page"):
+            view_menu.addAction(a[name])
+        view_menu.addSeparator()
         self.view_menu = view_menu
 
         insert_menu = bar.addMenu(tr("&Einfügen", ctx="Menü"))  # Bausteine einfügen (nicht: aus der Zwischenablage)
@@ -225,6 +245,8 @@ class MainWindow(QMainWindow):
         insert_menu.addSeparator()
         for element_type in FLOW_TERMINALS:
             insert_menu.addAction(a[insert_action_name(element_type)])
+        insert_menu.addSeparator()
+        insert_menu.addAction(a["new_subprogram"])
 
         arrange_menu = bar.addMenu(tr("An&ordnen"))
         for name in ALIGN_ACTIONS[:6]:
@@ -430,19 +452,28 @@ class MainWindow(QMainWindow):
 
     def _focus_element(self, element_id: str) -> None:
         view = self.current_view()
-        item = view.document.scene.element(element_id) if view is not None else None
-        if item is not None:
-            view.ensureVisible(item.scene_rect(), 60, 60)
+        found = view.document.find_element(element_id) if view is not None else None
+        if found is None:
+            return
+        page, item = found
+        view.document.show_page(page)  # z. B. der Schreibtischtest springt in ein Unterprogramm
+        view.ensureVisible(item.scene_rect(), 60, 60)
 
     def _navigate_to(self, element_ids: list, connection_ids: list) -> None:
         view = self.current_view()
         if view is None:
             return
-        scene = view.document.scene
-        items = [scene.element(eid) for eid in element_ids] + [scene.connection(cid) for cid in connection_ids]
-        items = [item for item in items if item is not None]
-        if not items:
+        document = view.document
+        # Die Stelle kann auf einer anderen Seite liegen (Unterprogramm)
+        found = [document.find_element(eid) for eid in element_ids]
+        found += [document.find_connection(cid) for cid in connection_ids]
+        found = [entry for entry in found if entry is not None]
+        if not found:
             return
+        page = found[0][0]
+        document.show_page(page)
+        scene = page.scene
+        items = [item for item_page, item in found if item_page is page]
         scene.select_items(items)
         rect = QRectF()
         for item in items:
@@ -517,6 +548,10 @@ class MainWindow(QMainWindow):
         a["send_back"].triggered.connect(lambda: self._with_scene(lambda s: s.send_to_back()))
         a["toggle_loop_part"].triggered.connect(self.toggle_loop_part)
         a["reset_routing"].triggered.connect(self.reset_routing)
+        a["new_subprogram"].triggered.connect(lambda: self.new_subprogram())
+        a["open_subprogram"].triggered.connect(self.open_selected_subprogram)
+        a["next_page"].triggered.connect(lambda: self._step_page(1))
+        a["previous_page"].triggered.connect(lambda: self._step_page(-1))
 
         a["generate_code"].triggered.connect(self.show_code_dialog)
         a["structogram"].triggered.connect(self.show_structogram)
@@ -582,12 +617,10 @@ class MainWindow(QMainWindow):
         document.modified_changed.connect(lambda _m, d=document: self._update_document_title(d))
         document.undo_stack.indexChanged.connect(lambda _i, d=document: self._schedule_auto_save(d))
         document.settings_changed.connect(self._update_status)
-        scene = document.scene
-        scene.selection_state_changed.connect(self._update_actions)
-        scene.selection_state_changed.connect(self._update_status)
-        scene.content_changed.connect(self._schedule_status_update)
-        scene.editing_changed.connect(lambda _e: self._update_actions())
-        scene.status_message.connect(self._show_scene_message)
+        for page in document.pages:
+            self._connect_scene(page.scene)
+        document.page_added.connect(lambda page: self._connect_scene(page.scene))
+        document.current_page_changed.connect(lambda _i, d=document: self._on_page_changed(d))
         view.zoom_changed.connect(lambda _z: self._update_status())
         view.cursor_scene_pos_changed.connect(self._update_position)
         view.context_menu_requested.connect(self.show_context_menu)
@@ -597,16 +630,36 @@ class MainWindow(QMainWindow):
         view.setFocus()
         return view
 
+    def _connect_scene(self, scene) -> None:
+        """Signale einer Seite (Szene) mit dem Fenster verbinden – auch für später angelegte Unterprogramme."""
+        if scene.property("bst_connected"):
+            return
+        scene.setProperty("bst_connected", True)
+        scene.selection_state_changed.connect(self._update_actions)
+        scene.selection_state_changed.connect(self._update_status)
+        scene.content_changed.connect(self._schedule_status_update)
+        scene.editing_changed.connect(lambda _e: self._update_actions())
+        scene.status_message.connect(self._show_scene_message)
+        scene.subprogram_requested.connect(self._request_subprogram)
+        scene.theme = styles.current_theme()
+
     def _on_tab_changed(self, index: int) -> None:
         document = self.current_document()
         self.undo_group.setActiveStack(document.undo_stack if document is not None else None)
         self._update_ui()
+
+    def _on_page_changed(self, document: DiagramDocument) -> None:
+        if document is self.current_document():
+            self._update_actions()
+            self._update_status()
+            self.page_bar.refresh()
 
     def _sync_panels(self) -> None:
         document = self.current_document()
         if hasattr(self, "simulation_panel"):
             self.simulation_panel.set_document(document)
             self.diagnostics_panel.set_document(document)
+        self.page_bar.set_document(document)
 
     def _update_document_title(self, document: DiagramDocument) -> None:
         for i in range(self.tabs.count()):
@@ -641,6 +694,7 @@ class MainWindow(QMainWindow):
             self.simulation_panel.stop(silent=True)
         self.simulation_panel.set_document(None)
         self.diagnostics_panel.set_document(None)
+        self.page_bar.set_document(None)
         if self.autosave is not None:
             self.autosave.unregister(document)
         self._auto_save_pending.discard(document)
@@ -704,7 +758,7 @@ class MainWindow(QMainWindow):
         current = self.current_document()
         replace_index = -1
         if current is not None and current.file_path is None and not current.is_modified \
-                and not current.scene.elements():
+                and current.is_empty() and len(current.pages) == 1:
             replace_index = self.tabs.currentIndex()
         view = self.add_document(document)
         if replace_index >= 0:
@@ -765,7 +819,7 @@ class MainWindow(QMainWindow):
         box.setText(tr("„{name}“ wurde mit einem anderen Programm erstellt (z. B. dem PapDesigner).",
                        name=os.path.basename(document.file_path)))
         box.setInformativeText(tr("Beim Speichern wird die Datei neu geschrieben: Die genaue Anordnung kommt "
-                                  "hinzu, mehrere Diagramme der Datei werden zu einem Plan zusammengefasst.\n\n"
+                                  "hinzu, Unterprogramme bleiben eigene Seiten.\n\n"
                                   "Soll die Datei überschrieben werden?"))
         overwrite = box.addButton(tr("Überschreiben"), QMessageBox.ButtonRole.AcceptRole)
         save_as = box.addButton(tr("Speichern unter …"), QMessageBox.ButtonRole.ActionRole)
@@ -1013,9 +1067,9 @@ class MainWindow(QMainWindow):
         theme = theme_module.apply_ui_theme(app, name)
         theme_module.save_theme_name(name)
         for view in self.views():
-            scene = view.document.scene
-            scene.theme = theme
-            scene.update()
+            for scene in view.document.scenes():  # auch die gerade nicht angezeigten Seiten
+                scene.theme = theme
+                scene.update()
             view.refresh_background()
         self.actions.refresh_icons()
         self.export_menu.setIcon(icons.icon("export"))
@@ -1030,6 +1084,7 @@ class MainWindow(QMainWindow):
         self.simulation_panel.refresh_theme()
         self.diagnostics_panel.refresh_theme()
         self.diagnostics_panel.refresh()
+        self.page_bar.refresh_theme()
         self._sync_theme_actions()
 
     def _refresh_recent_menu(self) -> None:
@@ -1073,16 +1128,23 @@ class MainWindow(QMainWindow):
 
     # ============================================================ Bearbeiten
     def _undo(self) -> None:
-        scene = self.current_scene()
-        if scene is not None:
-            scene.prepare_for_command()
-        self.undo_group.undo()
+        self._undo_redo(undo=True)
 
     def _redo(self) -> None:
-        scene = self.current_scene()
-        if scene is not None:
-            scene.prepare_for_command()
-        self.undo_group.redo()
+        self._undo_redo(undo=False)
+
+    def _undo_redo(self, undo: bool) -> None:
+        """Rückgängig/Wiederholen; betrifft der Schritt eine andere Seite, wird sie danach angezeigt."""
+        document = self.current_document()
+        if document is None:
+            self.undo_group.undo() if undo else self.undo_group.redo()
+            return
+        document.scene.prepare_for_command()
+        stack = document.undo_stack
+        page = document.command_page(stack.command(stack.index() - 1 if undo else stack.index()))
+        stack.undo() if undo else stack.redo()
+        if page is not None and page in document.pages:
+            document.show_page(page)
 
     def _update_undo_texts(self) -> None:
         undo_text = self.undo_group.undoText()
@@ -1229,6 +1291,18 @@ class MainWindow(QMainWindow):
                 toggle = menu.addAction(tr("In Schleifenbeginn umwandeln") if is_end
                                         else tr("In Schleifenende umwandeln"))
                 toggle.triggered.connect(lambda: scene.toggle_loop_part(item))
+            if item.element_type is ElementType.SUBPROGRAM:
+                menu.addSeparator()
+                name = "" if subprograms.is_placeholder(item) else subprograms.call_name(item.data.text)
+                if name and view.document.flow_start(item.data.text) is not None:
+                    action = menu.addAction(icons.element_icon(ElementType.SUBPROGRAM),
+                                            tr("Unterprogramm „{name}“ öffnen", name=name))
+                else:
+                    action = menu.addAction(icons.element_icon(ElementType.SUBPROGRAM),
+                                            tr("Unterprogramm „{name}“ anlegen …", name=name) if name
+                                            else tr("Unterprogramm anlegen …"))
+                action.setToolTip(tr("Auch mit Strg+Doppelklick auf den Baustein"))
+                action.triggered.connect(lambda: self.open_subprogram_for(item))
             menu.addSeparator()
             if len(scene.selected_elements()) >= 2:
                 align_menu = menu.addMenu(tr("Ausrichten"))
@@ -1259,6 +1333,8 @@ class MainWindow(QMainWindow):
             paste.triggered.connect(lambda _=False, p=QPointF(scene_pos): self.paste(at=p))
             menu.addAction(a["select_all"])
             menu.addSeparator()
+            menu.addAction(a["new_subprogram"])
+            menu.addSeparator()
             grid_menu = menu.addMenu(icons.icon("grid"), tr("Raster"))
             grid_menu.addAction(a["toggle_grid"])
             grid_menu.addAction(a["toggle_snap"])
@@ -1270,6 +1346,164 @@ class MainWindow(QMainWindow):
     def _insert_at(self, view: DiagramView, element_type: ElementType, pos: QPointF) -> None:
         element_id = view.document.scene.insert_element(element_type, pos)
         self._reveal([element_id] if element_id else [])
+
+    # ============================================================ Unterprogramme
+    def show_page(self, index: int) -> None:
+        document = self.current_document()
+        if document is not None and 0 <= index < len(document.pages):
+            document.set_current_page(index)
+            view = self.current_view()
+            if view is not None:
+                view.setFocus()
+
+    def _step_page(self, step: int) -> None:
+        document = self.current_document()
+        if document is not None:
+            self.show_page(document.current_page_index + step)
+
+    def _ask_subprogram_name(self, document: DiagramDocument, title: str, initial: str, page=None) -> str | None:
+        """Fragt nach dem Namen eines Unterprogramms. ``None`` = abgebrochen."""
+        dialog = SubprogramNameDialog(document, title, initial, page, self)
+        if dialog.exec() != SubprogramNameDialog.DialogCode.Accepted:
+            return None
+        return dialog.name()
+
+    def new_subprogram(self, name: str | None = None) -> bool:
+        """Legt ein Unterprogramm auf einer eigenen Seite an (Start „Name“ → Ende) und zeigt es an.
+
+        Ohne ``name`` wird nachgefragt; vorgeschlagen wird ein Aufruf, zu dem es noch keinen Ablauf gibt.
+        """
+        document = self.current_document()
+        if document is None:
+            return False
+        document.scene.prepare_for_command()
+        if name is None:
+            name = self._ask_subprogram_name(document, tr("Neues Unterprogramm"), subprograms.suggested_name(document))
+            if name is None:
+                return False
+        error = subprograms.name_error(document, name)
+        if error is not None:
+            self._error(tr("Unterprogramm anlegen"), error)
+            return False
+        page = subprograms.create_subprogram(document, name)
+        self._after_page_created(page)
+        self.statusBar().showMessage(tr("Unterprogramm „{name}“ angelegt – ein Unterprogramm-Baustein mit diesem "
+                                        "Namen ruft es auf.", name=page.display_name), 6000)
+        return True
+
+    def _after_page_created(self, page) -> None:
+        view = self.current_view()
+        if view is not None:
+            view.restore_view_state()
+            view.setFocus()
+
+    def rename_subprogram(self, index: int | None = None, name: str | None = None) -> bool:
+        document = self.current_document()
+        if document is None:
+            return False
+        index = document.current_page_index if index is None else index
+        if not 0 < index < len(document.pages):
+            return False
+        page = document.pages[index]
+        document.scene.prepare_for_command()
+        if name is None:
+            name = self._ask_subprogram_name(document, tr("Unterprogramm umbenennen"), page.display_name, page)
+            if name is None:
+                return False
+        if subprograms.clean_name(name) == page.display_name:
+            return False
+        error = subprograms.name_error(document, name, page)
+        if error is not None:
+            self._error(tr("Unterprogramm umbenennen"), error)
+            return False
+        calls = len(subprograms.callers(document, page))
+        if not subprograms.rename_subprogram(document, page, name):
+            return False
+        document.show_page(page)
+        self.statusBar().showMessage(
+            tr("Unterprogramm umbenannt – auch {n} Aufruf(e) wurden angepasst.", n=calls) if calls
+            else tr("Unterprogramm umbenannt."), 5000)
+        return True
+
+    def delete_subprogram(self, index: int | None = None, confirm: bool = True) -> bool:
+        document = self.current_document()
+        if document is None:
+            return False
+        index = document.current_page_index if index is None else index
+        if not 0 < index < len(document.pages):
+            return False
+        page = document.pages[index]
+        document.scene.prepare_for_command()
+        if confirm and page.scene.elements():
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Icon.Question)
+            box.setWindowTitle(config.APP_NAME)
+            box.setText(tr("Unterprogramm „{name}“ löschen?", name=page.display_name))
+            calls = len(subprograms.callers(document, page))
+            info = tr("Die Seite wird mit allen Bausteinen gelöscht (Rückgängig mit Strg+Z).")
+            if calls:
+                info += "\n\n" + tr("{n} Unterprogramm-Baustein(e) rufen es noch auf; sie bleiben erhalten.", n=calls)
+            box.setInformativeText(info)
+            delete = box.addButton(tr("Löschen"), QMessageBox.ButtonRole.DestructiveRole)
+            cancel = box.addButton(tr("Abbrechen"), QMessageBox.ButtonRole.RejectRole)
+            box.setDefaultButton(cancel)
+            box.setEscapeButton(cancel)
+            box.exec()
+            if box.clickedButton() is not delete:
+                return False
+        subprograms.delete_subprogram(document, page)
+        self.statusBar().showMessage(tr("Unterprogramm gelöscht (Rückgängig mit Strg+Z)."), 5000)
+        return True
+
+    def _request_subprogram(self, item) -> None:
+        """Strg+Doppelklick: erst nach dem Doppelklick öffnen – bis dahin gehört die Maus der bisherigen Seite."""
+        QTimer.singleShot(0, lambda: self.open_subprogram_for(item) if shiboken6.isValid(item) else None)
+
+    def open_selected_subprogram(self) -> None:
+        scene = self.current_scene()
+        if scene is not None and scene.single_selected is not None \
+                and scene.single_selected.element_type is ElementType.SUBPROGRAM:
+            self.open_subprogram_for(scene.single_selected)
+
+    def open_subprogram_for(self, item) -> bool:
+        """Zeigt das Unterprogramm, das ein Unterprogramm-Baustein aufruft; fehlt es, wird es angelegt."""
+        document = self.current_document()
+        if document is None or item is None or item.element_type is not ElementType.SUBPROGRAM:
+            return False
+        document.scene.prepare_for_command()
+        placeholder = subprograms.is_placeholder(item)  # noch der Standardtext: ruft nichts Bestimmtes auf
+        found = None if placeholder else document.flow_start(item.data.text)
+        if found is not None:
+            page, start = found
+            document.show_page(page)
+            page.scene.select_items([start])
+            view = self.current_view()
+            if view is not None:
+                view.ensureVisible(start.scene_rect(), 80, 80)
+                view.setFocus()
+            return True
+        # noch kein Ablauf mit diesem Namen: anlegen (Name aus dem Baustein, wenn er schon einen trägt)
+        initial = "" if placeholder else subprograms.call_name(item.data.text)
+        name = self._ask_subprogram_name(document, tr("Neues Unterprogramm"),
+                                         initial or subprograms.suggested_name(document))
+        if name is None:
+            return False
+        error = subprograms.name_error(document, name)
+        if error is not None:
+            self._error(tr("Unterprogramm anlegen"), error)
+            return False
+        stack = document.undo_stack
+        stack.beginMacro(tr("Unterprogramm „{name}“ anlegen", name=subprograms.clean_name(name)))
+        if subprograms.call_name(item.data.text) != subprograms.clean_name(name):
+            # der Baustein ruft danach genau dieses Unterprogramm auf
+            from app.commands import EditTextCommand
+            stack.push(EditTextCommand(item.scene(), item.element_id, item.data.text,
+                                       subprograms.renamed_call(item.data.text, subprograms.clean_name(name))))
+        page = subprograms.create_subprogram(document, name)
+        stack.endMacro()
+        self._after_page_created(page)
+        self.statusBar().showMessage(tr("Unterprogramm „{name}“ angelegt.", name=page.display_name), 5000)
+        return True
 
     # ============================================================ Dialoge
     def edit_properties(self) -> None:
@@ -1302,7 +1536,7 @@ class MainWindow(QMainWindow):
         document = self.current_document()
         if document is None:
             return
-        if not document.scene.elements():
+        if (document.is_empty() if fmt == "PDF" else not document.scene.elements()):
             self._error(tr("Export nicht möglich"), tr("Das Diagramm ist leer – es gibt nichts zu exportieren."))
             return
         options = self._export_options(fmt)
@@ -1313,17 +1547,22 @@ class MainWindow(QMainWindow):
                    "SVG": tr("SVG-Grafik ({pattern})", pattern="*.svg"),
                    "PDF": tr("PDF-Dokument ({pattern})", pattern="*.pdf")}
         base_dir = os.path.dirname(document.file_path) if document.file_path else self.settings_store.last_directory()
-        suggestion = os.path.join(base_dir, _safe_filename(document.display_name) + extension)
+        # Bilder zeigen die angezeigte Seite, ein PDF enthält alle Seiten des Projekts
+        base_name = document.display_name
+        if fmt != "PDF" and not document.current_page.is_main:
+            base_name = f"{base_name} – {document.current_page.display_name}"
+        suggestion = os.path.join(base_dir, _safe_filename(base_name) + extension)
         path, _ = QFileDialog.getSaveFileName(self, tr("Als {format} exportieren", format=fmt), suggestion,
                                               filters[fmt])
         if not path:
             return
         path = export.ensure_extension(path, extension)
         exporter = {"PNG": export.export_png, "SVG": export.export_svg, "PDF": export.export_pdf}[fmt]
+        source = _printable_scenes(document) if fmt == "PDF" else document.scene
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             try:
-                exporter(document.scene, path, options)
+                exporter(source, path, options)
             finally:
                 QApplication.restoreOverrideCursor()
         except export.ExportError as exc:
@@ -1341,7 +1580,7 @@ class MainWindow(QMainWindow):
 
         printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         printer.setDocName(document.display_name)
-        bounds = document.scene.diagram_bounds()
+        bounds = _printable_scenes(document)[0].diagram_bounds()
         if bounds.width() > bounds.height():
             printer.setPageOrientation(QPageLayout.Orientation.Landscape)
         return printer
@@ -1350,7 +1589,7 @@ class MainWindow(QMainWindow):
         document = self.current_document()
         if document is None:
             return
-        if not document.scene.elements():
+        if document.is_empty():
             self._error(tr("Drucken nicht möglich"), tr("Das Diagramm ist leer."))
             return
         try:
@@ -1364,7 +1603,7 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QPrintDialog.DialogCode.Accepted:
             return
         try:
-            export.print_scene(document.scene, printer, export.ExportOptions(theme_name="light"))
+            export.print_scene(_printable_scenes(document), printer, export.ExportOptions(theme_name="light"))
         except export.ExportError as exc:
             self._error(tr("Drucken nicht möglich"), str(exc))
 
@@ -1372,7 +1611,7 @@ class MainWindow(QMainWindow):
         document = self.current_document()
         if document is None:
             return
-        if not document.scene.elements():
+        if document.is_empty():
             self._error(tr("Druckvorschau nicht möglich"), tr("Das Diagramm ist leer."))
             return
         try:
@@ -1388,7 +1627,7 @@ class MainWindow(QMainWindow):
 
         def paint(p):
             try:
-                export.print_scene(document.scene, p, options)
+                export.print_scene(_printable_scenes(document), p, options)
             except export.ExportError as exc:
                 log.warning("Druckvorschau: %s", exc)
 
@@ -1434,7 +1673,7 @@ class MainWindow(QMainWindow):
 
     def _update_ui(self) -> None:
         has_document = self.tabs.count() > 0
-        self.stack.setCurrentWidget(self.tabs if has_document else self.empty_state)
+        self.stack.setCurrentWidget(self.workspace if has_document else self.empty_state)
         document = self.current_document()
         for name, attr in (("toggle_grid", "grid_visible"), ("toggle_snap", "snap_to_grid")):
             action = self.actions[name]
@@ -1474,6 +1713,11 @@ class MainWindow(QMainWindow):
         single = scene.single_selected if has_doc else None
         a["toggle_loop_part"].setEnabled(single is not None and single.element_type is ElementType.LOOP)
         a["reset_routing"].setEnabled(any(c.has_manual_routing() for c in connections))
+        a["new_subprogram"].setEnabled(has_doc)
+        a["open_subprogram"].setEnabled(single is not None and single.element_type is ElementType.SUBPROGRAM)
+        pages = len(document.pages) if has_doc else 0
+        a["next_page"].setEnabled(has_doc and document.current_page_index < pages - 1)
+        a["previous_page"].setEnabled(has_doc and document.current_page_index > 0)
         self.palette.set_entries_enabled(True)
         self.zoom_button.setEnabled(has_doc)
 
@@ -1519,6 +1763,12 @@ def _interactive_item_at(scene, pos: QPointF):
             return item.connection
     hit = scene._port_hit(pos)
     return hit[0] if hit else None
+
+
+def _printable_scenes(document) -> list:
+    """Seiten für Druck und PDF: alle, die etwas enthalten (Hauptprogramm zuerst)."""
+    scenes = [scene for scene in document.scenes() if scene.elements()]
+    return scenes or [document.scene]
 
 
 def _has_project_extension(path: str) -> bool:

@@ -73,6 +73,14 @@ _DEFINITIONS = {
     "toggle_loop_part": (N_("Schleifenbeginn/-ende &umschalten"), None, [],
                          N_("Teil der Schleifenbegrenzung wechseln")),
     "reset_routing": (N_("Linienführung &zurücksetzen"), None, [], N_("Automatische Linienführung wiederherstellen")),
+    # Unterprogramme (eigene Seiten des Projekts)
+    "new_subprogram": (N_("Neues &Unterprogramm …"), None, ["Ctrl+Shift+U"],
+                       N_("Ein Unterprogramm auf einer eigenen Seite anlegen")),
+    "open_subprogram": (N_("&Unterprogramm öffnen"), None, [],
+                        N_("Die Seite des Unterprogramms anzeigen, das der ausgewählte Baustein aufruft")),
+    "next_page": (N_("&Nächste Seite"), None, ["Ctrl+PgDown"], N_("Nächstes Unterprogramm anzeigen")),
+    "previous_page": (N_("&Vorherige Seite"), None, ["Ctrl+PgUp"],
+                      N_("Vorheriges Unterprogramm bzw. das Hauptprogramm anzeigen")),
     # Extras
     "generate_code": (N_("&Code erzeugen …"), "code", ["Ctrl+Shift+C"],
                       N_("Pseudocode, Python oder Java aus dem PAP erzeugen")),

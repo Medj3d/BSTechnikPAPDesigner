@@ -79,13 +79,16 @@ class DiagnosticsPanel(QWidget):
             return
         if self._document is not None:
             try:
-                self._document.scene.content_changed.disconnect(self.schedule_refresh)
+                self._document.content_changed.disconnect(self.schedule_refresh)
+                self._document.pages_changed.disconnect(self.schedule_refresh)
                 self._document.undo_stack.indexChanged.disconnect(self.schedule_refresh)
             except (RuntimeError, TypeError):
                 pass
         self._document = document
         if document is not None:
-            document.scene.content_changed.connect(self.schedule_refresh)
+            # alle Seiten des Projekts (Hauptprogramm und Unterprogramme)
+            document.content_changed.connect(self.schedule_refresh)
+            document.pages_changed.connect(self.schedule_refresh)
             document.undo_stack.indexChanged.connect(self.schedule_refresh)
         self.refresh()
 
@@ -106,7 +109,7 @@ class DiagnosticsPanel(QWidget):
             self.issues_changed.emit(0, 0)
             return
         try:
-            self._issues = run_checks(document.scene)
+            self._issues = run_checks(document)
         except Exception:  # Hinweise dürfen die Bedienung nie stören
             self._issues = []
         warnings = sum(1 for issue in self._issues if issue.severity == WARNING)

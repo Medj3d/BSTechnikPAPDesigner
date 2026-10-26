@@ -60,8 +60,11 @@ class DiagramView(QGraphicsView):
         # mouseReleaseEvent); contextMenuEvent behandelt nur die Tastatur.
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
 
+        # angezeigte Seite des Projekts (Hauptprogramm oder Unterprogramm)
+        self._page = document.current_page
         document.view_state_provider = self.view_state
         document.settings_changed.connect(self.refresh_background)
+        document.current_page_changed.connect(self._show_current_page)
         self.restore_view_state()
 
     # ================================================================ Zoom
@@ -144,11 +147,39 @@ class DiagramView(QGraphicsView):
                 origin.y() + viewport.height() / (2.0 * self._zoom))
 
     def restore_view_state(self) -> None:
-        settings = self.document.settings
-        zoom = max(config.MIN_ZOOM, min(config.MAX_ZOOM, settings.zoom or 1.0))
+        zoom, center_x, center_y = self._page.view_state
+        zoom = max(config.MIN_ZOOM, min(config.MAX_ZOOM, zoom or 1.0))
         self._zoom = zoom
         self.setTransform(QTransform.fromScale(zoom, zoom))
-        self.centerOn(QPointF(settings.view_center_x, settings.view_center_y))
+        self.centerOn(QPointF(center_x, center_y))
+
+    def _show_current_page(self, _index: int = 0) -> None:
+        """Zeigt die Seite, die das Dokument gerade anzeigen soll; Zoom und Ausschnitt gelten je Seite."""
+        page = self.document.current_page
+        if page is self._page:
+            return
+        if self._page in self.document.pages:
+            self._page.view_state = self.view_state()
+        self._end_view_interaction()
+        self._page = page
+        self.setScene(page.scene)
+        self.restore_view_state()
+        if page.fit_on_show:
+            page.fit_on_show = False
+            self.fit_diagram()
+        self.resetCachedContent()
+        self.viewport().update()
+        self.zoom_changed.emit(self._zoom)
+
+    def _end_view_interaction(self) -> None:
+        """Schwenken und Hineinziehen gehören zur bisherigen Seite."""
+        if self._pan_button is not None:
+            self._pan_button = None
+            self.viewport().setCursor(Qt.CursorShape.ArrowCursor)
+        if self._drop_type is not None:
+            self._drop_type = None
+            self._page.scene.clear_drop_preview()
+        self._wheel_anchor = None
 
     def visible_scene_rect(self) -> QRectF:
         return self.mapToScene(self.viewport().rect()).boundingRect()

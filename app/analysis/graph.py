@@ -30,6 +30,8 @@ class Node:
     properties: dict = field(default_factory=dict, hash=False, compare=False)
     x: float = 0.0
     y: float = 0.0
+    # Seite des Projekts: 0 = Hauptprogramm, 1, 2, … = Unterprogramm-Seiten
+    page: int = 0
 
     @property
     def is_loop_end(self) -> bool:
@@ -82,6 +84,34 @@ def yes_no_edges(outs: list) -> tuple:
     return first, second
 
 
+def call_target(text: str) -> str:
+    """Bezeichner des Ablaufs, den ein Unterprogramm-Text aufruft: „Summe berechnen“ → „summe_berechnen“,
+    „berechne(x, y)“ → „berechne“. Leer, wenn der Text keinen Namen enthält.
+
+    Ein Aufruf passt zu dem Ablauf, dessen Start-Text als Bezeichner (``flow_name``) gleich ist – so wie im
+    Schreibtischtest und in der Code-Erzeugung.
+    """
+    from app.analysis.text import call_parts, slug
+
+    call = call_parts(text)
+    return slug(call[0] if call else text, "")
+
+
+def flow_name(start_text: str) -> str:
+    """Bezeichner, unter dem ein Ablauf aufgerufen wird: der Text seines Start-Elements („Summe berechnen“ →
+    „summe_berechnen“). Leer, wenn der Text keinen Namen enthält."""
+    from app.analysis.text import slug
+
+    return slug(start_text, "")
+
+
+def subprogram_call_name(node: Node) -> str:
+    """Bezeichner des aufgerufenen Ablaufs für einen Unterprogramm-Baustein, sonst leer."""
+    if node.type is not ElementType.SUBPROGRAM or not node.text.strip():
+        return ""
+    return call_target(node.text)
+
+
 def has_yes_no_labels(outs: list) -> bool:
     """Trägt mindestens ein Ausgang eine Ja/Nein-Beschriftung („1“/„0“ nur als Paar)?"""
     labels = [" ".join(edge.label.split()).lower() for edge in outs]
@@ -107,7 +137,10 @@ class FlowGraph:
 
     # ------------------------------------------------------------ Aufbau
     @classmethod
-    def from_diagram(cls, elements: list[ElementData], connections: list[ConnectionData]) -> "FlowGraph":
+    def from_diagram(cls, elements: list[ElementData], connections: list[ConnectionData],
+                     pages: dict[str, int] | None = None) -> "FlowGraph":
+        """``pages``: Seite je Element-ID (fehlt eine Angabe, gilt Seite 0 – das Hauptprogramm)."""
+        pages = pages or {}
         nodes: dict[str, Node] = {}
         comments: dict[str, str] = {}
         for e in elements:
@@ -115,7 +148,8 @@ class FlowGraph:
             if etype is ElementType.COMMENT:
                 comments[e.id] = e.text
                 continue
-            nodes[e.id] = Node(e.id, etype, e.text or "", dict(e.properties), float(e.x), float(e.y))
+            nodes[e.id] = Node(e.id, etype, e.text or "", dict(e.properties), float(e.x), float(e.y),
+                               pages.get(e.id, 0))
         edges: list[Edge] = []
         annotations: dict[str, list[str]] = {}
         for c in connections:
@@ -132,6 +166,21 @@ class FlowGraph:
     @classmethod
     def from_scene(cls, scene) -> "FlowGraph":
         return cls.from_diagram(scene.element_data(), scene.connection_data())
+
+    @classmethod
+    def from_scenes(cls, scenes) -> "FlowGraph":
+        """Ein Graph über alle Seiten eines Projekts (Hauptprogramm zuerst, dann die Unterprogramme).
+
+        Verbindungen gibt es nur innerhalb einer Seite; ein Unterprogramm-Baustein ruft den Ablauf
+        einer anderen Seite über dessen Namen auf.
+        """
+        elements, connections, pages = [], [], {}
+        for index, scene in enumerate(scenes):
+            page_elements = scene.element_data()
+            elements += page_elements
+            connections += scene.connection_data()
+            pages.update((e.id, index) for e in page_elements)
+        return cls.from_diagram(elements, connections, pages)
 
     def collapse_junctions(self) -> "FlowGraph":
         """Überbrückt Verbindungspunkte mit genau einem Ausgang.
@@ -189,20 +238,22 @@ class FlowGraph:
     def starts(self) -> list[Node]:
         """Start-Elemente: zuerst das Hauptprogramm, dann Unterprogramme.
 
-        Ein Ablauf, dessen Start-Text einem Unterprogramm-Aufruf entspricht
-        (z. B. Start „Fehlermeldung“ und Unterprogramm „Fehlermeldung“), ist
-        ein Unterprogramm und kommt nach dem Hauptprogramm; ansonsten wird von
-        oben nach unten und links nach rechts sortiert.
+        Abläufe der Hauptseite kommen vor denen der Unterprogramm-Seiten (in
+        deren Reihenfolge). Auf einer Seite ist ein Ablauf, dessen Start-Text
+        einem Unterprogramm-Aufruf entspricht (z. B. Start „Fehlermeldung“ und
+        Unterprogramm „Fehlermeldung“), ein Unterprogramm und kommt nach dem
+        Hauptprogramm; ansonsten wird von oben nach unten und links nach rechts
+        sortiert.
         """
-        from app.analysis.text import call_parts, slug
+        from app.analysis.text import slug
 
-        called = set()
-        for node in self.nodes.values():
-            if node.type is ElementType.SUBPROGRAM and node.text.strip():
-                call = call_parts(node.text)  # „berechne(x, y)“ ruft den Ablauf „berechne“
-                called.add(slug(call[0] if call else node.text))
+        called = self.called_names()
         found = [n for n in self.nodes.values() if n.type is ElementType.START]
-        return sorted(found, key=lambda n: (slug(n.text) in called, n.y, n.x, n.id))
+        return sorted(found, key=lambda n: (n.page, slug(n.text) in called, n.y, n.x, n.id))
+
+    def called_names(self) -> set[str]:
+        """Namen (als Bezeichner) aller Abläufe, die ein Unterprogramm-Baustein aufruft."""
+        return {name for node in self.nodes.values() if (name := subprogram_call_name(node))}
 
     def reachable_from(self, node_id: str) -> set[str]:
         seen = {node_id}

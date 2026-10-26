@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.analysis.ast import DoWhileLoop, If, LimitLoop, Loop, Unstructured, WhileLoop
-from app.analysis.graph import FlowGraph
+from app.analysis.graph import FlowGraph, flow_name, subprogram_call_name
 from app.analysis.structure import structure_diagram
 from app.i18n import tr
 from app.model.element_types import ElementType, display_name_for, is_default_text
@@ -40,20 +40,29 @@ def _name(node) -> str:
     return tr("{block} „{text}“", block=label, text=text)
 
 
-def run_checks(scene) -> list[Issue]:
-    """Prüft das Diagramm einer Szene und liefert sortierte Hinweise."""
+def run_checks(target) -> list[Issue]:
+    """Prüft ein Projekt (alle Seiten eines Dokuments) oder eine einzelne Szene und liefert sortierte Hinweise."""
     issues: list[Issue] = []
-    elements = scene.element_data()
-    connections = scene.connection_data()
-    graph = FlowGraph.from_diagram(elements, connections)
+    pages = list(target.pages) if hasattr(target, "pages") else []
+    scenes = [page.scene for page in pages] if pages else [target]
+    elements, connections, page_of = [], [], {}
+    for index, scene in enumerate(scenes):
+        page_elements = scene.element_data()
+        elements += page_elements
+        connections += scene.connection_data()
+        page_of.update((e.id, index) for e in page_elements)
+    graph = FlowGraph.from_diagram(elements, connections, page_of)
     flow_nodes = graph.nodes
-    positions = {e.id: (e.y, e.x) for e in elements}
+    positions = {e.id: (page_of.get(e.id, 0), e.y, e.x) for e in elements}
 
     # rot markierte Verbindungen (in Erstellungsreihenfolge – dieselbe wie nach dem Öffnen der Datei)
-    for conn in scene.ordered_connections():
-        if conn.warning:
-            issues.append(Issue(WARNING, tr("Verbindung: {warning}", warning=conn.warning), [],
+    for scene in scenes:
+        for conn in scene.ordered_connections():
+            if conn.warning:
+                issues.append(Issue(WARNING, tr("Verbindung: {warning}", warning=conn.warning), [],
                                     [conn.connection_id]))
+
+    _subprogram_issues(pages, graph, issues)
 
     if flow_nodes:
         starts = [n for n in flow_nodes.values() if n.type is ElementType.START]
@@ -109,10 +118,26 @@ def run_checks(scene) -> list[Issue]:
 
     def sort_key(issue: Issue):
         first = issue.element_ids[0] if issue.element_ids else None
-        pos = positions.get(first, (float("inf"), float("inf")))
+        pos = positions.get(first, (float("inf"), float("inf"), float("inf")))
         return (0 if issue.severity == WARNING else 1, pos)
     issues.sort(key=sort_key)
     return _dedupe(issues)
+
+
+def _subprogram_issues(pages: list, graph: FlowGraph, issues: list[Issue]) -> None:
+    """Unterprogramm-Seiten ohne Start und Aufrufe, zu denen es (noch) keinen Ablauf gibt."""
+    for page in pages[1:]:
+        if page.scene.elements() and not page.start_items():
+            issues.append(Issue(WARNING, tr("Das Unterprogramm „{name}“ hat kein Start-Element – ohne Start "
+                                            "kann es nicht aufgerufen werden.", name=page.display_name),
+                                [page.scene.elements()[0].element_id]))
+    flows = {flow_name(node.text) for node in graph.nodes.values() if node.type is ElementType.START}
+    for node in graph.nodes.values():
+        name = subprogram_call_name(node)
+        if name and name not in flows and not is_default_text(node.text, node.type, node.properties):
+            issues.append(Issue(INFO, tr("{name} ruft ein Unterprogramm auf, das es noch nicht gibt – "
+                                         "Rechtsklick auf den Baustein → „Unterprogramm anlegen“.", name=_name(node)),
+                                [node.id]))
 
 
 def _structure_issues(graph: FlowGraph, issues: list[Issue]) -> None:

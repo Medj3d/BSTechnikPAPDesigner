@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (QAbstractItemView, QComboBox, QGraphicsItem, QHBo
                                QTableWidgetItem, QTabWidget, QToolButton, QVBoxLayout, QWidget)
 
 from app import icons, styles
-from app.analysis.graph import FlowGraph
 from app.i18n import tr
 from app.items.base_item import LAYER_OVERLAY
 from app.labels import no_label, yes_label
@@ -182,13 +181,16 @@ class SimulationPanel(QWidget):
         if self._document is not None:
             try:
                 self._document.undo_stack.indexChanged.disconnect(self._on_document_changed)
-                self._document.scene.content_changed.disconnect(self._refresh_programs)
+                self._document.content_changed.disconnect(self._refresh_programs)
+                self._document.pages_changed.disconnect(self._refresh_programs)
             except (RuntimeError, TypeError):
                 pass
         self._document = document
         if document is not None:
             document.undo_stack.indexChanged.connect(self._on_document_changed)
-            document.scene.content_changed.connect(self._refresh_programs)
+            # alle Seiten: Unterprogramme sind eigene Abläufe
+            document.content_changed.connect(self._refresh_programs)
+            document.pages_changed.connect(self._refresh_programs)
         self._refresh_programs()
 
     def _refresh_programs(self, *_args) -> None:
@@ -197,7 +199,7 @@ class SimulationPanel(QWidget):
         self.program_combo.clear()
         if self._document is not None:
             # gleiche Reihenfolge wie die Analyse: Hauptprogramm zuerst
-            for node in FlowGraph.from_scene(self._document.scene).starts():
+            for node in self._document.flow_graph().starts():
                 self.program_combo.addItem(" ".join(node.text.split()) or default_text_for(ElementType.START),
                                            node.id)
         index = self.program_combo.findData(current)
@@ -231,7 +233,7 @@ class SimulationPanel(QWidget):
             return
         self._document.scene.commit_edit()
         start_id = self.program_combo.currentData()
-        graph = FlowGraph.from_scene(self._document.scene)
+        graph = self._document.flow_graph()
         if not graph.starts():
             self.status.setText(tr("Der Plan enthält kein Start-Element."))
             return
@@ -343,11 +345,13 @@ class SimulationPanel(QWidget):
         element_id = simulator.pending.element_id if simulator.pending else simulator.current
         if simulator.finished and simulator.trace:
             element_id = simulator.trace[-1].element_id
-        item = self._document.scene.element(element_id) if element_id else None
-        if item is None:
+        # Der Baustein kann auf einer Unterprogramm-Seite liegen
+        found = self._document.find_element(element_id) if element_id else None
+        if found is None:
             self._remove_highlight()
             return
-        scene = self._document.scene
+        page, item = found
+        scene = page.scene
         if self._highlight is None or self._highlight.scene() is not scene:
             self._remove_highlight()
             self._highlight = SimulationHighlight()

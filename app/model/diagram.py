@@ -93,19 +93,47 @@ class ConnectionData:
 
 
 @dataclass
+class SubprogramPage:
+    """Eine eigene Seite für ein Unterprogramm (im PapDesigner: ein weiteres Diagramm des Projekts).
+
+    Aufgerufen wird ein Unterprogramm über den Text seines Start-Elements; ``name`` ist die
+    Beschriftung der Seite, solange sie kein Start-Element hat. Zoom und Bildmitte gehören zur Seite.
+    """
+    name: str = ""
+    elements: list = field(default_factory=list)
+    connections: list = field(default_factory=list)
+    zoom: float = 1.0
+    view_center_x: float = 0.0
+    view_center_y: float = 0.0
+
+    def copy(self) -> "SubprogramPage":
+        return copy.deepcopy(self)
+
+
+@dataclass
 class Diagram:
     meta: ProjectMeta = field(default_factory=ProjectMeta)
     settings: DiagramSettings = field(default_factory=DiagramSettings)
+    # Bausteine und Verbindungen des Hauptprogramms (erste Seite)
     elements: list = field(default_factory=list)
     connections: list = field(default_factory=list)
+    # weitere Seiten: je eine für ein Unterprogramm
+    subprograms: list = field(default_factory=list)
 
     @property
     def comments(self) -> list:
         """Kommentare sind Elemente vom Typ ``comment``."""
         return [e for e in self.elements if e.type is ElementType.COMMENT]
 
+    def all_elements(self) -> list:
+        """Bausteine aller Seiten (Hauptprogramm zuerst)."""
+        return list(self.elements) + [e for page in self.subprograms for e in page.elements]
+
+    def all_connections(self) -> list:
+        return list(self.connections) + [c for page in self.subprograms for c in page.connections]
+
     def element_by_id(self, element_id: str) -> ElementData | None:
-        for element in self.elements:
+        for element in self.all_elements():
             if element.id == element_id:
                 return element
         return None

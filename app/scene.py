@@ -69,6 +69,8 @@ class DiagramScene(QGraphicsScene):
     selection_state_changed = Signal()
     content_changed = Signal()
     editing_changed = Signal(bool)
+    # Strg+Doppelklick auf einen Unterprogramm-Baustein: dessen Seite öffnen (Baustein)
+    subprogram_requested = Signal(object)
 
     def __init__(self, settings: DiagramSettings, undo_stack: QUndoStack, parent=None):
         super().__init__(parent)

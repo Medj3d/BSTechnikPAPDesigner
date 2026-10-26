@@ -402,17 +402,20 @@ def test_papdesigner_file():
     result = load_diagram(PAP_SAMPLE)
     diagram = result.diagram
     assert diagram.meta.name == "Mittelwert" and diagram.meta.author == "Testautor"
+    # das zweite Diagramm der Datei ist eine eigene Unterprogramm-Seite
+    assert [page.name for page in diagram.subprograms] == ["Fehlermeldung"]
     types = [e.type for e in diagram.elements]
-    assert types.count(T.START) == 2 and T.JUNCTION in types and T.SUBPROGRAM in types
+    assert types.count(T.START) == 1 and T.JUNCTION in types and T.SUBPROGRAM in types
+    assert [e.type for e in diagram.all_elements()].count(T.START) == 2
     loops = [e for e in diagram.elements if e.type is T.LOOP]
     assert {e.properties["part"] for e in loops} == {"begin", "end"}
     labels = {c.label for c in diagram.connections}
     assert {"ja", "nein"} <= labels
     document = DiagramDocument(diagram)
     assert document.load_warnings == []
-    programs = programs_of(document.scene)
+    programs = structure_diagram(document.flow_graph())
     assert len(programs) == 2
-    # Hauptprogramm zuerst, obwohl das Unterprogramm weiter oben liegt
+    # Hauptprogramm zuerst, dann das Unterprogramm der zweiten Seite
     assert programs[0].name == "Start" and programs[1].name == "Fehlermeldung"
     from app.codegen.generators import generate
     python = generate(programs, "python")

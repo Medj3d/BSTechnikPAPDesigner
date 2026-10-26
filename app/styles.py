@@ -409,6 +409,25 @@ QToolButton#TabCloseButton {{
 QToolButton#TabCloseButton:hover {{
     background: {t.border_strong};
 }}
+QWidget#PageBar {{
+    background: {t.window_bg};
+    border-top: 1px solid {t.border};
+}}
+QTabBar#PageTabs::tab {{
+    padding: 4px 12px;
+    min-width: 60px;
+}}
+QTabBar#PageTabs::tab:selected {{
+    border-top: none;
+    border-bottom: 2px solid {t.accent};
+}}
+QToolButton#PageAddButton {{
+    color: {t.text_muted};
+    padding: 2px 8px;
+}}
+QToolButton#PageAddButton:hover {{
+    color: {t.text};
+}}
 QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
     background: {t.canvas_bg};
     border: 1px solid {t.border_strong};

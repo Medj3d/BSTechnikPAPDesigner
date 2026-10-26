@@ -36,8 +36,12 @@ Attributen des Namensraums ``bst`` an denselben Elementen; ``PROPERTIES``
 nimmt weitere Eigenschaften eines Bausteins als JSON-Objekt auf. Enthält
 eine Datei diese Angaben, wird das Projekt exakt wiederhergestellt. Fehlen
 sie (Datei direkt aus dem PapDesigner), wird die Anordnung aus dem Raster
-abgeleitet; mehrere Diagramme einer solchen Datei (Hauptprogramm,
-Unterprogramme) werden nebeneinander angeordnet.
+abgeleitet.
+
+Das erste ``DIAGRAM`` ist das Hauptprogramm, jedes weitere ein Unterprogramm
+auf einer eigenen Seite (``Diagram.subprograms``) – so legt auch der
+PapDesigner Unterprogramme an. Aufgerufen wird ein Unterprogramm über den
+Text seines Start-Elements.
 
 Warnungen (rote Verbindungen) werden nicht gespeichert, sondern beim Öffnen
 aus Bausteinen und Verbindungen in ihrer gespeicherten Reihenfolge neu
@@ -67,10 +71,10 @@ from app import config
 from app.fileformat.project import (CURRENT_FORMAT_VERSION, EXTENSION_NAMESPACE, EXTENSION_PREFIX,
                                     PAP_APP_VERSION, PAP_CHECKSUM, PAP_ELEMENT_FORMAT,
                                     PAP_FRAME_FORMAT, PAP_FRAME_GUID, PAP_TIME_FORMAT,
-                                    ProjectFileError, check_version)
+                                    SINGLE_PAGE_FORMAT_VERSION, ProjectFileError, check_version)
 from app.i18n import tr
 from app.model.diagram import (ConnectionData, Diagram, DiagramSettings, ElementData,
-                               ProjectMeta, new_id, now_iso)
+                               ProjectMeta, SubprogramPage, new_id, now_iso)
 from app.model.element_types import (ALL_PORTS, LOOP_BEGIN, LOOP_END, LOOP_PART_KEY, TRUNK_IN_KEY,
                                      TRUNK_OUT_KEY, ElementType, default_properties_for, spec_for)
 
@@ -108,7 +112,6 @@ _TRUNK_ATTRIBUTES = ((TRUNK_IN_KEY, "TRUNK_IN"), (TRUNK_OUT_KEY, "TRUNK_OUT"))
 # Rastermaße, mit denen eine Datei ohne Zusatzangaben angeordnet wird
 COLUMN_WIDTH = 240.0
 ROW_HEIGHT = 140.0
-DIAGRAM_GAP_COLUMNS = 1.5
 # Bausteine, deren Mittelpunkte höchstens so weit auseinanderliegen, teilen
 # sich beim Speichern eine Rasterspalte bzw. -zeile
 COLUMN_TOLERANCE = 60.0
@@ -402,49 +405,77 @@ def _valid_path(points) -> list | None:
 
 
 def diagram_to_xml(diagram: Diagram) -> str:
-    """Das Diagramm als Inhalt einer ``.pap``-Datei."""
+    """Das Diagramm als Inhalt einer ``.pap``-Datei.
+
+    Das Hauptprogramm ist das erste ``DIAGRAM``, jedes Unterprogramm folgt als eigenes ``DIAGRAM``
+    (wie im PapDesigner). Die Nummern (``ID``) sind in der ganzen Datei eindeutig.
+    """
     meta, settings = diagram.meta, diagram.settings
-    elements, connections = list(diagram.elements), list(diagram.connections)
-    cells = _grid_cells(elements)
-    # Nummern des PapDesigners: 0 = Titel, dann Bausteine, dann Verbindungen
-    numbers: dict[str, int] = {}
-    for number, element in enumerate(elements, start=1):
-        numbers.setdefault(element.id, number)
-    partners = _loop_partners(elements, connections)
     created, modified = _pap_timestamp(meta.created), _pap_timestamp(meta.modified)
 
     out = ['<?xml version="1.0" encoding="utf-8"?>']
     out.append(_tag("FRAME", [
         ("GUID", PAP_FRAME_GUID), ("FORMAT", PAP_FRAME_FORMAT), ("APP_VERSION", PAP_APP_VERSION),
         ("CHECKSUM", PAP_CHECKSUM), (f"xmlns:{EXTENSION_PREFIX}", EXTENSION_NAMESPACE),
-        (_ext("VERSION"), CURRENT_FORMAT_VERSION), (_ext("APP"), config.APP_NAME),
+        (_ext("VERSION"), format_version_for(diagram)), (_ext("APP"), config.APP_NAME),
         (_ext("APP_VERSION"), config.APP_VERSION)], 0))
     out.append(_tag("PROJECT", [
         ("FORMAT", PAP_ELEMENT_FORMAT), ("NAME", meta.name), ("AUTHOR", meta.author),
         ("CREATED", created), ("MODIFIED", modified), (_ext("DESCRIPTION"), meta.description),
         (_ext("CREATED"), meta.created), (_ext("MODIFIED"), meta.modified)], 1))
     out.append(_tag("DIAGRAMS", [], 2))
-    out.append(_tag("DIAGRAM", [("FORMAT", PAP_ELEMENT_FORMAT), ("ID", 0), ("NAME", meta.name),
+    grid = [(_ext("GRID_SIZE"), int(settings.grid_size)),
+            (_ext("GRID_VISIBLE"), _format_flag(settings.grid_visible)),
+            (_ext("SNAP_TO_GRID"), _format_flag(settings.snap_to_grid))]
+    number = _write_diagram(out, 0, meta.name, diagram.elements, diagram.connections, grid,
+                            (settings.zoom, settings.view_center_x, settings.view_center_y),
+                            created, modified, 0)
+    for index, page in enumerate(diagram.subprograms, start=1):
+        number = _write_diagram(out, index, page.name, page.elements, page.connections, [],
+                                (page.zoom, page.view_center_x, page.view_center_y),
+                                created, modified, number + 1)
+    out.append(f"{'  ' * 2}</DIAGRAMS>")
+    out.append("  </PROJECT>")
+    out.append("</FRAME>")
+    return "\n".join(out) + "\n"
+
+
+def format_version_for(diagram: Diagram) -> int:
+    """Version der Zusatzangaben: Projekte ohne Unterprogramm-Seiten bleiben in Version 1 – so öffnen auch
+    ältere Programmversionen sie weiterhin."""
+    return CURRENT_FORMAT_VERSION if diagram.subprograms else SINGLE_PAGE_FORMAT_VERSION
+
+
+def _write_diagram(out: list, index: int, name: str, elements, connections, grid: list, view: tuple,
+                   created: str, modified: str, title_number: int) -> int:
+    """Schreibt ein ``DIAGRAM`` (eine Seite). Gibt die zuletzt vergebene Nummer zurück."""
+    elements, connections = list(elements), list(connections)
+    cells = _grid_cells(elements)
+    # Nummern des PapDesigners: Titel, dann Bausteine, dann Verbindungen
+    numbers: dict[str, int] = {}
+    for number, element in enumerate(elements, start=title_number + 1):
+        numbers.setdefault(element.id, number)
+    partners = _loop_partners(elements, connections)
+    zoom, view_x, view_y = view
+    out.append(_tag("DIAGRAM", [("FORMAT", PAP_ELEMENT_FORMAT), ("ID", index), ("NAME", name),
                                 ("CREATED", created), ("MODIFIED", modified)], 3))
     out.append(_tag("LAYOUT", [
         ("FORMAT", PAP_ELEMENT_FORMAT),
         ("COLUMNS", max((column for column, _row in cells), default=0) + 1),
         ("ROWS", max((row for _column, row in cells), default=0) + 1),
-        (_ext("GRID_SIZE"), int(settings.grid_size)),
-        (_ext("GRID_VISIBLE"), _format_flag(settings.grid_visible)),
-        (_ext("SNAP_TO_GRID"), _format_flag(settings.snap_to_grid)),
-        (_ext("ZOOM"), _format_number(settings.zoom)),
-        (_ext("VIEW_X"), _format_number(settings.view_center_x)),
-        (_ext("VIEW_Y"), _format_number(settings.view_center_y))], 4))
+        *grid,
+        (_ext("ZOOM"), _format_number(zoom)),
+        (_ext("VIEW_X"), _format_number(view_x)),
+        (_ext("VIEW_Y"), _format_number(view_y))], 4))
     out.append(_tag("ENTRIES", [], 5))
     # Der PapDesigner erwartet je Diagramm einen Titel als Ankerzelle. Er ist
     # kein Baustein des Projekts und wird beim Laden übersprungen.
     out.append(_tag("ENTRY", [("COLUMN", 0), ("ROW", 0), ("ANCHOR", "True"), (_ext("GENERATED"), "True")], 6))
-    out.append(_tag("FIGURE", [("SUBTYPE", "PapTitle"), ("FORMAT", PAP_ELEMENT_FORMAT), ("ID", 0)], 7))
-    out.append(f"{'  ' * 8}<TEXT>{_text_content(meta.name)}</TEXT>")
+    out.append(_tag("FIGURE", [("SUBTYPE", "PapTitle"), ("FORMAT", PAP_ELEMENT_FORMAT), ("ID", title_number)], 7))
+    out.append(f"{'  ' * 8}<TEXT>{_text_content(name)}</TEXT>")
     out.append(f"{'  ' * 7}</FIGURE>")
     out.append(f"{'  ' * 6}</ENTRY>")
-    for number, (element, (column, row)) in enumerate(zip(elements, cells), start=1):
+    for number, (element, (column, row)) in enumerate(zip(elements, cells), start=title_number + 1):
         entry = [("COLUMN", column), ("ROW", row),
                  (_ext("X"), _format_number(element.x)), (_ext("Y"), _format_number(element.y)),
                  (_ext("WIDTH"), _format_number(element.width)),
@@ -459,7 +490,7 @@ def diagram_to_xml(diagram: Diagram) -> str:
     out.append(f"{'  ' * 5}</ENTRIES>")
     out.append(f"{'  ' * 4}</LAYOUT>")
     out.append(_tag("CONNECTIONS", [], 4))
-    number = len(elements)
+    number = title_number + len(elements)
     for connection in connections:
         source, target = numbers.get(connection.source_id), numbers.get(connection.target_id)
         if source is None or target is None:
@@ -468,10 +499,7 @@ def diagram_to_xml(diagram: Diagram) -> str:
         out.append(_tag("CONNECTION", _connection_attributes(connection, number, source, target), 5, empty=True))
     out.append(f"{'  ' * 4}</CONNECTIONS>")
     out.append(f"{'  ' * 3}</DIAGRAM>")
-    out.append(f"{'  ' * 2}</DIAGRAMS>")
-    out.append("  </PROJECT>")
-    out.append("</FRAME>")
-    return "\n".join(out) + "\n"
+    return number
 
 
 # ------------------------------------------------------------------ Lesen
@@ -631,6 +659,26 @@ def _fit_port(port: str, etype: ElementType, fallbacks: tuple) -> str:
     return next((p for p in fallbacks if p in ports), ports[0])
 
 
+def _page_from(pap_diagram, layout, native: bool) -> SubprogramPage:
+    """Eine Unterprogramm-Seite mit Namen und – bei eigenen Dateien – ihrer Ansicht (noch ohne Inhalt)."""
+    name = pap_diagram.get("NAME") or ""
+    page = SubprogramPage(name=name if native and name.strip() else " ".join(name.split()))
+    if native and layout is not None:
+        zoom, _ = _number(layout.get(_key("ZOOM")), 1.0)
+        page.zoom = max(config.MIN_ZOOM, min(config.MAX_ZOOM, zoom))
+        page.view_center_x, _ = _number(layout.get(_key("VIEW_X")), 0.0)
+        page.view_center_y, _ = _number(layout.get(_key("VIEW_Y")), 0.0)
+    return page
+
+
+def _page_name_from(elements: list[ElementData], number: int) -> str:
+    """Name einer Seite ohne Namen: der Text ihres Start-Elements, sonst „Unterprogramm 2“ usw."""
+    for element in elements:
+        if element.type is ElementType.START and element.text.strip():
+            return " ".join(element.text.split())
+    return tr("Unterprogramm {number}", number=number)
+
+
 def diagram_from_xml(raw: bytes | str, fallback_name: str = "") -> LoadResult:
     """Liest den Inhalt einer ``.pap``-Datei. Wirft ``ProjectFileError``."""
     try:
@@ -662,12 +710,17 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
     seen_ids: set[str] = set()
     seen_connections: set[str] = set()
     unknown_types: set[str] = set()
-    column_offset = 0.0
     figure_count = 0
     limit = config.SCENE_HALF_EXTENT - 1000
-    for pap_diagram in project.findall("./DIAGRAMS/DIAGRAM"):
+    for index, pap_diagram in enumerate(project.findall("./DIAGRAMS/DIAGRAM")):
         layout = pap_diagram.find("LAYOUT")
-        columns = max(1, _attr_int(layout if layout is not None else pap_diagram, "COLUMNS", 1))
+        # Das erste Diagramm ist das Hauptprogramm, jedes weitere eine Unterprogramm-Seite
+        if index == 0:
+            elements, connections = diagram.elements, diagram.connections
+        else:
+            page = _page_from(pap_diagram, layout, native)
+            diagram.subprograms.append(page)
+            elements, connections = page.elements, page.connections
         # Nummer des PapDesigners → (Baustein, Rasterzelle)
         figures: dict[str, tuple[ElementData, tuple[int, int]]] = {}
         for entry in pap_diagram.findall("./LAYOUT/ENTRIES/ENTRY"):
@@ -688,8 +741,7 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 etype = ElementType.PROCESS
             spec = spec_for(etype)
             column, row = _attr_int(entry, "COLUMN"), _attr_int(entry, "ROW")
-            columns = max(columns, column + 1)
-            x, y, placed = (column + column_offset) * COLUMN_WIDTH, row * ROW_HEIGHT, False
+            x, y, placed = column * COLUMN_WIDTH, row * ROW_HEIGHT, False
             if native:
                 exact_x, ok_x = _number(entry.get(_key("X")), x)
                 exact_y, ok_y = _number(entry.get(_key("Y")), y)
@@ -730,7 +782,7 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 properties=_properties_from(figure, etype, subtype, native, warnings),
             )
             figures[number] = (element, (column, row))
-            diagram.elements.append(element)
+            elements.append(element)
 
         used_ports: dict[str, set] = {}
         for node in pap_diagram.findall("./CONNECTIONS/CONNECTION"):
@@ -763,7 +815,7 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 connection_id = new_id()
             seen_connections.add(connection_id)
             label = node.get("TEXT") or ""
-            diagram.connections.append(ConnectionData(
+            connections.append(ConnectionData(
                 id=connection_id,
                 source_id=s_elem.id,
                 target_id=t_elem.id,
@@ -773,7 +825,8 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 routing=_routing_from(node, native, warnings),
                 path=_path_from(node, native, warnings),
             ))
-        column_offset += columns + DIAGRAM_GAP_COLUMNS
+        if index > 0 and not diagram.subprograms[-1].name:
+            diagram.subprograms[-1].name = _page_name_from(elements, len(diagram.subprograms))
 
     if not native and figure_count == 0:
         # Nur ein mit diesem Programm gespeichertes Projekt darf leer sein

@@ -356,6 +356,12 @@ class FlowItem(QGraphicsObject):
     def mouseDoubleClickEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             scene = self.scene()
+            if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and self.data.type is ElementType.SUBPROGRAM
+                    and hasattr(scene, "subprogram_requested")):
+                # Strg+Doppelklick: das aufgerufene Unterprogramm öffnen statt den Text zu bearbeiten
+                scene.subprogram_requested.emit(self)
+                event.accept()
+                return
             if scene is not None and hasattr(scene, "begin_element_edit"):
                 scene.begin_element_edit(self, select_all=True)
                 event.accept()

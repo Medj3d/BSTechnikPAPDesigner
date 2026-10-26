@@ -12,7 +12,15 @@ die Zusatzangaben. Beim Laden gilt:
 * keine Version               → Datei ohne Zusatzangaben (z. B. direkt aus
   dem PapDesigner); die Anordnung wird aus dem Raster der Datei abgeleitet
 
-Für eine zukünftige Version 2 wird ``CURRENT_FORMAT_VERSION`` erhöht; der
+Versionen:
+
+* 1 – ein Diagramm (das Hauptprogramm)
+* 2 – zusätzlich Unterprogramme als weitere ``DIAGRAM``-Abschnitte. Ältere
+  Programmversionen würden deren Bausteine übereinanderlegen; sie lehnen eine
+  solche Datei deshalb mit der Bitte um ein Update ab. Projekte ohne
+  Unterprogramm-Seiten werden weiterhin als Version 1 geschrieben.
+
+Für eine zukünftige Version wird ``CURRENT_FORMAT_VERSION`` erhöht; der
 Leser in ``serializer.py`` behandelt ältere Versionen dann gezielt.
 """
 
@@ -21,7 +29,9 @@ from __future__ import annotations
 from app import config
 from app.i18n import tr
 
-CURRENT_FORMAT_VERSION = 1
+CURRENT_FORMAT_VERSION = 2
+# Version für Projekte, die nur aus dem Hauptprogramm bestehen (lesbar auch für Programmversionen vor 1.8.0)
+SINGLE_PAGE_FORMAT_VERSION = 1
 
 # Namensraum der Zusatzangaben. Er ist Teil des Dateiformats und darf sich
 # nie ändern (auch nicht, wenn das Programm umbenannt wird).

@@ -6,7 +6,8 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from app.fileformat.project import CURRENT_FORMAT_VERSION, EXTENSION_NAMESPACE, ProjectFileError
+from app.fileformat.project import (CURRENT_FORMAT_VERSION, EXTENSION_NAMESPACE, SINGLE_PAGE_FORMAT_VERSION,
+                                    ProjectFileError)
 from app.fileformat.serializer import (diagram_from_xml, diagram_to_xml, load_diagram, save_diagram,
                                        storable_text)
 from app.model.diagram import ConnectionData, Diagram, ElementData
@@ -204,7 +205,8 @@ def test_file_is_papdesigner_xml(tmp_path):
     assert raw.startswith(b'<?xml version="1.0" encoding="utf-8"?>\n<FRAME ')
     root = ET.fromstring(raw)
     assert root.tag == "FRAME" and root.get("APP_VERSION") and root.get("CHECKSUM")
-    assert root.get(BST + "VERSION") == str(CURRENT_FORMAT_VERSION)
+    # ohne Unterprogramm-Seiten: Version 1, damit auch ältere Programmversionen die Datei öffnen
+    assert root.get(BST + "VERSION") == str(SINGLE_PAGE_FORMAT_VERSION)
     project = root.find("PROJECT")
     assert project.get("NAME") == full_diagram().meta.name and project.get("CREATED") == "2025.01.02 03:04:05"
     (diagram,) = project.findall("./DIAGRAMS/DIAGRAM")
@@ -279,11 +281,12 @@ def test_papdesigner_file_is_read():
     assert not result.native and result.warnings == []
     assert diagram.meta.name == "Mittelwert" and diagram.meta.author == "Testautor"
     assert diagram.meta.created.startswith("2021-03-01T08:15:00")
-    types = [e.type for e in diagram.elements]
+    types = [e.type for e in diagram.all_elements()]
     assert types.count(ElementType.START) == 2 and ElementType.JUNCTION in types
+    assert [page.name for page in diagram.subprograms] == ["Fehlermeldung"]
     assert {e.properties["part"] for e in diagram.elements if e.type is ElementType.LOOP} == {"begin", "end"}
     assert {"ja", "nein"} <= {c.label for c in diagram.connections}
-    assert all(e.x % 20 == 0 and e.y % 20 == 0 for e in diagram.elements)
+    assert all(e.x % 20 == 0 and e.y % 20 == 0 for e in diagram.all_elements())
 
 
 def test_papdesigner_file_becomes_exact_after_saving(tmp_path):
@@ -330,7 +333,7 @@ def test_missing_file(tmp_path):
 
 def with_version(version: str) -> bytes:
     xml_text = diagram_to_xml(sample_diagram())
-    marker = f'bst:VERSION="{CURRENT_FORMAT_VERSION}"'
+    marker = f'bst:VERSION="{SINGLE_PAGE_FORMAT_VERSION}"'
     assert marker in xml_text
     return xml_text.replace(marker, f'bst:VERSION="{version}"').encode("utf-8")
 
@@ -508,8 +511,10 @@ def test_absurd_grid_positions_do_not_crash(attribute, value):
            '<DIAGRAM><LAYOUT><ENTRIES><ENTRY COLUMN="0" ROW="0"><FIGURE SUBTYPE="PapStart" ID="1"/></ENTRY>'
            '</ENTRIES></LAYOUT></DIAGRAM></DIAGRAMS></PROJECT></FRAME>').encode("utf-8")
     result = diagram_from_xml(raw)
-    assert len(result.diagram.elements) == 3 and len(result.diagram.connections) == 1
-    assert all(abs(e.x) <= 49000 and abs(e.y) <= 49000 for e in result.diagram.elements)
+    # das zweite Diagramm ist eine eigene Seite (Unterprogramm)
+    assert len(result.diagram.elements) == 2 and len(result.diagram.subprograms[0].elements) == 1
+    assert len(result.diagram.all_elements()) == 3 and len(result.diagram.connections) == 1
+    assert all(abs(e.x) <= 49000 and abs(e.y) <= 49000 for e in result.diagram.all_elements())
 
 
 def test_references_tolerate_surrounding_blanks():
