@@ -165,8 +165,11 @@ def main() -> int:
         updater.wait_for_exit(int(waiting_for), 30.0)
 
     # Liegt im Benutzerordner eine neuere Kopie (Update ohne Schreibrechte im Programmordner),
-    # gibt dieses Programm sofort an sie ab – noch vor Qt und Ladebildschirm.
-    if updater.redirect_to_user_program(arguments):
+    # gibt dieses Programm sofort an sie ab – noch vor Qt und Ladebildschirm. Hat der Administrator die Updates
+    # abgeschaltet, bleibt es bei der installierten Version.
+    from app import policy
+
+    if not policy.updates_disabled() and updater.redirect_to_user_program(arguments):
         return 0
 
     files = _files_from(arguments)
@@ -214,9 +217,11 @@ def main() -> int:
         instance_server.set_handler(lambda received: _open_in_window(window, received))
 
     if resources.is_frozen():
-        # Reste eines früheren Updates entfernen und nach einer neuen Version sehen
+        # Reste eines früheren Updates entfernen und nach einer neuen Version sehen (wenn das erlaubt
+        # und gewünscht ist – siehe app/policy.py und Hilfe → „Beim Start nach Updates suchen“)
         QTimer.singleShot(3000, window.updates.cleanup_leftovers)
-        window.updates.check()
+        if window.updates.check_on_start():
+            window.updates.check()
     return app.exec()
 
 

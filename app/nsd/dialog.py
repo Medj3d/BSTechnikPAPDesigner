@@ -6,7 +6,7 @@ import os
 
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import (QDialog, QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton,
+from PySide6.QtWidgets import (QApplication, QDialog, QFileDialog, QHBoxLayout, QLabel, QMessageBox, QPushButton,
                                QScrollArea, QToolButton, QVBoxLayout)
 
 from app import icons, styles
@@ -71,6 +71,10 @@ class StructogramDialog(QDialog):
         self.notes.setObjectName("Muted")
         self.notes.setWordWrap(True)
 
+        copy = QPushButton(tr("Als Bild kopieren"))
+        copy.setToolTip(tr("Struktogramm als Bild in die Zwischenablage (zum Einfügen in Word, OneNote …)"))
+        copy.clicked.connect(self.copy_image)
+        copy.setEnabled(bool(self.programs))
         export = QPushButton(tr("Exportieren …"))
         export.clicked.connect(self.export)
         export.setEnabled(bool(self.programs))
@@ -79,6 +83,7 @@ class StructogramDialog(QDialog):
         close.clicked.connect(self.accept)
         buttons = QHBoxLayout()
         buttons.addWidget(self.notes, 1)
+        buttons.addWidget(copy)
         buttons.addWidget(export)
         buttons.addWidget(close)
 
@@ -129,6 +134,18 @@ class StructogramDialog(QDialog):
         pixmap = QPixmap.fromImage(image)
         pixmap.setDevicePixelRatio(dpr)
         self.canvas.setPixmap(pixmap)
+
+    def copy_image(self) -> None:
+        """Struktogramm hell und in doppelter Auflösung in die Zwischenablage."""
+        if not self.programs:
+            return
+        scale = 2.0
+        image = render_image(self.programs, styles.LIGHT, scale)
+        # Auflösung angeben: Word & Co. zeigen das Bild dann in Originalgröße
+        image.setDotsPerMeterX(int(96 * scale / 0.0254))
+        image.setDotsPerMeterY(int(96 * scale / 0.0254))
+        QApplication.clipboard().setImage(image)
+        self.notes.setText(tr("Als Bild kopiert – in Word oder OneNote mit Strg+V einfügen."))
 
     def export(self) -> None:
         base_dir = os.path.dirname(self.document.file_path) if self.document.file_path else ""

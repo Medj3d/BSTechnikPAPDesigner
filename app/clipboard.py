@@ -6,7 +6,9 @@ UND Ziel mitkopiert wurden (A → B → C, Kopie von A + B ergibt A' → B'; die
 Verbindung zu C wird nicht übernommen).
 
 In der Zwischenablage liegt die Auswahl als ``.pap``-Inhalt – dieselbe
-Darstellung wie in einer Projektdatei.
+Darstellung wie in einer Projektdatei – und zusätzlich als Bild, damit sie
+sich direkt in Word, OneNote oder PowerPoint einfügen lässt. „Als Bild
+kopieren“ legt nur das Bild ab.
 """
 
 from __future__ import annotations
@@ -22,6 +24,9 @@ from app.model.diagram import Diagram, new_id
 from app.model.element_types import TRUNK_IN_KEY, TRUNK_OUT_KEY
 
 MIME_TYPE = "application/x-bstechnik-pap+xml"
+# Bild in der Zwischenablage: doppelte Auflösung (scharf in Word & Co.), schmaler Rand
+IMAGE_SCALE = 2.0
+IMAGE_MARGIN = 12.0
 
 
 def selection_payload(scene) -> Diagram | None:
@@ -37,6 +42,7 @@ def selection_payload(scene) -> Diagram | None:
 
 
 def copy_selection(scene) -> bool:
+    """Kopiert die Auswahl: als ``.pap``-Inhalt (zum Einfügen hier), als Text und als Bild (für Word & Co.)."""
     scene.prepare_for_command()
     payload = selection_payload(scene)
     if payload is None:
@@ -44,7 +50,35 @@ def copy_selection(scene) -> bool:
     mime = QMimeData()
     mime.setData(MIME_TYPE, diagram_to_xml(payload).encode("utf-8"))
     mime.setText("\n\n".join(element.text for element in payload.elements if element.text))
+    image = _image_of(scene, [element.id for element in payload.elements])
+    if image is not None:
+        mime.setImageData(image)
     QApplication.clipboard().setMimeData(mime)
+    return True
+
+
+def _image_of(scene, element_ids=None):
+    """Bild der Bausteine (bzw. der ganzen Seite) wie beim PNG-Export: hell, ohne Raster – oder ``None``."""
+    from app.export import ExportError, ExportOptions, render_image
+
+    try:
+        return render_image(scene, ExportOptions(theme_name="light", scale=IMAGE_SCALE, margin=IMAGE_MARGIN),
+                            element_ids)
+    except ExportError:
+        return None
+
+
+def copy_image(scene) -> bool:
+    """„Als Bild kopieren“: nur ein Bild der Auswahl bzw. – ohne Auswahl – der ganzen Seite.
+
+    Ohne Text und ohne ``.pap``-Inhalt, damit Word, OneNote oder PowerPoint sicher ein Bild einfügen.
+    """
+    scene.prepare_for_command()
+    ids = [item.element_id for item in scene.selected_elements()]
+    image = _image_of(scene, ids or None)
+    if image is None:
+        return False
+    QApplication.clipboard().setImage(image)
     return True
 
 

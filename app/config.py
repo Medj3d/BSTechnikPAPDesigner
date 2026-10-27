@@ -7,9 +7,11 @@ hier definiert, damit sie später an genau einer Stelle geändert werden können
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.8.0"
+APP_VERSION = "1.9.0"
 APP_RELEASE_DATE = "Oktober 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
+# Kontakt und Website (im Dialog „Über das Programm“)
+AUTHOR_WEBSITE = "https://medjed.net"
 # Text auf dem Ladebildschirm
 SPLASH_CREDIT = "A product for BS Technik from Are Schäfer and Linus Twardzik"
 # So lange bleibt der Ladebildschirm mindestens sichtbar (Millisekunden)

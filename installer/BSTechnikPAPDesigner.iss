@@ -10,6 +10,9 @@
 ; installiert nach C:\Programme; das Programm legt neuere Versionen dann im
 ; Benutzerprofil ab und startet sie von dort.
 ;
+; Schulbetrieb: „BSTechnikPAPDesigner-Setup.exe /VERYSILENT /ALLUSERS /NOUPDATES“ installiert still für alle
+; Benutzer und schaltet die automatischen Updates ab (policy.ini im Programmordner, siehe app/policy.py).
+;
 ; Sprachen: Das Setup zeigt sich in der Sprache von Windows (Deutsch, Englisch, Französisch, Spanisch,
 ; Portugiesisch, Russisch, Japanisch, Arabisch). Für Chinesisch bringt Inno Setup keine offizielle
 ; Übersetzung mit: dort erscheint das Setup auf Englisch. Das installierte Programm selbst kennt alle
@@ -112,6 +115,10 @@ Root: HKA; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueName: "
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\_internal\assets\file_icon.ico"""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Tasks: associate
 
+[INI]
+; Setup mit /NOUPDATES (z. B. Softwareverteilung in der Schule): Updates abschalten (siehe app/policy.py)
+Filename: "{app}\policy.ini"; Section: "Updates"; Key: "Disabled"; String: "1"; Check: NoUpdatesRequested; Flags: uninsdeletesection
+
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
@@ -123,3 +130,9 @@ Type: filesandordirs; Name: "{app}\_internal.alt"
 Type: files; Name: "{app}\{#AppExe}.alt"
 ; Neuere Programmkopien, die das Programm bei einem Update im Benutzerordner abgelegt hat
 Type: filesandordirs; Name: "{localappdata}\BSTechnik\PAPDesigner\update"
+
+[Code]
+function NoUpdatesRequested: Boolean;
+begin
+  Result := Pos('/NOUPDATES', Uppercase(GetCmdTail)) > 0;
+end;

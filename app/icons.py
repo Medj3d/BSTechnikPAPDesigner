@@ -371,6 +371,24 @@ def _draw_step(p, c):
     p.drawLine(QPointF(17.5, 6), QPointF(17.5, 18))
 
 
+def _draw_step_back(p, c):
+    p.setBrush(c)
+    p.drawPolygon(QPolygonF([QPointF(18, 6), QPointF(10, 12), QPointF(18, 18)]))
+    p.drawLine(QPointF(6.5, 6), QPointF(6.5, 18))
+
+
+def _draw_autoplay(p, c):
+    p.setBrush(c)
+    p.drawPolygon(QPolygonF([QPointF(4, 6), QPointF(12, 12), QPointF(4, 18)]))
+    p.drawPolygon(QPolygonF([QPointF(12, 6), QPointF(20, 12), QPointF(12, 18)]))
+
+
+def _draw_pause(p, c):
+    p.setBrush(c)
+    p.drawRoundedRect(QRectF(7, 6, 3.5, 12), 1, 1)
+    p.drawRoundedRect(QRectF(13.5, 6, 3.5, 12), 1, 1)
+
+
 def _draw_stop(p, c):
     p.setBrush(c)
     p.drawRoundedRect(QRectF(6.5, 6.5, 11, 11), 1.5, 1.5)
@@ -409,7 +427,8 @@ _DRAWERS = {
     "export": _draw_export, "print": _draw_print, "properties": _draw_properties, "info": _draw_info,
     "keyboard": _draw_keyboard, "connect": _draw_connect, "register": _draw_register,
     "code": _draw_code, "structogram": _draw_structogram, "layout": _draw_layout, "play": _draw_play,
-    "step": _draw_step, "stop": _draw_stop, "restart": _draw_restart, "warning": _draw_warning,
+    "step": _draw_step, "step_back": _draw_step_back, "autoplay": _draw_autoplay, "pause": _draw_pause,
+    "stop": _draw_stop, "restart": _draw_restart, "warning": _draw_warning,
 }
 
 

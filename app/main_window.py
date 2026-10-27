@@ -212,7 +212,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction(a["quit"])
 
         edit_menu = bar.addMenu(tr("&Bearbeiten"))
-        for name in ("undo", "redo", None, "cut", "copy", "paste", "duplicate", "delete", None,
+        for name in ("undo", "redo", None, "cut", "copy", "copy_image", "paste", "duplicate", "delete", None,
                      "select_all", "deselect", None, "edit_text"):
             if name is None:
                 edit_menu.addSeparator()
@@ -276,6 +276,7 @@ class MainWindow(QMainWindow):
         if file_association.is_supported():
             help_menu.addAction(a["register_filetype"])
         help_menu.addAction(a["check_updates"])
+        help_menu.addAction(a["check_updates_on_start"])
         help_menu.addSeparator()
         help_menu.addAction(a["about"])
 
@@ -524,6 +525,7 @@ class MainWindow(QMainWindow):
         self.undo_group.redoTextChanged.connect(lambda _: self._update_undo_texts())
         a["cut"].triggered.connect(self.cut)
         a["copy"].triggered.connect(self.copy)
+        a["copy_image"].triggered.connect(self.copy_image)
         a["paste"].triggered.connect(lambda: self.paste())
         a["duplicate"].triggered.connect(self.duplicate)
         a["delete"].triggered.connect(lambda: self._with_scene(lambda s: s.delete_selection()))
@@ -563,6 +565,8 @@ class MainWindow(QMainWindow):
         a["register_filetype"].triggered.connect(self.register_file_type)
         a["about"].triggered.connect(lambda: AboutDialog(self).exec())
         a["check_updates"].triggered.connect(lambda: self.updates.check(manual=True))
+        a["check_updates_on_start"].triggered.connect(self._on_check_updates_on_start)
+        self._sync_update_actions()
         a["auto_save"].setChecked(self._auto_save_enabled)
         a["auto_save"].triggered.connect(self._on_auto_save_triggered)
 
@@ -902,6 +906,22 @@ class MainWindow(QMainWindow):
         for view in self.views():
             self._schedule_auto_save(view.document)
 
+    def _sync_update_actions(self) -> None:
+        """Update-Befehle: gesperrt, wenn der Administrator die Updates abgeschaltet hat."""
+        a = self.actions
+        locked = self.updates.disabled_by_policy()
+        a["check_updates_on_start"].setChecked(not locked and self.settings_store.check_updates_on_start())
+        a["check_updates_on_start"].setEnabled(not locked)
+        if locked:
+            for name in ("check_updates", "check_updates_on_start"):
+                a[name].setStatusTip(tr("Updates wurden vom Administrator abgeschaltet."))
+
+    def _on_check_updates_on_start(self, checked: bool) -> None:
+        self.settings_store.set_check_updates_on_start(checked)
+        self.statusBar().showMessage(tr("Das Programm sieht beim Start nach neuen Versionen.") if checked
+                                     else tr("Beim Start wird nicht mehr nach neuen Versionen gesehen – von Hand "
+                                             "weiterhin über Hilfe → Nach Updates suchen."), 5000)
+
     def _on_auto_save_triggered(self, checked: bool) -> None:
         self.settings_store.set_auto_save(checked)
         self.set_auto_save(checked)
@@ -1158,6 +1178,18 @@ class MainWindow(QMainWindow):
             self.paste_tracker.reset()
             self.statusBar().showMessage(tr("In die Zwischenablage kopiert."), 2500)
 
+    def copy_image(self) -> None:
+        """Auswahl bzw. ganze Seite als Bild in die Zwischenablage."""
+        scene = self.current_scene()
+        if scene is None:
+            return
+        selected = bool(scene.selected_elements())
+        if clipboard.copy_image(scene):
+            self.statusBar().showMessage(tr("Auswahl als Bild kopiert – in Word oder OneNote mit Strg+V einfügen.")
+                                         if selected else
+                                         tr("Seite als Bild kopiert – in Word oder OneNote mit Strg+V einfügen."),
+                                         4000)
+
     def cut(self) -> None:
         scene = self.current_scene()
         if scene is None:
@@ -1280,7 +1312,7 @@ class MainWindow(QMainWindow):
         if isinstance(item, FlowItem):
             menu.addAction(a["edit_text"])
             menu.addSeparator()
-            for name in ("cut", "copy", "duplicate", "delete"):
+            for name in ("cut", "copy", "copy_image", "duplicate", "delete"):
                 menu.addAction(a[name])
             menu.addSeparator()
             menu.addAction(a["bring_front"])
@@ -1332,6 +1364,7 @@ class MainWindow(QMainWindow):
             paste.setEnabled(clipboard.can_paste())
             paste.triggered.connect(lambda _=False, p=QPointF(scene_pos): self.paste(at=p))
             menu.addAction(a["select_all"])
+            menu.addAction(a["copy_image"])
             menu.addSeparator()
             menu.addAction(a["new_subprogram"])
             menu.addSeparator()
@@ -1701,6 +1734,7 @@ class MainWindow(QMainWindow):
         self._update_undo_texts()
         a["cut"].setEnabled(bool(elements))
         a["copy"].setEnabled(bool(elements))
+        a["copy_image"].setEnabled(has_doc and bool(scene.elements()))
         a["duplicate"].setEnabled(bool(elements))
         a["delete"].setEnabled(bool(elements or connections))
         a["paste"].setEnabled(has_doc and clipboard.can_paste())

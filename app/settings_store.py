@@ -48,6 +48,15 @@ class SettingsStore:
     def set_auto_save(self, enabled: bool) -> None:
         self._settings.setValue("auto_save", bool(enabled))
 
+    # ---------------------------------------------------------- Updates
+    def check_updates_on_start(self) -> bool:
+        """Soll das Programm beim Start nach einer neuen Version sehen? (Standard: ja)"""
+        value = self._settings.value("updates/check_on_start", None)
+        return True if value is None else str(value).strip().lower() in ("true", "1")
+
+    def set_check_updates_on_start(self, enabled: bool) -> None:
+        self._settings.setValue("updates/check_on_start", bool(enabled))
+
     # ---------------------------------------------------------- Sprache
     def language(self) -> str:
         """Die gewählte Sprache: ``auto`` (Systemsprache) oder ein Sprachcode aus ``i18n.LANGUAGES``."""

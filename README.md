@@ -32,14 +32,15 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Projekte | mehrere Projekte in Tabs, Änderungsmarkierung `*`, Nachfrage beim Schließen (Speichern / Verwerfen / Abbrechen), zuletzt geöffnete Dateien, Projekteigenschaften |
 | Dateiformat | ausschließlich `.pap` (XML im Aufbau des PapDesigners, ergänzt um genaue Positionen, Anschlüsse und Ansicht; atomares Speichern, saubere Ablehnung zukünftiger Versionen, Reparatur fehlerhafter Einträge mit Hinweis) |
 | Export / Druck | PNG (1×–4×), SVG, PDF, Drucken und Druckvorschau – ohne UI-Elemente, wahlweise hell (Druck) oder dunkel |
+| Als Bild kopieren | **Strg+C** legt die Auswahl zusätzlich als Bild in die Zwischenablage; **Bearbeiten → Als Bild kopieren** (Strg+Umschalt+B) kopiert nur das Bild – der Auswahl oder ohne Auswahl der ganzen Seite –, hell und ohne Raster, zum direkten Einfügen in Word, OneNote oder PowerPoint. Auch das Struktogramm lässt sich als Bild kopieren |
 | Code erzeugen | **Extras → Code erzeugen** (Strg+Umschalt+C): Pseudocode, Python oder Java aus dem Plan; erkannte Zuweisungen, Bedingungen und Schleifenköpfe werden übersetzt, der Rest als TODO übernommen; nicht auswertbare Bedingungen werden zur Laufzeit erfragt. Die Programme rechnen wie der Schreibtischtest: echte Division, `mod`/`div`, `x^2`, kaufmännisches Runden (`round(x, 2)`), Text- und Wahrheitswert-Variablen (Java: `String`/`boolean` werden automatisch erkannt). Erkannt werden auch Schleifen mit der Prüfung in der Mitte (Eingabe → Prüfung → Meldung → zurück), das Verlassen einer Schleife aus dem Rumpf, Menüschleifen und Bausteine, in die mehrere Zweige münden; lässt sich ein Sprung nicht darstellen, hält das erzeugte Programm dort mit einer klaren Meldung an |
 | Struktogramm | **Extras → Struktogramm** (Strg+Umschalt+N): derselbe Ablauf als Nassi-Shneiderman-Diagramm, Export als PNG/SVG/PDF |
-| Schreibtischtest | **Extras → Schreibtischtest** (F9): Plan Schritt für Schritt ausführen (F10) oder bis zur nächsten Eingabe laufen lassen (F5); aktueller Baustein wird hervorgehoben; Variablen, Ausgaben und Schreibtischtest-Tabelle; Unterprogramme werden mit ausgeführt, Verzweigungen mit mehreren Ausgängen („1“, „2“, „sonst“ oder „< 0“, „= 0“, „> 0“) ausgewertet |
+| Schreibtischtest | **Extras → Schreibtischtest** (F9): Plan Schritt für Schritt ausführen (F10), **Schritt zurück** (Strg+F10), **automatisch abspielen** mit einstellbarem Tempo (F6, hält bei Eingaben an) oder bis zur nächsten Eingabe laufen lassen (F5); aktueller Baustein wird hervorgehoben; Variablen, Ausgaben und Schreibtischtest-Tabelle mit den Spalten Bedingung (ja/nein bzw. gewählter Ausgang) und Ausgabe – kopierbar für Word/Excel und als CSV speicherbar; Unterprogramme werden mit ausgeführt, Verzweigungen mit mehreren Ausgängen („1“, „2“, „sonst“ oder „< 0“, „= 0“, „> 0“) ausgewertet |
 | Automatisch anordnen | **Extras → Automatisch anordnen** (Strg+L): Plan nach PAP-Konventionen ordnen (ja nach unten, nein nach rechts), ein Rückgängig-Schritt |
 | Hinweise | **Extras → Hinweise** (Strg+Umschalt+H) oder Klick auf die Anzeige in der Statusleiste: rote Verbindungen, fehlender Start/Ende, unerreichbare Bausteine, Sackgassen, unbeschriftete Verzweigungsausgänge, Schleifen ohne Gegenstück, Standardtexte; Klick springt zur Stelle |
 | Automatisch speichern | ein Projekt, das einmal gespeichert wurde, wird rund 2 Sekunden nach jeder Änderung von selbst in seine Datei geschrieben (spätestens nach 10 Sekunden, nie mitten in einer Texteingabe); abschaltbar unter **Datei → Automatisch speichern** |
 | Sichern | noch nie gespeicherte Projekte werden jede Minute gesichert; nach einem Absturz bietet das Programm beim nächsten Start die Wiederherstellung an („Später“ behält die Sicherungen für den nächsten Start) |
-| Updates | das fertige Programm prüft beim Start, ob eine neuere Version veröffentlicht wurde, und aktualisiert sich nach Rückfrage selbst, auch ohne Schreibrechte im Programmordner (z. B. bei Installation für alle Benutzer); auch über **Hilfe → Nach Updates suchen** |
+| Updates | das fertige Programm prüft beim Start, ob eine neuere Version veröffentlicht wurde, und aktualisiert sich nach Rückfrage selbst, auch ohne Schreibrechte im Programmordner (z. B. bei Installation für alle Benutzer); auch über **Hilfe → Nach Updates suchen**. Die Prüfung beim Start lässt sich unter **Hilfe → Beim Start nach Updates suchen** abschalten; Administratoren schalten Updates zentral ab (siehe „Schulbetrieb“) |
 | Ladebildschirm / Über | beim Start erscheint als Erstes für 6 Sekunden das Schullogo mit Urheberzeile und Version; **Hilfe → Über das Programm** nennt Urheber, Version und Erscheinungsmonat |
 | Farbschema | **Ansicht → Farbschema**: dunkel oder hell (z. B. für Beamer), wird gespeichert |
 | Sprachen | **Ansicht → Sprache / Language**: Deutsch, English, Français, Español, Português (Brasil), Русский, العربية, 中文 und 日本語; „Automatisch“ richtet sich nach der Sprache von Windows. Die Sprache gilt nach einem Neustart, den das Programm gleich anbietet (gespeicherte Projekte werden danach wieder geöffnet). Arabisch wird von rechts nach links dargestellt. Pläne aus jeder Sprache lassen sich in jeder Sprache öffnen: Standardtexte und die Beschriftungen ja/nein/sonst werden in allen Sprachen erkannt |
@@ -387,6 +388,30 @@ Benutzerprofil, läuft das installierte Programm unverändert weiter und weist
 nur in der Statuszeile auf neue Versionen hin; der Administrator installiert
 sie dann mit dem nächsten Setup.
 
+### Schulbetrieb: Updates zentral abschalten
+
+Damit alle Rechner einer Schule dieselbe Version behalten (z. B. während einer
+Prüfungsphase) und das Programm nicht bei jedem Start bei GitHub nachfragt,
+schaltet der Administrator die Updates auf einem dieser Wege ab:
+
+* **Still installieren ohne Updates:**
+  `BSTechnikPAPDesigner-Setup.exe /VERYSILENT /ALLUSERS /NOUPDATES`
+  (legt `policy.ini` im Programmordner an)
+* **Gruppenrichtlinie / Registry:** unter
+  `HKEY_LOCAL_MACHINE\Software\Policies\BSTechnik\PAPDesigner` den DWORD-Wert
+  `DisableUpdates` = `1` setzen (für einzelne Benutzer auch unter
+  `HKEY_CURRENT_USER`)
+* **Datei `policy.ini`** neben `BSTechnikPAPDesigner.exe`:
+
+      [Updates]
+      Disabled=1
+
+Dann prüft das Programm nicht mehr, „Nach Updates suchen“ verweist auf den
+Administrator, und es gibt auch nicht mehr an eine früher in den Benutzerordner
+geladene neuere Version ab. Neue Versionen installiert die Schule mit dem
+nächsten Setup. Benutzer können die Prüfung beim Start nur für sich selbst
+abschalten (**Hilfe → Beim Start nach Updates suchen**).
+
 ### Neue Version als Update veröffentlichen
 
 Das fertige Programm sieht beim Start in den Veröffentlichungen („Releases“)
@@ -463,6 +488,7 @@ dritte Zahl kleine Nachbesserungen.
 | 1.6 | 08.10.2026 | Updates funktionieren auch ohne Schreibrechte im Programmordner: Die neue Version wird im Benutzerordner abgelegt und von dort gestartet |
 | 1.7 | 08.10.2026 | neun Sprachen (Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch); weitere Dateien öffnen sich als Reiter im laufenden Programm; Schullogo im Ladebildschirm vollständig und mittig |
 | 1.8 | 26.10.2026 | Unterprogramme auf eigenen Seiten (Hauptprogramm + Unterprogramme als Reiter, anlegen, öffnen per Strg+Doppelklick, umbenennen samt Aufrufen); Schreibtischtest springt ins Unterprogramm; PDF und Druck mit allen Seiten |
+| 1.9 | 27.10.2026 | Bild in die Zwischenablage (Strg+C bzw. „Als Bild kopieren“, auch Struktogramm); Schreibtischtest mit Schritt zurück, automatischem Abspielen und Spalten Bedingung/Ausgabe, Tabelle kopieren und als CSV speichern; Updates zentral abschaltbar (Setup /NOUPDATES, Richtlinie, policy.ini) und für sich selbst beim Start; Link zu medjed.net im Über-Dialog |
 
 ---
 

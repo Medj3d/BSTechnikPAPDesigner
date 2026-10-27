@@ -8,6 +8,7 @@ ein helles Farbschema zur Verfügung.
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 from PySide6.QtCore import QMarginsF, QRectF, QSize, QSizeF, Qt
@@ -56,8 +57,7 @@ def _render(scene, painter: QPainter, target: QRectF, source: QRectF, options: E
         scene.render(painter, target, source, Qt.AspectRatioMode.KeepAspectRatio)
 
 
-def export_png(scene, path: str, options: ExportOptions) -> None:
-    source = _source_rect(scene, options.margin)
+def _image(scene, source: QRectF, options: ExportOptions) -> QImage:
     scale = max(0.5, min(8.0, options.scale))
     width = int(source.width() * scale)
     height = int(source.height() * scale)
@@ -68,6 +68,7 @@ def export_png(scene, path: str, options: ExportOptions) -> None:
     image = QImage(QSize(max(1, width), max(1, height)), QImage.Format.Format_RGBA8888_Premultiplied)
     if image.isNull():
         raise ExportError(tr("Für das Bild steht nicht genügend Speicher zur Verfügung."))
+    # Auflösung angeben: Word & Co. zeigen das Bild dann in Originalgröße (nicht doppelt so groß)
     image.setDotsPerMeterX(int(96 * scale / 0.0254))
     image.setDotsPerMeterY(int(96 * scale / 0.0254))
     image.fill(Qt.GlobalColor.transparent)
@@ -77,8 +78,51 @@ def export_png(scene, path: str, options: ExportOptions) -> None:
                 fill_background=not options.transparent)
     finally:
         painter.end()
+    return image
+
+
+def export_png(scene, path: str, options: ExportOptions) -> None:
+    image = _image(scene, _source_rect(scene, options.margin), options)
     if not image.save(path, "PNG"):
         raise ExportError(_not_written(path))
+
+
+@contextmanager
+def _only(scene, element_ids: set):
+    """Blendet beim Rendern alles aus, was nicht zu den Bausteinen gehört (Verbindungen nur zwischen ihnen)."""
+    hidden = [item for item in scene.elements() if item.element_id not in element_ids]
+    hidden += [conn for conn in scene.connections()
+               if conn.data.source_id not in element_ids or conn.data.target_id not in element_ids]
+    hidden = [item for item in hidden if item.isVisible()]
+    for item in hidden:
+        item.setVisible(False)
+    try:
+        yield
+    finally:
+        for item in hidden:
+            item.setVisible(True)
+
+
+def render_image(scene, options: ExportOptions, element_ids=None) -> QImage:
+    """Das Diagramm – oder nur die Bausteine ``element_ids`` samt Verbindungen zwischen ihnen – als Bild,
+    so wie beim PNG-Export (z. B. für die Zwischenablage)."""
+    if not element_ids:
+        return _image(scene, _source_rect(scene, options.margin), options)
+    element_ids = set(element_ids)
+    with _only(scene, element_ids):
+        bounds = QRectF()
+        for item in scene.elements():
+            if item.element_id in element_ids:
+                bounds = bounds.united(item.scene_rect())
+        for conn in scene.connections():
+            if conn.isVisible():
+                bounds = bounds.united(conn.mapToScene(conn.shape().boundingRect()).boundingRect())
+                if conn.label.isVisible():
+                    bounds = bounds.united(conn.label.mapToScene(conn.label.boundingRect()).boundingRect())
+        if bounds.isNull() or bounds.isEmpty():
+            raise ExportError(tr("Das Diagramm ist leer – es gibt nichts zu exportieren."))
+        margin = options.margin
+        return _image(scene, bounds.adjusted(-margin, -margin, margin, margin), options)
 
 
 def export_svg(scene, path: str, options: ExportOptions) -> None:

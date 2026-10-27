@@ -39,6 +39,15 @@ class AboutDialog(QDialog):
         version.setObjectName("Muted")
         authors = QLabel(tr("Ein Programm von {authors}\nfür die BS Technik", authors=_author_names()))
         authors.setWordWrap(True)
+        # Kontakt: Website als anklickbarer Link (öffnet den Browser)
+        site = config.AUTHOR_WEBSITE
+        shown = site.split("://", 1)[-1].rstrip("/")
+        website = QLabel(tr("Kontakt und Website: {link}", link=f'<a href="{site}">{shown}</a>'))
+        website.setTextFormat(Qt.TextFormat.RichText)
+        website.setOpenExternalLinks(True)
+        website.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        website.setToolTip(site)
+        self.website_label = website
         # Die Bausteinnamen kommen aus der Bausteintabelle: so stimmen sie mit denen der Werkzeugpalette überein
         blocks = tr("Bausteine: {start}, {end}, {input}, {output}, {process}, {subprogram}, {decision}, "
                     "{loop} und {comment}.",
@@ -62,6 +71,7 @@ class AboutDialog(QDialog):
         text_layout.addWidget(version)
         text_layout.addSpacing(8)
         text_layout.addWidget(authors)
+        text_layout.addWidget(website)
         text_layout.addSpacing(8)
         text_layout.addWidget(description)
         text_layout.addSpacing(8)

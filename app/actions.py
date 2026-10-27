@@ -45,6 +45,8 @@ _DEFINITIONS = {
     "redo": (N_("&Wiederholen"), "redo", ["Ctrl+Y", "Ctrl+Shift+Z"], N_("Rückgängig gemachte Aktion wiederholen")),
     "cut": (N_("&Ausschneiden"), "cut", [K.Cut], N_("Auswahl ausschneiden")),
     "copy": (N_("&Kopieren"), "copy", [K.Copy], N_("Auswahl kopieren")),
+    "copy_image": (N_("Als &Bild kopieren"), None, ["Ctrl+Shift+B"],
+                   N_("Auswahl bzw. ganze Seite als Bild in die Zwischenablage (zum Einfügen in Word, OneNote …)")),
     "paste": (N_("&Einfügen"), "paste", [K.Paste], N_("Aus der Zwischenablage einfügen")),
     "duplicate": (N_("&Duplizieren"), "duplicate", ["Ctrl+D"], N_("Auswahl duplizieren")),
     "delete": (N_("&Löschen"), "delete", [K.Delete], N_("Auswahl löschen")),
@@ -93,6 +95,8 @@ _DEFINITIONS = {
     "shortcuts": (N_("&Tastenkürzel und Bedienung"), "keyboard", [K.HelpContents], N_("Übersicht der Bedienung")),
     "register_filetype": (N_("Dateityp registrieren …"), "register", [],
                           N_("Projektdateien mit diesem Programm öffnen")),
+    "check_updates_on_start": (N_("Beim &Start nach Updates suchen"), None, [],
+                               N_("Bei jedem Programmstart nachsehen, ob eine neuere Version veröffentlicht wurde")),
     "check_updates": (N_("Nach &Updates suchen …"), None, [],
                       N_("Prüfen, ob eine neuere Version veröffentlicht wurde")),
     "about": (N_("Ü&ber das Programm"), "info", [], N_("Version, Urheber und Informationen über das Programm")),
@@ -140,7 +144,7 @@ class ActionRegistry:
         for name in ("toggle_grid", "toggle_snap"):
             self._actions[name].setCheckable(True)
             self._actions[name].setChecked(True)
-        for name in ("theme_dark", "theme_light", "auto_save"):
+        for name in ("theme_dark", "theme_light", "auto_save", "check_updates_on_start"):
             self._actions[name].setCheckable(True)
 
     def refresh_icons(self) -> None:

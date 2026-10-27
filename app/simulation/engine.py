@@ -9,6 +9,7 @@ nachgefragt (``needs``); danach geht es mit ``provide_input`` bzw.
 
 from __future__ import annotations
 
+import copy
 import re
 from dataclasses import dataclass, field
 
@@ -60,6 +61,9 @@ class TraceRow:
     element_id: str
     element_text: str
     variables: dict
+    # Ergebnis einer Bedingung bzw. der gewählte Ausgang (ja/nein/Beschriftung) und die Ausgabe dieses Schritts
+    decision: str = ""
+    output: str = ""
 
 
 class Simulator:
@@ -129,17 +133,39 @@ class Simulator:
         outs = self.graph.outgoing(nid)
         return outs[0].target if outs else None
 
-    def _record(self, nid: str) -> None:
+    def _record(self, nid: str, decision: str = "", output: str | None = None) -> None:
         self.trace.append(TraceRow(len(self.trace) + 1, nid, " ".join(self.node(nid).text.split()),
-                                   dict(self.variables)))
+                                   dict(self.variables), decision, output or ""))
 
-    def _advance(self, nid: str, target: str | None, message: str, output: str | None = None) -> StepResult:
-        self._record(nid)
+    def _advance(self, nid: str, target: str | None, message: str, output: str | None = None,
+                 decision: str = "") -> StepResult:
+        self._record(nid, decision, output)
         self.current = target
         if target is None:
             self.finished = True
             message = tr("{message} – Ablauf endet hier (kein Nachfolger).", message=message)
         return StepResult(nid, message, output=output, finished=self.finished)
+
+    # ------------------------------------------------------- Schritt zurück
+    def snapshot(self) -> tuple:
+        """Zustand vor einem Schritt (für „Schritt zurück“).
+
+        Tabelle und Ausgaben wachsen nur an – von ihnen genügt die Länge; der Rest wird kopiert.
+        """
+        return (self.current, dict(self.variables), len(self.outputs), len(self.trace), self.steps, self.finished,
+                self.pending, copy.deepcopy(self._loop_state), set(self._reentering), list(self._call_stack))
+
+    def restore(self, snapshot: tuple) -> None:
+        """Stellt einen mit ``snapshot`` gemerkten Zustand wieder her."""
+        (self.current, variables, outputs, trace, self.steps, self.finished, self.pending, loop_state,
+         reentering, call_stack) = snapshot
+        self.variables = dict(variables)
+        del self.outputs[outputs:]
+        del self.trace[trace:]
+        self._loop_state = copy.deepcopy(loop_state)
+        self._reentering = set(reentering)
+        self._call_stack = list(call_stack)
+        self._missing.clear()
 
     # -------------------------------------------------------------- Schritt
     def step(self) -> StepResult:
@@ -374,7 +400,7 @@ class Simulator:
         label = " ".join(edge.label.split()) or tr("Ausgang {n}", n=index + 1)
         return self._advance(nid, edge.target, tr("Verzweigung „{text}“: {label} ({how})",
                                                   text=' '.join(self.node(nid).text.split()), label=label,
-                                                  how=tr(how)))
+                                                  how=tr(how)), decision=label)
 
     def _take_branch(self, nid, yes: bool, how: str) -> StepResult:
         yes_target, no_target = self._branch_targets(nid)
@@ -382,7 +408,7 @@ class Simulator:
         answer = labels.yes_label() if yes else labels.no_label()
         return self._advance(nid, target, tr("Bedingung „{text}“: {answer} ({how})",
                                              text=' '.join(self.node(nid).text.split()), answer=answer,
-                                             how=tr(how)))
+                                             how=tr(how)), decision=answer)
 
     def provide_decision(self, answer) -> StepResult:
         """``True``/``False`` (ja/nein) oder – bei Mehrfachverzweigungen – die Nummer des Ausgangs."""
@@ -463,10 +489,12 @@ class Simulator:
         text = ' '.join(self.node(nid).text.split())
         if inside:
             return self._advance(nid, self._next(nid),
-                                 tr("Schleife „{text}“: Durchlauf ({how})", text=text, how=how))
+                                 tr("Schleife „{text}“: Durchlauf ({how})", text=text, how=how),
+                                 decision=labels.yes_label())
         self._loop_state.pop(nid, None)
         return self._advance(nid, self._after_loop(nid),
-                             tr("Schleife „{text}“ beendet ({how})", text=text, how=how))
+                             tr("Schleife „{text}“ beendet ({how})", text=text, how=how),
+                             decision=labels.no_label())
 
     def _loop_end(self, nid, node):
         begin_id = self.loop_begin_of.get(nid)
@@ -498,14 +526,17 @@ class Simulator:
         kind, _ = T.parse_loop_footer(node.text)
         text = " ".join(node.text.split())
         how = tr(how)
+        # Spalte „Bedingung“: das Ergebnis der Bedingung am Schleifenende
+        answer = labels.yes_label() if result else labels.no_label()
         if (not result) if kind == "until" else result:
             if T.parse_loop_header(self.node(begin_id).text).kind == "for":
                 # Zählschleife mit zusätzlicher Bedingung am Ende: weiterzählen
                 self._reentering.add(begin_id)
                 return self._advance(nid, begin_id, tr("Schleifenende „{text}“: nächster Durchlauf ({how})",
-                                                       text=text, how=how))
+                                                       text=text, how=how), decision=answer)
             return self._advance(nid, self._next(begin_id),
-                                 tr("Schleifenende „{text}“: nächster Durchlauf ({how})", text=text, how=how))
+                                 tr("Schleifenende „{text}“: nächster Durchlauf ({how})", text=text, how=how),
+                                 decision=answer)
         self._loop_state.pop(begin_id, None)
         return self._advance(nid, self._next(nid), tr("Schleifenende „{text}“: Schleife beendet ({how})",
-                                                      text=text, how=how))
+                                                      text=text, how=how), decision=answer)

@@ -9,7 +9,7 @@ import threading
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox, QProgressDialog
 
-from app import config, updater
+from app import config, policy, updater
 from app.i18n import tr
 
 log = logging.getLogger(__name__)
@@ -58,8 +58,23 @@ class UpdateController(QObject):
             updater.cleanup_user_programs()
 
     # ------------------------------------------------------------- Prüfen
+    @staticmethod
+    def disabled_by_policy() -> bool:
+        """Hat der Administrator die Updates abgeschaltet (siehe ``app/policy.py``)?"""
+        return policy.updates_disabled()
+
+    def check_on_start(self) -> bool:
+        """Beim Start prüfen? Nicht, wenn der Administrator oder der Benutzer es abgeschaltet hat."""
+        return not self.disabled_by_policy() and self._window.settings_store.check_updates_on_start()
+
     def check(self, manual: bool = False) -> None:
         """Prüft im Hintergrund auf eine neue Version. ``manual``: über das Menü ausgelöst."""
+        if self.disabled_by_policy():
+            if manual:
+                QMessageBox.information(self._window, tr("Nach Updates suchen"),
+                                        tr("Updates wurden vom Administrator abgeschaltet. Neue Versionen "
+                                           "installiert die Schule zentral."))
+            return
         if self._checking:
             return
         self._checking = True
