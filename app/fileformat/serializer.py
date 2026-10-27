@@ -408,7 +408,8 @@ def diagram_to_xml(diagram: Diagram) -> str:
     """Das Diagramm als Inhalt einer ``.pap``-Datei.
 
     Das Hauptprogramm ist das erste ``DIAGRAM``, jedes Unterprogramm folgt als eigenes ``DIAGRAM``
-    (wie im PapDesigner). Die Nummern (``ID``) sind in der ganzen Datei eindeutig.
+    (wie im PapDesigner). Die Nummern (``ID``) zählen – wie beim PapDesigner – in jedem Diagramm neu ab 0
+    (dem Titel).
     """
     meta, settings = diagram.meta, diagram.settings
     created, modified = _pap_timestamp(meta.created), _pap_timestamp(meta.modified)
@@ -427,13 +428,11 @@ def diagram_to_xml(diagram: Diagram) -> str:
     grid = [(_ext("GRID_SIZE"), int(settings.grid_size)),
             (_ext("GRID_VISIBLE"), _format_flag(settings.grid_visible)),
             (_ext("SNAP_TO_GRID"), _format_flag(settings.snap_to_grid))]
-    number = _write_diagram(out, 0, meta.name, diagram.elements, diagram.connections, grid,
-                            (settings.zoom, settings.view_center_x, settings.view_center_y),
-                            created, modified, 0)
+    _write_diagram(out, 0, meta.name, diagram.elements, diagram.connections, grid,
+                   (settings.zoom, settings.view_center_x, settings.view_center_y), created, modified)
     for index, page in enumerate(diagram.subprograms, start=1):
-        number = _write_diagram(out, index, page.name, page.elements, page.connections, [],
-                                (page.zoom, page.view_center_x, page.view_center_y),
-                                created, modified, number + 1)
+        _write_diagram(out, index, page.name, page.elements, page.connections, [],
+                       (page.zoom, page.view_center_x, page.view_center_y), created, modified)
     out.append(f"{'  ' * 2}</DIAGRAMS>")
     out.append("  </PROJECT>")
     out.append("</FRAME>")
@@ -447,7 +446,7 @@ def format_version_for(diagram: Diagram) -> int:
 
 
 def _write_diagram(out: list, index: int, name: str, elements, connections, grid: list, view: tuple,
-                   created: str, modified: str, title_number: int) -> int:
+                   created: str, modified: str, title_number: int = 0) -> int:
     """Schreibt ein ``DIAGRAM`` (eine Seite). Gibt die zuletzt vergebene Nummer zurück."""
     elements, connections = list(elements), list(connections)
     cells = _grid_cells(elements)
@@ -729,6 +728,11 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 continue
             figure_count += 1
             if native and _flag(entry.get(_key("GENERATED")), False):
+                continue
+            page_name = " ".join((pap_diagram.get("NAME") or "").split())
+            if (not native and index > 0 and figure.get("SUBTYPE") == "PapTitle"
+                    and " ".join(_figure_text(figure, False).split()) == page_name):
+                # Titel einer Unterprogramm-Seite: der Name steht im Reiter und wird beim Speichern neu geschrieben
                 continue
             number = _reference(figure.get("ID")) or f"auto{len(figures)}"
             if number in figures:

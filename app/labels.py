@@ -80,6 +80,26 @@ def is_else(label: str | None) -> bool:
     return normalize(label) in else_words()
 
 
+# Gegenwörter für die zwei Ausgänge einer Verzweigung (Textautomatik wie im PapDesigner)
+_OPPOSITES = (("ja", "nein"), ("j", "n"), ("yes", "no"), ("y", "n"), ("wahr", "falsch"), ("w", "f"),
+              ("true", "false"), ("t", "f"), ("1", "0"), ("+", "-"), ("richtig", "falsch"), ("oui", "non"),
+              ("vrai", "faux"), ("sí", "no"), ("si", "no"), ("verdadero", "falso"), ("sim", "não"),
+              ("verdadeiro", "falso"), ("да", "нет"), ("истина", "ложь"), ("نعم", "لا"), ("صحيح", "خطأ"),
+              ("是", "否"), ("真", "假"), ("はい", "いいえ"))
+
+
+def opposite_label(label: str | None) -> str | None:
+    """Das Gegenwort zu einer Ja-/Nein-Beschriftung („ja“ → „nein“, „Wahr“ → „Falsch“) – oder ``None``."""
+    word = normalize(label)
+    pairs = list(_OPPOSITES) + [(normalize(yes_label()), normalize(no_label()))]
+    for yes, no in pairs:
+        if word in (yes, no):
+            result = no if word == yes else yes
+            text = " ".join((label or "").split())
+            return result[:1].upper() + result[1:] if text[:1].isupper() else result
+    return None
+
+
 # ---------------------------------------------------------------- Programmnamen
 # Heißt das Start-Element nur so, trägt das Programm den Projektnamen (Code erzeugen)
 GENERIC_PROGRAM_NAMES = frozenset({"start", "beginn", "anfang", "begin", "début", "inicio", "início", "старт",

@@ -121,7 +121,8 @@ class _Structurer:
         self.emitted.add(start_id)
         outs = self.g.outgoing(start_id)
         body = Block()
-        name = start.text or default_text_for(ElementType.START)
+        # auf einer Unterprogramm-Seite heißt der Ablauf wie die Seite (im PapDesigner oft mit Start „Start“)
+        name = self.g.flow_label(start_id) or default_text_for(ElementType.START)
         if outs:
             if len(outs) > 1:
                 self.warn(tr("„{name}“ hat mehrere Ausgänge; nur der erste wird verwendet.", name=name))

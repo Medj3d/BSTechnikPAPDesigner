@@ -13,7 +13,7 @@ kopieren“ legt nur das Bild ab.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QMimeData, QPointF, QRectF
+from PySide6.QtCore import QMimeData, QPointF, QRectF, QThread
 from PySide6.QtWidgets import QApplication
 
 from app.commands import AddElementsCommand, DeleteCommand
@@ -47,14 +47,36 @@ def copy_selection(scene) -> bool:
     payload = selection_payload(scene)
     if payload is None:
         return False
-    mime = QMimeData()
-    mime.setData(MIME_TYPE, diagram_to_xml(payload).encode("utf-8"))
-    mime.setText("\n\n".join(element.text for element in payload.elements if element.text))
+    content = diagram_to_xml(payload).encode("utf-8")
+    text = "\n\n".join(element.text for element in payload.elements if element.text)
     image = _image_of(scene, [element.id for element in payload.elements])
-    if image is not None:
-        mime.setImageData(image)
-    QApplication.clipboard().setMimeData(mime)
+
+    def mime_data() -> QMimeData:
+        mime = QMimeData()
+        mime.setData(MIME_TYPE, content)
+        mime.setText(text)
+        if image is not None:
+            mime.setImageData(image)
+        return mime
+
+    _set_clipboard(mime_data, lambda data: data is not None and data.hasFormat(MIME_TYPE))
     return True
+
+
+def _set_clipboard(make_mime, arrived, attempts: int = 10) -> bool:
+    """Legt Daten in die Zwischenablage und prüft, ob sie angekommen sind.
+
+    Unter Windows hält manchmal ein anderes Programm (z. B. der Zwischenablage-Verlauf, der ein großes Bild
+    einliest) die Zwischenablage kurz fest; dann ginge das Kopieren still verloren. Deshalb wird es kurz darauf
+    noch einmal versucht.
+    """
+    board = QApplication.clipboard()
+    for attempt in range(attempts):
+        board.setMimeData(make_mime())
+        if arrived(board.mimeData()):
+            return True
+        QThread.msleep(20 * (attempt + 1))
+    return False
 
 
 def _image_of(scene, element_ids=None):
@@ -78,15 +100,23 @@ def copy_image(scene) -> bool:
     image = _image_of(scene, ids or None)
     if image is None:
         return False
-    QApplication.clipboard().setImage(image)
+
+    def mime_data() -> QMimeData:
+        mime = QMimeData()
+        mime.setImageData(image)
+        return mime
+
+    _set_clipboard(mime_data, lambda data: data is not None and data.hasImage() and not data.hasFormat(MIME_TYPE))
     return True
 
 
 def cut_selection(scene) -> bool:
-    if not copy_selection(scene):
-        return False
+    # Was gelöscht wird, steht vor dem Kopieren fest (das Bild entsteht mit vorübergehend ausgeblendeten Teilen)
+    scene.prepare_for_command()
     element_ids = [item.element_id for item in scene.selected_elements()]
     connection_ids = [conn.connection_id for conn in scene.selected_connections()]
+    if not copy_selection(scene):
+        return False
     scene.undo_stack.push(DeleteCommand(scene, element_ids, connection_ids, text=tr("Ausschneiden")))
     return True
 

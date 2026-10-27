@@ -12,7 +12,7 @@ Alle Änderungen sind jeweils ein Rückgängig-Schritt.
 from __future__ import annotations
 
 from app.analysis import text as T
-from app.analysis.graph import call_target, flow_name
+from app.analysis.graph import call_target, flow_name, routine_label
 from app.commands import AddElementsCommand, EditTextCommand
 from app.commands.pages import AddPageCommand, RemovePageCommand, RenamePageCommand
 from app.i18n import tr
@@ -40,9 +40,6 @@ def name_error(document, name: str, page=None) -> str | None:
     wanted = flow_name(name)
     if not wanted:
         return tr("Der Name muss mindestens einen Buchstaben oder eine Ziffer enthalten.")
-    if call_target(name) != wanted:
-        # „berechne(x)“ als Name: Aufrufe „berechne(2)“ fänden das Unterprogramm nicht
-        return tr("Bitte nur den Namen angeben – ohne Klammern und Argumente.")
     main_start = document.main_start_id()
     for other in document.pages:
         if other is page:
@@ -135,12 +132,17 @@ def rename_subprogram(document, page, new_name: str) -> bool:
 
 
 def renamed_call(text: str, new_name: str) -> str:
-    """Aufruftext mit neuem Namen; Argumente bleiben erhalten: „berechne(x, y)“ → „summe(x, y)“."""
-    call = T.call_parts(text)
-    if not call or not call[1]:
-        return new_name
-    name = new_name if T.is_identifier(new_name) else T.slug(new_name)
-    return f"{name}({', '.join(call[1])})"
+    """Aufruftext mit neuem Namen. Getauscht wird nur der Name vor der Klammer; Argumente, Zuweisung und
+    Rückgabetyp bleiben: „berechne(x, y)“ → „summe(x, y)“, „ok := isLeapYear(j)“ → „ok := istSchaltjahr(j)“.
+    Ohne Klammer ist der Aufruf einfach der neue Name."""
+    new_label = routine_label(new_name)
+    head, bracket, rest = " ".join(text.split()).partition("(")
+    old_label = routine_label(text)
+    position = head.rfind(old_label) if bracket and head.strip() else -1
+    if position < 0:
+        return new_label
+    name = new_label if T.is_identifier(new_label) else T.slug(new_label)
+    return f"{head[:position]}{name}{head[position + len(old_label):]}({rest}"
 
 
 def delete_subprogram(document, page) -> None:

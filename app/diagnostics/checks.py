@@ -52,6 +52,7 @@ def run_checks(target) -> list[Issue]:
         connections += scene.connection_data()
         page_of.update((e.id, index) for e in page_elements)
     graph = FlowGraph.from_diagram(elements, connections, page_of)
+    graph.page_names = {index: page.display_name for index, page in enumerate(pages) if index > 0}
     flow_nodes = graph.nodes
     positions = {e.id: (page_of.get(e.id, 0), e.y, e.x) for e in elements}
 
@@ -131,7 +132,7 @@ def _subprogram_issues(pages: list, graph: FlowGraph, issues: list[Issue]) -> No
             issues.append(Issue(WARNING, tr("Das Unterprogramm „{name}“ hat kein Start-Element – ohne Start "
                                             "kann es nicht aufgerufen werden.", name=page.display_name),
                                 [page.scene.elements()[0].element_id]))
-    flows = {flow_name(node.text) for node in graph.nodes.values() if node.type is ElementType.START}
+    flows = {flow_name(graph.flow_label(node.id)) for node in graph.nodes.values() if node.type is ElementType.START}
     for node in graph.nodes.values():
         name = subprogram_call_name(node)
         if name and name not in flows and not is_default_text(node.text, node.type, node.properties):

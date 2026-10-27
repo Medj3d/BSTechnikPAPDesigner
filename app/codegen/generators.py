@@ -19,6 +19,7 @@ import re
 
 from app import i18n
 from app.analysis import text as T
+from app.analysis.graph import resolve_routine, routine_label, routine_name
 from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndStmt, If, LimitLoop, Loop,
                               Program, Unstructured, WhileLoop)
 from app.analysis.variables import BOOLEAN, DEFAULTS, DOUBLE, STRING, Variables, static_type
@@ -338,8 +339,7 @@ class PythonGenerator:
         self.known: set[str] = set()
         self.types: dict[str, str] = {}
         self.dynamic: set[str] = set()
-        self.function_names: dict[str, str] = {}  # Programmname (slug) → Funktionsname
-        self.functions: list[str] = []
+        self.functions: list[str] = []  # Funktionsname je Ablauf (Aufrufe: resolve_routine)
         self.input_fn, self.ask_fn, self.round_fn = "eingabe", "frage", "runden"
         self.renamed: dict[str, str] = {}        # Variable des Plans → Name im Python-Programm
         self._rename_pattern = None
@@ -363,15 +363,12 @@ class PythonGenerator:
             if index == 0:
                 name = "main"
             else:
-                name = T.slug(program.name, f"ablauf_{index + 1}")
+                # „bool isDateValid(int day)“ (Name eines PapDesigner-Diagramms) → isdatevalid
+                name = T.slug(routine_label(program.name), f"ablauf_{index + 1}")
                 if not T.is_identifier(name) or name in used:
                     name = _free_name(f"{name}_ablauf" if T.is_identifier(name) else f"ablauf_{index + 1}", used)
             used.add(name)
             self.functions.append(name)
-            slug = T.slug(program.name)
-            # ein Aufruf meint den gleichnamigen Ablauf – nicht das Hauptprogramm selbst
-            if slug not in self.function_names or self.function_names[slug] == "main":
-                self.function_names[slug] = name
 
     def generate(self) -> str:
         if not self.programs:
@@ -494,9 +491,8 @@ class PythonGenerator:
                             if kind == "expression":
                                 read(T.names_in(value), assigned)
                     elif stmt.kind == "subprogram":
-                        call = T.call_parts(stmt.text)
-                        slug = T.slug(call[0] if call else stmt.text)
-                        index = next((i for i, p in enumerate(self.programs) if T.slug(p.name) == slug), None)
+                        # dieselbe Zuordnung wie beim Aufruf selbst (action_subprogram)
+                        index = resolve_routine(stmt.text, [p.name for p in self.programs], exclude=0)
                         if index is not None and index not in active:
                             active.add(index)
                             visit(self.programs[index].body, assigned)
@@ -740,11 +736,12 @@ class PythonGenerator:
 
     def action_subprogram(self, stmt: Action, depth: int) -> None:
         call = T.call_parts(stmt.text)
-        slug = T.slug(call[0] if call else stmt.text)
-        if slug in self.function_names:
+        slug = routine_name(stmt.text) or T.slug(stmt.text)
+        index = resolve_routine(stmt.text, [p.name for p in self.programs], exclude=0)
+        if index is not None:
             # Abläufe haben keine Parameter: Sie arbeiten mit den gemeinsamen Variablen
-            note = f"  # {_one_line(stmt.text)}" if call and call[1] else ""
-            self.emit(depth, f"{self.function_names[slug]}(){note}")
+            note = f"  # {_one_line(stmt.text)}" if _one_line(stmt.text) != routine_label(stmt.text) else ""
+            self.emit(depth, f"{self.functions[index]}(){note}")
             return
         name = slug if T.is_identifier(slug) else f"unterprogramm_{len(self.called) + 1}"
         name = _free_name(name, (self.known | _PY_RESERVED_FUNCTIONS | set(self.functions)
@@ -1076,8 +1073,7 @@ class JavaGenerator:
         self.known: set[str] = set()
         self.types: dict[str, str] = {}
         self.dynamic: set[str] = set()
-        self.methods: list[str] = []
-        self.method_names: dict[str, int] = {}   # Programmname (slug) → Index
+        self.methods: list[str] = []  # Methodenname je Ablauf (Aufrufe: resolve_routine)
         self._times_depth = 0
         self._loops = 0                          # Tiefe der gerade erzeugten Schleifen
 
@@ -1088,14 +1084,10 @@ class JavaGenerator:
             if index == 0:
                 name = "main"
             else:
-                name = T.lower_camel(program.name, f"ablauf{index + 1}")
+                name = T.lower_camel(routine_label(program.name), f"ablauf{index + 1}")
                 name = _free_name(name if name not in used else f"{name}Ablauf", used)
             used.add(name)
             self.methods.append(name)
-            slug = T.slug(program.name)
-            # ein Aufruf meint den gleichnamigen Ablauf – nicht das Hauptprogramm selbst
-            if self.method_names.get(slug, 0) == 0:
-                self.method_names[slug] = index
 
     def _class_name(self) -> str:
         first = self.programs[0].name
@@ -1482,14 +1474,13 @@ class JavaGenerator:
 
     def action_subprogram(self, stmt: Action, depth: int) -> None:
         call = T.call_parts(stmt.text)
-        slug = T.slug(call[0] if call else stmt.text)
-        if slug in self.method_names:
+        index = resolve_routine(stmt.text, [p.name for p in self.programs], exclude=0)
+        if index is not None:
             # Abläufe haben keine Parameter: Sie arbeiten mit den gemeinsamen Variablen
-            index = self.method_names[slug]
-            note = f" // {_java_comment(stmt.text)}" if call and call[1] else ""
+            note = f" // {_java_comment(stmt.text)}" if _one_line(stmt.text) != routine_label(stmt.text) else ""
             self.emit(depth, (f"{self.methods[index]}();" if index else "main(new String[0]);") + note)
             return
-        label = call[0] if call else stmt.text
+        label = call[0] if call else routine_label(stmt.text)
         name = _free_name(T.lower_camel(label, f"unterprogramm{len(self.called) + 1}"),
                           (set(self.methods) | _JAVA_METHODS | _JAVA_RESERVED) - set(self.called))
         self.called.setdefault(name, stmt.text)

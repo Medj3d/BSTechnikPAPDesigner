@@ -28,6 +28,9 @@ import sys
 POLICY_KEY = r"Software\Policies\BSTechnik\PAPDesigner"
 DISABLE_UPDATES_VALUE = "DisableUpdates"
 POLICY_FILE_NAME = "policy.ini"
+# Ordner der installierten Version: gibt sie beim Start an eine neuere Kopie im Benutzerordner ab
+# (app/updater.py), erfährt die Kopie darüber, wo die policy.ini des Administrators liegt.
+INSTALLATION_ENV = "BSTECHNIK_PAP_INSTALLATION"
 
 
 def _truthy(value) -> bool:
@@ -70,13 +73,23 @@ def program_directory() -> str | None:
     return os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False) else None
 
 
+def policy_directories() -> list[str]:
+    """Ordner, in denen eine ``policy.ini`` gilt: der eigene Programmordner und – bei einer Kopie im
+    Benutzerordner – der Ordner der installierten Version, die an sie abgegeben hat."""
+    folders = [program_directory(), os.environ.get(INSTALLATION_ENV)]
+    return list(dict.fromkeys(folder for folder in folders if folder))
+
+
 def updates_disabled(directory: str | None = None) -> bool:
     """Hat der Administrator die Updates abgeschaltet?
 
-    ``directory``: Ordner mit ``policy.ini`` (ohne Angabe der Programmordner).
+    ``directory``: Ordner mit ``policy.ini`` (ohne Angabe die Ordner aus ``policy_directories``).
     """
     value = _registry_value(DISABLE_UPDATES_VALUE)
     if value is not None and _truthy(value):
         return True
-    parser = _policy_file(directory or program_directory())
-    return bool(parser is not None and _truthy(parser.get("Updates", "Disabled", fallback="0")))
+    for folder in ([directory] if directory else policy_directories()):
+        parser = _policy_file(folder)
+        if parser is not None and _truthy(parser.get("Updates", "Disabled", fallback="0")):
+            return True
+    return False

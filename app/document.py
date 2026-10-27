@@ -19,7 +19,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtGui import QUndoStack
 
 from app import config
-from app.analysis.graph import FlowGraph, call_target, flow_name
+from app.analysis.graph import FlowGraph, flow_name
 from app.fileformat.serializer import load_diagram, save_diagram
 from app.i18n import tr
 from app.model.diagram import Diagram, ProjectMeta, SubprogramPage, now_iso
@@ -78,13 +78,20 @@ class DiagramPage:
 
     @property
     def display_name(self) -> str:
+        """Name der Seite – unter ihm wird das Unterprogramm aufgerufen (wie ein Diagramm im PapDesigner).
+
+        Ohne gespeicherten Namen gilt der Text des ersten Start-Elements.
+        """
         if self.is_main:
             return tr("Hauptprogramm")
+        name = " ".join(self.name.split())
+        if name:
+            return name
         for item in self.start_items():
             text = " ".join(item.data.text.split())
             if text:
                 return text
-        return " ".join(self.name.split()) or tr("Unterprogramm")
+        return tr("Unterprogramm")
 
     @property
     def flow_name(self) -> str:
@@ -253,18 +260,15 @@ class DiagramDocument(QObject):
         Wie im Schreibtischtest: der Ablauf, dessen Start-Text denselben Bezeichner ergibt; das Hauptprogramm
         nur, wenn kein anderer Ablauf so heißt.
         """
-        wanted = call_target(call_text)
-        if not wanted:
-            return None
-        starts = self.flow_graph().starts()
-        found = [node.id for node in starts if flow_name(node.text) == wanted]
-        others = [start_id for start_id in found if not starts or start_id != starts[0].id]
-        chosen = (others or found or [None])[0]
+        graph = self.flow_graph()
+        starts = graph.starts()
+        chosen = graph.start_for_call(call_text, exclude=starts[0].id if starts else None)
         return self.find_element(chosen) if chosen else None
 
     def flow_graph(self) -> FlowGraph:
         """Der Ablaufgraph aller Seiten (für Schreibtischtest, Code, Struktogramm und Hinweise)."""
-        return FlowGraph.from_scenes(self.scenes())
+        names = {index: page.display_name for index, page in enumerate(self.pages) if index > 0}
+        return FlowGraph.from_scenes(self.scenes(), names)
 
     def is_empty(self) -> bool:
         return not any(page.scene.elements() for page in self.pages)

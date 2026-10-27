@@ -192,12 +192,16 @@ def test_rename_updates_start_and_all_calls_in_one_step(window):
     assert extra.data.text == "verdoppeln(x)"
 
 
-def test_page_name_follows_the_start_text(window):
+def test_page_keeps_its_name_when_the_start_text_changes(window):
+    """Wie im PapDesigner heißt ein Unterprogramm wie seine Seite – der Start darf z. B. einfach „Start“ heißen."""
     document, _items = main_program(window)
     window.new_subprogram("Verdoppeln")
     page = document.pages[1]
-    page.start_items()[0].set_text("Halbieren")
-    assert page.display_name == "Halbieren" and page.flow_name == "halbieren"
+    fill_subprogram(page)
+    page.start_items()[0].set_text("Start")
+    assert page.display_name == "Verdoppeln" and page.flow_name == "verdoppeln"
+    assert run(document, ["5"]).outputs == ["10"]
+    assert [p.name for p in structure_diagram(document.flow_graph())] == ["Start", "Verdoppeln"]
 
 
 def test_delete_subprogram_and_undo_restores_content(window, monkeypatch):
@@ -340,9 +344,12 @@ def test_subprogram_pages_are_saved_as_own_diagrams(tmp_path):
     assert root.get(f"{BST}VERSION") == str(CURRENT_FORMAT_VERSION) == "2"
     diagrams = root.findall("./PROJECT/DIAGRAMS/DIAGRAM")
     assert [d.get("NAME") for d in diagrams][1:] == ["Verdoppeln"]
-    # Nummern sind in der ganzen Datei eindeutig (der PapDesigner verweist mit FROM/TO darauf)
-    numbers = [f.get("ID") for f in root.iter("FIGURE")] + [c.get("ID") for c in root.iter("CONNECTION")]
-    assert len(numbers) == len(set(numbers))
+    # wie im PapDesigner zählen die Nummern in jedem Diagramm neu ab 0 (Titel) und sind darin eindeutig
+    for pap_diagram in diagrams:
+        figures = list(pap_diagram.iter("FIGURE"))
+        numbers = [f.get("ID") for f in figures] + [c.get("ID") for c in pap_diagram.iter("CONNECTION")]
+        assert len(numbers) == len(set(numbers))
+        assert figures[0].get("SUBTYPE") == "PapTitle" and figures[0].get("ID") == "0"
     result = load_diagram(path)
     assert result.native and result.warnings == [] and result.diagram == diagram
 
@@ -439,10 +446,14 @@ def test_switching_page_while_dragging_keeps_the_move_undoable(window):
     assert document.current_page_index == 0 and block.pos().x() == 0
 
 
-def test_names_with_call_syntax_are_rejected(window):
-    document, _items = main_program(window)
-    assert subprograms.name_error(document, "foo(x)") is not None
-    assert subprograms.name_error(document, "foo") is None
+def test_names_with_parameters_are_matched_by_the_word_before_the_bracket(window):
+    document, items = main_program(window)
+    assert subprograms.name_error(document, "int verdoppeln(int n)") is None
+    window.new_subprogram("int verdoppeln(int n)")
+    assert subprograms.name_error(document, "verdoppeln") is not None  # derselbe Name
+    fill_subprogram(document.pages[1])
+    items[2].set_text("n := verdoppeln(n)")
+    assert run(document, ["5"]).outputs == ["10"]
 
 
 def test_old_plans_with_subprogram_above_main_program(window):
@@ -508,3 +519,223 @@ def test_block_with_default_text_gets_the_new_name(window, monkeypatch):
     assert window.open_subprogram_for(block)
     assert asked == ["Unterprogramm 1"] and block.data.text == "Ausgabe"
     assert document.pages[1].display_name == "Ausgabe"
+
+
+PAPDESIGNER_STYLE = """<?xml version="1.0" encoding="utf-8"?>
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="0">
+  <PROJECT FORMAT="1.00" NAME="Datum" AUTHOR="" CREATED="2021.03.01 08:15:00" MODIFIED="2021.03.01 08:15:00">
+    <DIAGRAMS>
+      <DIAGRAM FORMAT="1.00" ID="0" NAME="Datum" CREATED="2021.03.01 08:15:00" MODIFIED="2021.03.01 08:15:00">
+        <LAYOUT FORMAT="1.00" COLUMNS="1" ROWS="6"><ENTRIES>
+          <ENTRY COLUMN="0" ROW="0" ANCHOR="True"><FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0"><TEXT><![CDATA[Datum]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="1"><FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1"><TEXT><![CDATA[Start]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="2"><FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2"><TEXT><![CDATA[Eingabe: jahr]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="3"><FIGURE SUBTYPE="PapModule" FORMAT="1.00" ID="3"><TEXT><![CDATA[bool schalt := isLeapYear(jahr)]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="4"><FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="4"><TEXT><![CDATA[rest]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="5"><FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="5"><TEXT><![CDATA[Ende]]></TEXT></FIGURE></ENTRY>
+        </ENTRIES></LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="6" FROM="1" TO="2" TEXT="" /><CONNECTION FORMAT="1.00" ID="7" FROM="2" TO="3" TEXT="" />
+          <CONNECTION FORMAT="1.00" ID="8" FROM="3" TO="4" TEXT="" /><CONNECTION FORMAT="1.00" ID="9" FROM="4" TO="5" TEXT="" />
+        </CONNECTIONS>
+      </DIAGRAM>
+      <DIAGRAM FORMAT="1.00" ID="1" NAME="bool isLeapYear(int year)" CREATED="2021.03.01 08:15:00" MODIFIED="2021.03.01 08:15:00">
+        <LAYOUT FORMAT="1.00" COLUMNS="1" ROWS="4"><ENTRIES>
+          <ENTRY COLUMN="0" ROW="0" ANCHOR="True"><FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="10"><TEXT><![CDATA[bool isLeapYear(int year)]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="1"><FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="11"><TEXT><![CDATA[Start]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="2"><FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="12"><TEXT><![CDATA[rest = jahr mod 4]]></TEXT></FIGURE></ENTRY>
+          <ENTRY COLUMN="0" ROW="3"><FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="13"><TEXT><![CDATA[Ende]]></TEXT></FIGURE></ENTRY>
+        </ENTRIES></LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="14" FROM="11" TO="12" TEXT="" /><CONNECTION FORMAT="1.00" ID="15" FROM="12" TO="13" TEXT="" />
+        </CONNECTIONS>
+      </DIAGRAM>
+    </DIAGRAMS>
+  </PROJECT>
+</FRAME>
+"""
+
+
+def test_papdesigner_subprograms_named_by_their_diagram(window, tmp_path):
+    """Echte PapDesigner-Dateien: Unterprogramme beginnen mit „Start“, ihr Name steht nur am Diagramm
+    (oft mit Rückgabetyp und Parametern); aufgerufen wird z. B. mit „bool schalt := isLeapYear(jahr)“."""
+    path = tmp_path / "datum.pap"
+    path.write_text(PAPDESIGNER_STYLE, encoding="utf-8")
+    assert window.open_file(str(path))
+    document = window.current_document()
+    assert [page.display_name for page in document.pages] == ["Hauptprogramm", "bool isLeapYear(int year)"]
+    assert window.page_bar.tabs.tabText(1) == "bool isLeapYear(int year)"
+    # Schreibtischtest, Code, Hinweise und Öffnen finden das Unterprogramm über den Namen der Seite
+    assert run(document, ["2023"]).outputs == ["3"]
+    programs = structure_diagram(document.flow_graph())
+    assert [p.name for p in programs] == ["Start", "bool isLeapYear(int year)"]
+    code = generate(programs, "python")
+    assert "def isleapyear():" in code and "isleapyear()  # bool schalt := isLeapYear(jahr)" in code
+    java = generate(programs, "java")
+    assert "static void isLeapYear()" in java and "isLeapYear(); // bool schalt := isLeapYear(jahr)" in java
+    assert not [i for i in run_checks(document) if "noch nicht gibt" in i.message]
+    call = [item for item in document.main_scene.elements() if item.element_type is T.SUBPROGRAM][0]
+    window.show_page(0)
+    assert window.open_subprogram_for(call) and document.current_page_index == 1
+    assert [window.simulation_panel.program_combo.itemText(i)
+            for i in range(window.simulation_panel.program_combo.count())] == ["Start", "bool isLeapYear(int year)"]
+    # Umbenennen lässt den Start „Start“ in Ruhe und passt den Aufruf an
+    assert window.rename_subprogram(1, "bool istSchaltjahr(int year)")
+    assert document.pages[1].start_items()[0].data.text == "Start"
+    assert call.data.text == "bool schalt := istSchaltjahr(jahr)"  # nur der Name vor der Klammer ist neu
+    assert run(document, ["2021"]).outputs == ["1"]
+
+
+
+# ------------------------------------------------------------------ PapDesigner-Bedienung
+def test_ctrl_drag_copies_instead_of_moving(window, qapp):
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+    window.new_document()
+    document = window.current_document()
+    scene = document.scene
+    a = add(scene, T.PROCESS, 0, 0)
+    b = add(scene, T.PROCESS, 0, 160)
+    connect(scene, a, "bottom", b, "top")
+    scene.select_items([a, b])
+    view = window.current_view()
+    view.centerOn(QPointF(100, 80))
+    qapp.processEvents()
+    start = view.mapFromScene(a.scene_rect().center())
+    ctrl = Qt.KeyboardModifier.ControlModifier
+    QTest.mousePress(view.viewport(), Qt.MouseButton.LeftButton, ctrl, start)
+    for step in range(1, 11):
+        QTest.mouseMove(view.viewport(), start + QPoint(30 * step, 0))
+        qapp.processEvents()
+    QTest.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, ctrl, start + QPoint(300, 0))
+    qapp.processEvents()
+    assert len(scene.elements()) == 4 and len(scene.connections()) == 2
+    assert a.pos().x() == 0 and b.pos().x() == 0  # die Originale bleiben stehen
+    assert all(item.pos().x() > 200 for item in scene.selected_elements())
+    window._undo()
+    assert len(scene.elements()) == 2
+
+
+def test_change_element_type_keeps_text_and_connections(scene):
+    start = add(scene, T.START, 0, 0)
+    block = add(scene, T.PROCESS, 0, 120)
+    block.set_text("Eingabe: n")
+    end = add(scene, T.END, 0, 240)
+    first = connect(scene, start, "bottom", block, "top")
+    second = connect(scene, block, "bottom", end, "top")
+    second.set_label("weiter")
+    assert scene.change_element_type(block, T.INPUT)
+    new = scene.element(block.element_id)
+    assert new.element_type is T.INPUT and new.data.text == "Eingabe: n"
+    assert {c.connection_id for c in new.connections} == {first.connection_id, second.connection_id}
+    assert scene.connection(second.connection_id).data.label == "weiter"
+    # Standardtext wird mit umgewandelt
+    other = add(scene, T.PROCESS, 300, 0)
+    scene.change_element_type(other, T.OUTPUT)
+    assert scene.element(other.element_id).data.text == "Ausgabe"
+    for _ in range(3):  # Umwandeln, Einfügen von „other“, Umwandeln
+        scene.undo_stack.undo()
+    assert scene.element(block.element_id).element_type is T.PROCESS
+    assert len(scene.element(block.element_id).connections) == 2
+
+
+def test_change_to_end_moves_a_missing_port(scene):
+    block = add(scene, T.PROCESS, 0, 0)
+    after = add(scene, T.PROCESS, 0, 160)
+    link = connect(scene, block, "bottom", after, "top")
+    assert scene.change_element_type(block, T.END)
+    # Ende hat unten keinen Anschluss: die Verbindung bleibt (rot markiert) und geht von rechts ab
+    data = scene.connection(link.connection_id).data
+    assert data.source_port == "right" and scene.connection(link.connection_id).warning
+
+
+def test_counterpart_label_like_papdesigner(scene):
+    from app import labels
+    assert labels.opposite_label("ja") == "nein" and labels.opposite_label("Wahr") == "Falsch"
+    assert labels.opposite_label("true") == "false" and labels.opposite_label("sonst") is None
+    decision = add(scene, T.DECISION, 0, 0)
+    a = add(scene, T.PROCESS, 0, 200)
+    b = add(scene, T.PROCESS, 300, 0)
+    first = connect(scene, decision, "bottom", a, "top")
+    second = connect(scene, decision, "right", b, "left")
+    assert (first.data.label, second.data.label) == ("ja", "nein")
+    scene._commit_label(first, "ja", "nein")
+    assert (first.data.label, second.data.label) == ("nein", "ja")
+    scene._commit_label(second, "ja", "falsch")
+    assert (first.data.label, second.data.label) == ("wahr", "falsch")  # „nein“ hieße dasselbe wie „falsch“
+    scene.undo_stack.undo()
+    scene.undo_stack.undo()
+    assert (first.data.label, second.data.label) == ("ja", "nein")
+
+
+def test_call_picker_sets_the_call(window):
+    document, items = main_program(window)
+    window.new_subprogram("bool istGerade(int n)")
+    call = items[2]
+    window._set_call(call, document.pages[1])
+    assert call.data.text == "istGerade"
+    call.set_text("x := verdoppeln(n)")
+    window._set_call(call, document.pages[1])
+    assert call.data.text == "x := istGerade(n)"
+    assert document.flow_start(call.data.text)[0] is document.pages[1]
+
+
+def test_spaces_and_hyphens_do_not_matter_for_calls(window):
+    document, items = main_program(window)
+    window.new_subprogram("Summe berechnen")
+    items[2].set_text("Summe-berechnen")
+    assert document.flow_start(items[2].data.text)[0] is document.pages[1]
+    items[2].set_text("Summeberechnen")
+    assert document.flow_start(items[2].data.text)[0] is document.pages[1]
+
+
+def test_papdesigner_subpage_title_is_not_a_comment(tmp_path):
+    path = tmp_path / "datum.pap"
+    path.write_text(PAPDESIGNER_STYLE, encoding="utf-8")
+    diagram = load_diagram(str(path)).diagram
+    assert not [e for e in diagram.subprograms[0].elements if e.type is T.COMMENT]
+    assert diagram.subprograms[0].name == "bool isLeapYear(int year)"
+
+
+# ------------------------------------------------------------------ Befunde aus dem zweiten Review (ChatGPT)
+def test_exact_names_win_over_the_tolerant_match():
+    from app.analysis.graph import resolve_routine
+    names = ["Start", "ab_c", "a_bc"]
+    assert resolve_routine("a_bc", names, exclude=0) == 2 and resolve_routine("ab_c", names, exclude=0) == 1
+    assert resolve_routine("abc", names, exclude=0) == 1  # tolerant: der erste passende
+    assert resolve_routine("Summe-berechnen", ["Start", "Summe berechnen"], exclude=0) == 1
+    assert resolve_routine("gibt es nicht", names, exclude=0) is None
+
+
+def test_python_variable_analysis_uses_the_same_target_as_the_call(monkeypatch, capsys):
+    """Hauptprogramm „a_bc“ ruft „ab_c“; das Unterprogramm liest x vor dem Setzen."""
+    from tests.test_review_fixes_3 import Plan
+    plan = Plan()
+    plan.chain(plan.node("s", T.START, "a_bc"), plan.node("u", T.SUBPROGRAM, "ab_c"), plan.node("e", T.END, "Ende"))
+    plan.chain(plan.node("s2", T.START, "ab_c", x=400), plan.node("o", T.OUTPUT, "x", x=400),
+               plan.node("p", T.PROCESS, "x = 1", x=400), plan.node("e2", T.END, "Ende", x=400))
+    code = generate(structure_diagram(plan.graph()), "python")
+    assert "ab_c()" in code
+    exec(compile(code, "plan.py", "exec"), {"__name__": "__main__"})  # kein NameError
+    assert capsys.readouterr().out.strip() == "0"
+
+
+def test_change_type_keeps_a_self_connection(scene):
+    block = add(scene, T.PROCESS, 0, 0)
+    loop = scene.connection(scene.create_connection(block, "left", block, "top"))
+    assert loop is not None
+    assert scene.change_element_type(block, T.START)  # Start hat oben keinen Anschluss
+    data = scene.connection(loop.connection_id).data
+    assert data.source_port != data.target_port and data.target_port in ("left", "right", "bottom")
+
+
+def test_change_type_keeps_the_line_when_ports_stay(scene):
+    a = add(scene, T.PROCESS, 0, 0)
+    b = add(scene, T.PROCESS, 400, 300)
+    link = connect(scene, a, "right", b, "top")
+    link.data.routing = {"mode": "manual", "axis": "x", "value": 300.0}
+    scene.reset_routing(link)  # nur damit der Verlauf neu berechnet ist
+    before = link.points()
+    # gleiche Form (Rechteck), gleiche Anschlüsse: der Linienverlauf bleibt genau erhalten
+    assert scene.change_element_type(a, T.SUBPROGRAM)
+    assert scene.connection(link.connection_id).points() == before

@@ -115,6 +115,9 @@ Root: HKA; Subkey: "Software\Classes\{#ProgId}"; ValueType: string; ValueName: "
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\_internal\assets\file_icon.ico"""; Tasks: associate
 Root: HKA; Subkey: "Software\Classes\{#ProgId}\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExe}"" ""%1"""; Tasks: associate
 
+; Setup mit /NOUPDATES für alle Benutzer (Administrator): Richtlinie für den ganzen Rechner – gilt für jede Kopie
+Root: HKLM; Subkey: "Software\Policies\BSTechnik\PAPDesigner"; ValueType: dword; ValueName: "DisableUpdates"; ValueData: "1"; Check: NoUpdatesRequested and IsAdminInstallMode; Flags: uninsdeletevalue uninsdeletekeyifempty
+
 [INI]
 ; Setup mit /NOUPDATES (z. B. Softwareverteilung in der Schule): Updates abschalten (siehe app/policy.py)
 Filename: "{app}\policy.ini"; Section: "Updates"; Key: "Disabled"; String: "1"; Check: NoUpdatesRequested; Flags: uninsdeletesection

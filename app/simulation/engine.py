@@ -231,15 +231,11 @@ class Simulator:
         return self._advance(nid, self._next(nid), display_name_for(ElementType.JUNCTION))
 
     def _subprogram_start(self, text: str) -> str | None:
-        """Start-Element des Ablaufs, der so heißt wie der Aufruf („Verdoppeln“)."""
-        call = T.call_parts(text)
-        wanted = T.slug(call[0] if call else text, "")
-        if not wanted:
-            return None
-        found = [start.id for start in self.graph.starts() if T.slug(start.text, "") == wanted]
-        # ein Aufruf meint den gleichnamigen Ablauf – nicht das gerade laufende Hauptprogramm
-        others = [start_id for start_id in found if start_id != self.start_id]
-        return (others or found or [None])[0]
+        """Start-Element des Ablaufs, der so heißt wie der Aufruf („Verdoppeln“, „ok := pruefe(x)“).
+
+        Ein Aufruf meint den gleichnamigen Ablauf – nicht das gerade laufende Hauptprogramm.
+        """
+        return self.graph.start_for_call(text, exclude=self.start_id)
 
     def _subprogram(self, nid, node):
         name = " ".join(node.text.split())

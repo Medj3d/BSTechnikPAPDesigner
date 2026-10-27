@@ -9,6 +9,7 @@ die fachlichen Bausteine sehen.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from app import labels
@@ -84,25 +85,67 @@ def yes_no_edges(outs: list) -> tuple:
     return first, second
 
 
-def call_target(text: str) -> str:
-    """Bezeichner des Ablaufs, den ein Unterprogramm-Text aufruft: „Summe berechnen“ → „summe_berechnen“,
-    „berechne(x, y)“ → „berechne“. Leer, wenn der Text keinen Namen enthält.
+# Zuweisung vor einem Aufruf: „ergebnis := berechne(x)“, „bool ok = pruefe(a)“, „x ← f()“
+_ASSIGNMENT = re.compile(r"(?::=|←|<-|(?<![<>!=])=(?!=))")
 
-    Ein Aufruf passt zu dem Ablauf, dessen Start-Text als Bezeichner (``flow_name``) gleich ist – so wie im
-    Schreibtischtest und in der Code-Erzeugung.
+
+def routine_label(text: str) -> str:
+    """Name eines Ablaufs bzw. des aufgerufenen Ablaufs, wie ihn auch der PapDesigner zuordnet.
+
+    Steht eine Klammer im Text, zählt das Wort direkt davor – ohne Rückgabetyp, Zuweisung oder „return“:
+    „bool isDateValid(int day, int month)“, „ok := isDateValid(d, m)“ und „isDateValid(1, 2)“ ergeben
+    „isDateValid“. Sonst ist es der ganze Text („Summe berechnen“).
     """
-    from app.analysis.text import call_parts, slug
+    text = " ".join(str(text or "").split())
+    head, bracket, _rest = text.partition("(")
+    if bracket and head.strip():
+        head = _ASSIGNMENT.split(head)[-1]
+        words = head.split()
+        if words:
+            return words[-1]
+    return text
 
-    call = call_parts(text)
-    return slug(call[0] if call else text, "")
 
+def routine_name(text: str) -> str:
+    """Bezeichner zu ``routine_label`` („Summe berechnen“ → „summeberechnen“, „isDateValid(…)“ → „isdatevalid“).
 
-def flow_name(start_text: str) -> str:
-    """Bezeichner, unter dem ein Ablauf aufgerufen wird: der Text seines Start-Elements („Summe berechnen“ →
-    „summe_berechnen“). Leer, wenn der Text keinen Namen enthält."""
+    Ein Unterprogramm-Baustein ruft den Ablauf auf, bei dem dieser Bezeichner gleich ist – im Schreibtischtest,
+    in der Code-Erzeugung, in den Hinweisen und beim Öffnen. Leer, wenn der Text keinen Namen enthält.
+    """
     from app.analysis.text import slug
 
-    return slug(start_text, "")
+    # Wie beim PapDesigner zählen Leerzeichen und Bindestriche nicht: „Summe berechnen“ = „Summe-berechnen“ =
+    # „Summeberechnen“
+    return slug(routine_label(text), "").replace("_", "")
+
+
+def _exact_routine_name(text: str) -> str:
+    from app.analysis.text import slug
+
+    return slug(routine_label(text), "")
+
+
+def resolve_routine(text: str, names: list[str], exclude: int | None = None) -> int | None:
+    """Welchen der Abläufe ``names`` ein Unterprogramm-Text aufruft (Index) – oder ``None``.
+
+    Zuerst zählt eine genaue Übereinstimmung, erst danach die tolerante ohne Leerzeichen und Bindestriche (so
+    bleiben „ab_c“ und „a_bc“ verschieden). Passen mehrere, geht ein anderer als ``exclude`` (das laufende
+    Hauptprogramm) vor. Schreibtischtest, Code-Erzeugung, Hinweise und Öffnen nutzen alle diese Zuordnung.
+    """
+    for key in (_exact_routine_name, routine_name):
+        wanted = key(text)
+        if not wanted:
+            return None
+        found = [index for index, name in enumerate(names) if key(name) == wanted]
+        if found:
+            others = [index for index in found if index != exclude]
+            return (others or found)[0]
+    return None
+
+
+# Ein Aufruf und der Name eines Ablaufs folgen derselben Regel
+call_target = routine_name
+flow_name = routine_name
 
 
 def subprogram_call_name(node: Node) -> str:
@@ -122,11 +165,14 @@ def has_yes_no_labels(outs: list) -> bool:
 
 class FlowGraph:
     def __init__(self, nodes: dict[str, Node], edges: list[Edge],
-                 annotations: dict[str, list[str]] | None = None):
+                 annotations: dict[str, list[str]] | None = None, page_names: dict[int, str] | None = None):
         self.nodes = dict(nodes)
         self.edges = list(edges)
         # Kommentartexte, die per Kommentarlinie einem Baustein zugeordnet sind
         self.annotations = {k: list(v) for k, v in (annotations or {}).items()}
+        # Namen der Unterprogramm-Seiten (Seite → Name). Der erste Start einer Seite heißt wie die Seite –
+        # so auch im PapDesigner, dessen Unterprogramme oft mit einem Start „Start“ beginnen.
+        self.page_names = {int(k): v for k, v in (page_names or {}).items() if v and str(v).strip()}
         self._out: dict[str, list[Edge]] = {nid: [] for nid in self.nodes}
         self._in: dict[str, list[Edge]] = {nid: [] for nid in self.nodes}
         for edge in self.edges:
@@ -168,11 +214,11 @@ class FlowGraph:
         return cls.from_diagram(scene.element_data(), scene.connection_data())
 
     @classmethod
-    def from_scenes(cls, scenes) -> "FlowGraph":
+    def from_scenes(cls, scenes, page_names: dict[int, str] | None = None) -> "FlowGraph":
         """Ein Graph über alle Seiten eines Projekts (Hauptprogramm zuerst, dann die Unterprogramme).
 
         Verbindungen gibt es nur innerhalb einer Seite; ein Unterprogramm-Baustein ruft den Ablauf
-        einer anderen Seite über dessen Namen auf.
+        einer anderen Seite über dessen Namen auf (``page_names``: Seite → Name des Unterprogramms).
         """
         elements, connections, pages = [], [], {}
         for index, scene in enumerate(scenes):
@@ -180,7 +226,9 @@ class FlowGraph:
             elements += page_elements
             connections += scene.connection_data()
             pages.update((e.id, index) for e in page_elements)
-        return cls.from_diagram(elements, connections, pages)
+        graph = cls.from_diagram(elements, connections, pages)
+        graph.page_names = {int(k): v for k, v in (page_names or {}).items() if v and str(v).strip()}
+        return graph
 
     def collapse_junctions(self) -> "FlowGraph":
         """Überbrückt Verbindungspunkte mit genau einem Ausgang.
@@ -211,7 +259,7 @@ class FlowGraph:
                 del nodes[nid]
                 changed = True
                 break
-        return FlowGraph(nodes, edges, self.annotations)
+        return FlowGraph(nodes, edges, self.annotations, self.page_names)
 
     # ------------------------------------------------------------ Abfragen
     def _edge_sort_key(self, edge: Edge) -> tuple:
@@ -245,11 +293,30 @@ class FlowGraph:
         Hauptprogramm; ansonsten wird von oben nach unten und links nach rechts
         sortiert.
         """
-        from app.analysis.text import slug
-
         called = self.called_names()
         found = [n for n in self.nodes.values() if n.type is ElementType.START]
-        return sorted(found, key=lambda n: (n.page, slug(n.text) in called, n.y, n.x, n.id))
+        return sorted(found, key=lambda n: (n.page, routine_name(self.flow_label(n.id)) in called, n.y, n.x, n.id))
+
+    def flow_label(self, start_id: str) -> str:
+        """Name des Ablaufs, der an diesem Start-Element beginnt: auf einer Unterprogramm-Seite der Name der
+        Seite (für ihren ersten Start), sonst der Text des Start-Elements."""
+        node = self.nodes[start_id]
+        name = self.page_names.get(node.page)
+        if name and node.page > 0:
+            first = min((n for n in self.nodes.values() if n.type is ElementType.START and n.page == node.page),
+                        key=lambda n: (n.y, n.x, n.id))
+            if first.id == start_id:
+                return " ".join(name.split())
+        return node.text
+
+    def start_for_call(self, text: str, exclude: str | None = None) -> str | None:
+        """Start-Element des Ablaufs, den ein Unterprogramm-Text aufruft (``exclude``: das laufende Programm,
+        das nur gemeint ist, wenn kein anderer Ablauf so heißt) – oder ``None``."""
+        starts = self.starts()
+        ids = [start.id for start in starts]
+        index = resolve_routine(text, [self.flow_label(start_id) for start_id in ids],
+                                ids.index(exclude) if exclude in ids else None)
+        return ids[index] if index is not None else None
 
     def called_names(self) -> set[str]:
         """Namen (als Bezeichner) aller Abläufe, die ein Unterprogramm-Baustein aufruft."""

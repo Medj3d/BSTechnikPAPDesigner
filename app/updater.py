@@ -48,7 +48,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 
-from app import config, resources
+from app import config, policy, resources
 from app.i18n import tr
 
 log = logging.getLogger(__name__)
@@ -301,8 +301,11 @@ def redirect_to_user_program(arguments: list[str]) -> bool:
         return False
     version, folder = found
     try:
+        # Die Kopie erfährt, wo die installierte Version liegt: dort gilt auch die policy.ini des Administrators
+        environment = dict(os.environ, **{STARTED_FROM_UPDATE_ENV: version,
+                                          policy.INSTALLATION_ENV: application_directory() or ""})
         subprocess.Popen([os.path.join(folder, config.EXECUTABLE_NAME), *arguments], cwd=folder, close_fds=True,
-                         env=dict(os.environ, **{STARTED_FROM_UPDATE_ENV: version}))
+                         env=environment)
     except OSError as exc:
         log.warning("Neuere Version aus dem Benutzerordner konnte nicht gestartet werden: %s", exc)
         mark_user_updates_blocked()

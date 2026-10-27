@@ -42,7 +42,7 @@ from app.dialogs.subprogram_name import SubprogramNameDialog
 from app.document import DiagramDocument
 from app.fileformat.project import ProjectFileError
 from app.items.base_item import FlowItem
-from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType
+from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType, display_name_for
 from app.page_bar import PageBar
 from app.palette import ToolPalette
 from app.i18n import N_, tr
@@ -50,6 +50,10 @@ from app.settings_store import SettingsStore
 from app.update_dialogs import UpdateController
 
 log = logging.getLogger(__name__)
+
+# Typen, in die sich ein Baustein über das Kontextmenü umwandeln lässt (wie im PapDesigner)
+CHANGEABLE_TYPES = (ElementType.PROCESS, ElementType.INPUT, ElementType.OUTPUT, ElementType.SUBPROGRAM,
+                    ElementType.DECISION, ElementType.START, ElementType.END)
 
 # Version des gespeicherten Fensterlayouts (bei neuen Docks erhöhen)
 WINDOW_STATE_VERSION = 2
@@ -1335,6 +1339,22 @@ class MainWindow(QMainWindow):
                                             else tr("Unterprogramm anlegen …"))
                 action.setToolTip(tr("Auch mit Strg+Doppelklick auf den Baustein"))
                 action.triggered.connect(lambda: self.open_subprogram_for(item))
+                # wie der Eingabedialog des PapDesigners: ein vorhandenes Unterprogramm als Aufruf wählen
+                pages = view.document.pages[1:]
+                if pages:
+                    calls_menu = menu.addMenu(tr("Ruft auf"))
+                    for page in pages:
+                        choice = calls_menu.addAction(page.display_name)
+                        choice.setCheckable(True)
+                        choice.setChecked(subprograms.call_target(item.data.text) == page.flow_name)
+                        choice.triggered.connect(lambda _=False, p=page: self._set_call(item, p))
+            if not item.is_junction and not item.is_comment:
+                menu.addSeparator()
+                change_menu = menu.addMenu(tr("Ändern in"))
+                for element_type in CHANGEABLE_TYPES:
+                    if element_type is not item.element_type:
+                        change = change_menu.addAction(icons.element_icon(element_type), display_name_for(element_type))
+                        change.triggered.connect(lambda _=False, t=element_type: scene.change_element_type(item, t))
             menu.addSeparator()
             if len(scene.selected_elements()) >= 2:
                 align_menu = menu.addMenu(tr("Ausrichten"))
@@ -1491,6 +1511,19 @@ class MainWindow(QMainWindow):
     def _request_subprogram(self, item) -> None:
         """Strg+Doppelklick: erst nach dem Doppelklick öffnen – bis dahin gehört die Maus der bisherigen Seite."""
         QTimer.singleShot(0, lambda: self.open_subprogram_for(item) if shiboken6.isValid(item) else None)
+
+    def _set_call(self, item, page) -> None:
+        """Ein Unterprogramm-Baustein ruft danach das Unterprogramm dieser Seite auf (Argumente bleiben)."""
+        scene = item.scene()
+        if scene is None or subprograms.call_target(item.data.text) == page.flow_name:
+            return
+        scene.prepare_for_command()
+        if subprograms.is_placeholder(item):
+            text = subprograms.routine_label(page.display_name)
+        else:
+            text = subprograms.renamed_call(item.data.text, page.display_name)
+        from app.commands import EditTextCommand
+        scene.undo_stack.push(EditTextCommand(scene, item.element_id, item.data.text, text))
 
     def open_selected_subprogram(self) -> None:
         scene = self.current_scene()

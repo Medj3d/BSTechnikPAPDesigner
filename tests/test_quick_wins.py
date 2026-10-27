@@ -321,3 +321,56 @@ def test_about_dialog_links_the_website(qapp):
     assert 'href="https://medjed.net"' in label.text() and ">medjed.net</a>" in label.text()
     assert label.openExternalLinks()
     dialog.deleteLater()
+
+
+# ------------------------------------------------------------------ Befunde aus dem Review (ChatGPT)
+def test_cut_with_a_separately_selected_connection_removes_both(scene):
+    a = add(scene, T.PROCESS, 0, 0)
+    b = add(scene, T.PROCESS, 400, 0)
+    c = add(scene, T.PROCESS, 400, 200)
+    link = connect(scene, b, "bottom", c, "top")
+    scene.select_items([a, link])
+    assert clipboard.cut_selection(scene)
+    assert scene.element(a.element_id) is None and scene.connection(link.connection_id) is None
+    assert scene.element(b.element_id) is not None
+
+
+def test_copy_keeps_the_selection(scene):
+    a = add(scene, T.PROCESS, 0, 0)
+    b = add(scene, T.PROCESS, 400, 0)
+    c = add(scene, T.PROCESS, 400, 200)
+    link = connect(scene, b, "bottom", c, "top")
+    scene.select_items([a, link])
+    clipboard.copy_selection(scene)
+    assert a.isSelected() and link.isSelected()
+
+
+def test_table_copy_keeps_spaces_inside_values():
+    assert rows_as_tsv([["Ausgabe"], ["a  b"]]) == "Ausgabe\na  b\n"
+    assert rows_as_tsv([["x\ty", "z"]]) == "x y\tz\n"
+
+
+def test_user_copy_reads_the_policy_of_the_installation(tmp_path, monkeypatch):
+    monkeypatch.setattr(policy, "_registry_value", lambda name: None)
+    own, installed = tmp_path / "benutzerkopie", tmp_path / "installiert"
+    own.mkdir()
+    installed.mkdir()
+    (installed / policy.POLICY_FILE_NAME).write_text("[Updates]\nDisabled=1\n", encoding="utf-8")
+    monkeypatch.setattr(policy, "program_directory", lambda: str(own))
+    monkeypatch.delenv(policy.INSTALLATION_ENV, raising=False)
+    assert not policy.updates_disabled()
+    monkeypatch.setenv(policy.INSTALLATION_ENV, str(installed))
+    assert policy.updates_disabled()
+
+
+def test_redirect_passes_the_installation_folder(monkeypatch, tmp_path):
+    from app import updater
+    started = []
+    monkeypatch.setattr(updater.resources, "is_frozen", lambda: True)
+    monkeypatch.setattr(updater, "user_updates_blocked", lambda: False)
+    monkeypatch.setattr(updater, "newer_user_program", lambda: ("9.9.9", str(tmp_path)))
+    monkeypatch.setattr(updater, "application_directory", lambda: "C:/Programme/PAP")
+    monkeypatch.setattr(updater.subprocess, "Popen", lambda *a, **k: started.append(k["env"]))
+    monkeypatch.delenv(updater.STARTED_FROM_UPDATE_ENV, raising=False)
+    assert updater.redirect_to_user_program([])
+    assert started[0][policy.INSTALLATION_ENV] == "C:/Programme/PAP"

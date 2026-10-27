@@ -94,6 +94,8 @@ def _only(scene, element_ids: set):
     hidden += [conn for conn in scene.connections()
                if conn.data.source_id not in element_ids or conn.data.target_id not in element_ids]
     hidden = [item for item in hidden if item.isVisible()]
+    # Qt hebt beim Ausblenden die Auswahl auf – sie gehört aber weiter dem Benutzer (z. B. für Strg+X)
+    selected = [item for item in hidden if item.isSelected()]
     for item in hidden:
         item.setVisible(False)
     try:
@@ -101,6 +103,8 @@ def _only(scene, element_ids: set):
     finally:
         for item in hidden:
             item.setVisible(True)
+        for item in selected:
+            item.setSelected(True)
 
 
 def render_image(scene, options: ExportOptions, element_ids=None) -> QImage:

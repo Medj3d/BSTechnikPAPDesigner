@@ -30,9 +30,12 @@ def test_ctrl_drag_of_unselected_item_is_undoable(view, scene, document, qapp):
     QTest.mouseMove(view.viewport(), start + QPoint(60, 80))
     QTest.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, ctrl, start + QPoint(60, 80))
     qapp.processEvents()
-    assert b.pos() != QPointF(300, 0)
+    # Strg+Ziehen kopiert (wie im PapDesigner): a (schon ausgewählt) und b – die Originale bleiben stehen
+    assert b.pos() == QPointF(300, 0) and a.pos() == QPointF(0, 0)
+    assert len(scene.elements()) == 4
     assert document.is_modified
     document.undo_stack.undo()
+    assert len(scene.elements()) == 2
     assert b.pos() == QPointF(300, 0)
     assert a.pos() == QPointF(0, 0)
 

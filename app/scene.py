@@ -16,7 +16,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QGuiApplication, QUndoStack
 from PySide6.QtWidgets import QGraphicsScene
 
-from app import config, styles
+from app import config, labels, styles
 from app.commands import (AddConnectionCommand, AddElementsCommand, DeleteCommand,
                           EditLabelCommand, EditTextCommand, MoveItemsCommand,
                           SetElementPropertyCommand, SetRoutingCommand, ZOrderCommand)
@@ -37,7 +37,8 @@ from app.model import rules
 from app.model.diagram import ConnectionData, DiagramSettings, ElementData, new_id
 from app.model.element_types import (LOOP_BEGIN, LOOP_END, LOOP_PART_KEY, PORT_BOTTOM, PORT_LEFT,
                                      PORT_RIGHT, PORT_TOP, TRUNK_IN_KEY, TRUNK_OUT_KEY, ElementType,
-                                     default_text_for, display_name_for, is_default_text, spec_for)
+                                     default_properties_for, default_text_for, display_name_for,
+                                     is_default_text, spec_for)
 
 # Bausteine, die in eine bestehende Verbindung eingefügt werden können
 INSERTABLE_TYPES = {
@@ -85,6 +86,8 @@ class DiagramScene(QGraphicsScene):
         self._pending_routes: dict[str, ConnectionItem] = {}
         self._drag_move_active = False
         self._move_start: dict[str, tuple] = {}
+        # Strg beim Ziehen: kopieren statt verschieben (wie im PapDesigner)
+        self._drag_copy = False
         self._connect_drag: dict | None = None
         self._temp_connection: TempConnectionItem | None = None
         self._ghost: GhostItem | None = None
@@ -1512,10 +1515,76 @@ class DiagramScene(QGraphicsScene):
             conn.label.set_text(conn.data.label)
             text = text.strip()
             if commit and text != state["original"] and conn.scene() is self:
-                self.undo_stack.push(EditLabelCommand(self, conn.connection_id, state["original"], text))
+                self._commit_label(conn, state["original"], text)
         self.editing_changed.emit(False)
         for view in self.views():
             view.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _commit_label(self, conn: ConnectionItem, original: str, text: str) -> None:
+        """Neue Beschriftung einer Verbindung. Wie im PapDesigner bekommt der andere Ausgang einer Verzweigung mit
+        zwei Ausgängen das Gegenwort („ja“ → „nein“), wenn er leer ist oder dasselbe sagen würde."""
+        other = None
+        opposite = labels.opposite_label(text)
+        if opposite is not None and conn.source.element_type is ElementType.DECISION:
+            outs = [c for c in conn.source.connections if c.source is conn.source and not c.is_annotation]
+            if len(outs) == 2:
+                candidate = outs[1] if outs[0] is conn else outs[0]
+                current = candidate.data.label
+                same = ((labels.is_yes(current) and labels.is_yes(text))
+                        or (labels.is_no(current) and labels.is_no(text)))
+                if not current.strip() or same:
+                    other = candidate
+        if other is None:
+            self.undo_stack.push(EditLabelCommand(self, conn.connection_id, original, text))
+            return
+        self.undo_stack.beginMacro(tr("Beschriftung ändern"))
+        self.undo_stack.push(EditLabelCommand(self, conn.connection_id, original, text))
+        self.undo_stack.push(EditLabelCommand(self, other.connection_id, other.data.label, opposite))
+        self.undo_stack.endMacro()
+
+    def change_element_type(self, item: FlowItem, element_type: ElementType) -> bool:
+        """Wandelt einen Baustein in einen anderen Typ um (wie im PapDesigner): Text, Position und Verbindungen
+        bleiben, Anschlüsse, die der neue Typ nicht hat, werden umgehängt. Ein Rückgängig-Schritt."""
+        element_type = ElementType(element_type)
+        if item.scene() is not self or item.element_type is element_type or item.is_junction or item.is_comment:
+            return False
+        self.prepare_for_command()
+        data = item.data.copy()
+        old_type = item.element_type
+        data.type = element_type
+        data.properties = default_properties_for(element_type)
+        if not data.text.strip() or is_default_text(data.text, old_type, item.data.properties):
+            data.text = default_text_for(element_type, data.properties)
+        spec = spec_for(element_type)
+        data.width, data.height = float(spec.default_width), float(spec.default_height)
+        connections, paths = [], {}
+        for conn in item.connections:
+            copy = conn.data.copy()
+            copy.path = None
+            ports = (copy.source_port, copy.target_port)
+            if copy.source_id == item.element_id and copy.source_port not in spec.ports:
+                copy.source_port = next(p for p in (PORT_BOTTOM, PORT_RIGHT, PORT_LEFT, PORT_TOP) if p in spec.ports)
+            if copy.target_id == item.element_id and copy.target_port not in spec.ports:
+                choices = [p for p in (PORT_TOP, PORT_LEFT, PORT_RIGHT, PORT_BOTTOM) if p in spec.ports]
+                if copy.source_id == copy.target_id:
+                    # Verbindung mit sich selbst: Anfang und Ende brauchen verschiedene Anschlüsse
+                    choices = [p for p in choices if p != copy.source_port] or choices
+                copy.target_port = choices[0]
+            if copy.source_id == copy.target_id and copy.source_port == copy.target_port:
+                return False  # ließe sich nur als Verbindung ohne Länge übernehmen – dann nicht umwandeln
+            if (copy.source_port, copy.target_port) == ports:
+                paths[copy.id] = conn.points()  # gleiche Anschlüsse: der Linienverlauf bleibt
+            connections.append(copy)
+        name = display_name_for(element_type)
+        self.undo_stack.beginMacro(tr("In {name} umwandeln", name=name))
+        self.undo_stack.push(DeleteCommand(self, [item.element_id], [], text=tr("In {name} umwandeln", name=name)))
+        self.undo_stack.push(AddElementsCommand(self, [data], connections, text=tr("In {name} umwandeln", name=name)))
+        self.undo_stack.endMacro()
+        for connection_id, points in paths.items():
+            conn = self.connection(connection_id)
+            if conn is not None and points:
+                conn.adopt_path(points)
+        return True
 
     def commit_edit(self) -> None:
         if self._editor is not None:
@@ -1557,6 +1626,11 @@ class DiagramScene(QGraphicsScene):
     def _track_item_drag(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton and isinstance(self.mouseGrabberItem(), FlowItem):
             self._drag_move_active = True
+            self._drag_copy = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+            grabber = self.mouseGrabberItem()
+            if self._drag_copy and not grabber.isSelected():
+                # Strg+Klick hat den Baustein eben abgewählt – gezogen und kopiert wird er trotzdem
+                grabber.setSelected(True)
             self._move_start = {it.element_id: (it.pos().x(), it.pos().y()) for it in self.selected_elements()}
 
     def mouseMoveEvent(self, event) -> None:
@@ -1593,6 +1667,10 @@ class DiagramScene(QGraphicsScene):
             if abs(new[0] - old[0]) > 1e-6 or abs(new[1] - old[1]) > 1e-6:
                 moves[eid] = (old, new)
         self._move_start = {}
+        if moves and self._drag_copy:
+            self._drag_copy = False
+            self._copy_dragged(moves)
+            return
         if moves:
             count = len(moves)
             # Der Befehl führt beim Ablegen auch die Linien um alte und neue
@@ -1600,6 +1678,22 @@ class DiagramScene(QGraphicsScene):
             self.undo_stack.push(MoveItemsCommand(
                 self, moves,
                 text=tr("Verschieben") if count == 1 else tr("{count} Bausteine verschieben", count=count)))
+
+    def _copy_dragged(self, moves: dict) -> None:
+        """Strg+Ziehen: Die gezogenen Bausteine bleiben, wo sie waren; an der neuen Stelle entsteht eine Kopie
+        (mit den Verbindungen zwischen ihnen). Ein Rückgängig-Schritt."""
+        from app import clipboard
+
+        (old_x, old_y), (new_x, new_y) = next(iter(moves.values()))
+        with self.batch_routing():
+            for eid, (old, _new) in moves.items():
+                item = self.element(eid)
+                if item is not None:
+                    item.setPos(QPointF(*old))
+        payload = clipboard.selection_payload(self)
+        if payload is not None:
+            clipboard.paste_payload(self, payload, offset=QPointF(new_x - old_x, new_y - old_y),
+                                    text=tr("Kopieren (Strg+Ziehen)"))
 
     def _update_port_hover(self, pos: QPointF, modifiers=None) -> None:
         hit = self._port_hit(pos)

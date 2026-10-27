@@ -61,6 +61,8 @@ SHORTCUTS = [
     (N_("Maus"), ""),
     (N_("Linke Maustaste ziehen (frei)"), N_("Auswahlrechteck")),
     (N_("Strg+Klick"), N_("Mehrfachauswahl")),
+    (N_("Strg + Baustein ziehen"), N_("Kopieren statt verschieben (auch mehrere ausgewählte Bausteine)")),
+    (N_("Rechtsklick → Ändern in"), N_("Baustein in einen anderen Typ umwandeln (Text und Verbindungen bleiben)")),
     (N_("Anschlusspunkt ziehen"), N_("Verbindung erstellen (Ziel: Baustein, Verbindungspunkt oder Pfeil)")),
     (N_("Anschlusspunkt auf einen Pfeil ziehen"),
      N_("Verbindung an den Pfeil anschließen (Verbindungspunkt entsteht)")),

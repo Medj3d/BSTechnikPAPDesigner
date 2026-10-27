@@ -43,8 +43,15 @@ def table_rows(table: QTableWidget, selected_only: bool = False) -> list[list[st
 
 
 def rows_as_tsv(rows: list[list[str]]) -> str:
-    """Tabulatorgetrennt – so fügen Excel und Word die Zeilen als Tabelle ein."""
-    return "\n".join("\t".join(" ".join(cell.split()) for cell in row) for row in rows) + "\n"
+    """Tabulatorgetrennt – so fügen Excel und Word die Zeilen als Tabelle ein.
+
+    Nur Tabulatoren und Zeilenumbrüche in einer Zelle werden zu Leerzeichen (sonst zerfiele die Zeile);
+    mehrfache Leerzeichen in Werten und Ausgaben bleiben, wie sie sind.
+    """
+    def cell_text(cell: str) -> str:
+        return cell.replace("\r\n", " ").replace("\r", " ").replace("\n", " ").replace("\t", " ")
+
+    return "\n".join("\t".join(cell_text(cell) for cell in row) for row in rows) + "\n"
 
 
 class CopyableTable(QTableWidget):
@@ -280,9 +287,11 @@ class SimulationPanel(QWidget):
         self.program_combo.clear()
         if self._document is not None:
             # gleiche Reihenfolge wie die Analyse: Hauptprogramm zuerst
-            for node in self._document.flow_graph().starts():
-                self.program_combo.addItem(" ".join(node.text.split()) or default_text_for(ElementType.START),
-                                           node.id)
+            graph = self._document.flow_graph()
+            for node in graph.starts():
+                # Unterprogramme heißen wie ihre Seite (im PapDesigner beginnen sie oft mit einem Start „Start“)
+                label = " ".join(graph.flow_label(node.id).split())
+                self.program_combo.addItem(label or default_text_for(ElementType.START), node.id)
         index = self.program_combo.findData(current)
         self.program_combo.setCurrentIndex(max(0, index))
         self.program_combo.blockSignals(False)
