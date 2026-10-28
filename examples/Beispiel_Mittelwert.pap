@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="1" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.5.0">
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
   <PROJECT FORMAT="1.00" NAME="Beispiel_Mittelwert" AUTHOR="BS Technik" CREATED="2026.09.24 21:55:01" MODIFIED="2026.09.24 21:55:01" bst:DESCRIPTION="Beispiel: Mittelwert von n eingegebenen Werten mit Schleife und Verzweigung." bst:CREATED="2026-09-24T21:55:01+02:00" bst:MODIFIED="2026-09-24T21:55:01+02:00">
     <DIAGRAMS>
       <DIAGRAM FORMAT="1.00" ID="0" NAME="Beispiel_Mittelwert" CREATED="2026.09.24 21:55:01" MODIFIED="2026.09.24 21:55:01">
@@ -76,22 +76,33 @@
 von n eingegebenen Werten]]></TEXT>
               </FIGURE>
             </ENTRY>
+            <ENTRY COLUMN="1" ROW="8" bst:X="280" bst:Y="760" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="14" bst:UID="789e8cf5c39a433ab31464bae0a538ed.14">
+                <TEXT></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="11" bst:X="280" bst:Y="1140" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="15" bst:UID="7437a1b4e087491086b109e3d155ec66.15">
+                <TEXT></TEXT>
+              </FIGURE>
+            </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS>
-          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="6" TEXT="" bst:UID="b931c354943c4b7e9f4167afcc112910" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,390" />
-          <CONNECTION FORMAT="1.00" ID="15" FROM="6" TO="7" TEXT="" bst:UID="9822b6133c6f4641a43cd1d402f00dfb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,450 0,490" />
-          <CONNECTION FORMAT="1.00" ID="16" FROM="7" TO="5" TEXT="" bst:UID="bd221dc8a4fb477d924198b029332ec9" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,550 0,590" />
-          <CONNECTION FORMAT="1.00" ID="17" FROM="1" TO="2" TEXT="" bst:UID="d6e654f1e8a74affa6518e9458d59ab6" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
-          <CONNECTION FORMAT="1.00" ID="18" FROM="2" TO="3" TEXT="" bst:UID="32ba32dc8452439fbdc6066a951ae1bf" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,170" />
-          <CONNECTION FORMAT="1.00" ID="19" FROM="3" TO="4" TEXT="" bst:UID="eeb827c83734403a9cd9ae032b9b045a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,230 0,270" />
-          <CONNECTION FORMAT="1.00" ID="20" FROM="5" TO="8" TEXT="" bst:UID="e7f63250d0c64ab9bc45bd3beaa248a6" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,650 0,700" />
-          <CONNECTION FORMAT="1.00" ID="21" FROM="8" TO="9" TEXT="ja" bst:UID="78fbade7e8f643189936532f8021ea5d" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,820 0,890" />
-          <CONNECTION FORMAT="1.00" ID="22" FROM="8" TO="11" TEXT="nein" bst:UID="789e8cf5c39a433ab31464bae0a538ed" bst:SOURCE_PORT="right" bst:TARGET_PORT="top" bst:PATH="80,760 280,760 280,890" />
-          <CONNECTION FORMAT="1.00" ID="23" FROM="9" TO="10" TEXT="" bst:UID="0ff5f4e4557b436f8db83cac4bd89878" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,950 0,990" />
-          <CONNECTION FORMAT="1.00" ID="24" FROM="10" TO="12" TEXT="" bst:UID="2b93fe588adb40478b4e477b2871967e" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,1050 0,1120" />
-          <CONNECTION FORMAT="1.00" ID="25" FROM="11" TO="12" TEXT="" bst:UID="7437a1b4e087491086b109e3d155ec66" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="right" bst:PATH="280,950 280,1140 60,1140" />
-          <CONNECTION FORMAT="1.00" ID="26" FROM="13" TO="1" TEXT="" bst:UID="38df381ee4c04af3b4119ffb0f424afe" bst:SOURCE_PORT="left" bst:TARGET_PORT="right" bst:PATH="200,0 60,0" />
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 12, &quot;attributes&quot;: {&quot;FROM&quot;: 13, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;38df381ee4c04af3b4119ffb0f424afe&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;left&quot;, &quot;bst:TARGET_PORT&quot;: &quot;right&quot;, &quot;bst:PATH&quot;: &quot;200,0 60,0&quot;}}]">
+          <CONNECTION FORMAT="1.00" ID="16" FROM="4" TO="6" TEXT="" bst:UID="b931c354943c4b7e9f4167afcc112910" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,390" />
+          <CONNECTION FORMAT="1.00" ID="17" FROM="6" TO="7" TEXT="" bst:UID="9822b6133c6f4641a43cd1d402f00dfb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,450 0,490" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="7" TO="5" TEXT="" bst:UID="bd221dc8a4fb477d924198b029332ec9" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,550 0,590" />
+          <CONNECTION FORMAT="1.00" ID="19" FROM="1" TO="2" TEXT="" bst:UID="d6e654f1e8a74affa6518e9458d59ab6" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
+          <CONNECTION FORMAT="1.00" ID="20" FROM="2" TO="3" TEXT="" bst:UID="32ba32dc8452439fbdc6066a951ae1bf" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,170" />
+          <CONNECTION FORMAT="1.00" ID="21" FROM="3" TO="4" TEXT="" bst:UID="eeb827c83734403a9cd9ae032b9b045a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,230 0,270" />
+          <CONNECTION FORMAT="1.00" ID="22" FROM="5" TO="8" TEXT="" bst:UID="e7f63250d0c64ab9bc45bd3beaa248a6" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,650 0,700" />
+          <CONNECTION FORMAT="1.00" ID="23" FROM="8" TO="9" TEXT="ja" bst:UID="78fbade7e8f643189936532f8021ea5d" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,820 0,890" />
+          <CONNECTION FORMAT="1.00" ID="24" FROM="8" TO="14" TEXT="nein" bst:UID="789e8cf5c39a433ab31464bae0a538ed" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" bst:TO="11" bst:FULL_PATH="80,760 280,760 280,890" bst:FULL_TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="25" FROM="14" TO="11" TEXT="" bst:UID="789e8cf5c39a433ab31464bae0a538ed.25" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:CORNER="True" />
+          <CONNECTION FORMAT="1.00" ID="26" FROM="9" TO="10" TEXT="" bst:UID="0ff5f4e4557b436f8db83cac4bd89878" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,950 0,990" />
+          <CONNECTION FORMAT="1.00" ID="27" FROM="10" TO="12" TEXT="" bst:UID="2b93fe588adb40478b4e477b2871967e" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,1050 0,1120" />
+          <CONNECTION FORMAT="1.00" ID="28" FROM="11" TO="15" TEXT="" bst:UID="7437a1b4e087491086b109e3d155ec66" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:TO="12" bst:FULL_PATH="280,950 280,1140 60,1140" bst:FULL_TARGET_PORT="right" />
+          <CONNECTION FORMAT="1.00" ID="29" FROM="15" TO="12" TEXT="" bst:UID="7437a1b4e087491086b109e3d155ec66.29" bst:SOURCE_PORT="left" bst:TARGET_PORT="right" bst:CORNER="True" />
         </CONNECTIONS>
       </DIAGRAM>
     </DIAGRAMS>

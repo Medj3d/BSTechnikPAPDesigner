@@ -341,7 +341,8 @@ def test_subprogram_pages_are_saved_as_own_diagrams(tmp_path):
     path = str(tmp_path / "plan.pap")
     save_diagram(diagram, path)
     root = ET.parse(path).getroot()
-    assert root.get(f"{BST}VERSION") == str(CURRENT_FORMAT_VERSION) == "2"
+    # Unterprogramme ohne Kommentarlinien: Version 2 (lesbar ab Programmversion 1.8.0)
+    assert root.get(f"{BST}VERSION") == "2" and CURRENT_FORMAT_VERSION >= 2
     diagrams = root.findall("./PROJECT/DIAGRAMS/DIAGRAM")
     assert [d.get("NAME") for d in diagrams][1:] == ["Verdoppeln"]
     # wie im PapDesigner zählen die Nummern in jedem Diagramm neu ab 0 (Titel) und sind darin eindeutig

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="2" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
-  <PROJECT FORMAT="1.00" NAME="Lernbeispiel 5 – Programmierung" AUTHOR="BS Technik" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48" bst:DESCRIPTION="Primzahlen bis n – mit Unterprogramm, Schleifen und Verzweigung, bereit für die Code-Erzeugung." bst:CREATED="2026-10-28T02:55:48+01:00" bst:MODIFIED="2026-10-28T02:55:48+01:00">
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+  <PROJECT FORMAT="1.00" NAME="Lernbeispiel 5 – Programmierung" AUTHOR="BS Technik" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51" bst:DESCRIPTION="Primzahlen bis n – mit Unterprogramm, Schleifen und Verzweigung, bereit für die Code-Erzeugung." bst:CREATED="2026-10-28T07:52:51+01:00" bst:MODIFIED="2026-10-28T07:52:51+01:00">
     <DIAGRAMS>
-      <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 5 – Programmierung" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48">
+      <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 5 – Programmierung" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51">
         <LAYOUT FORMAT="1.00" COLUMNS="3" ROWS="12" bst:GRID_SIZE="20" bst:GRID_VISIBLE="True" bst:SNAP_TO_GRID="True" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="0">
           <ENTRIES>
             <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
@@ -11,99 +11,109 @@
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
-              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="4fd707a30fed44adb43a1591bba240e1">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="c72804c3f0cd4600809cb748119dc1b1">
                 <TEXT><![CDATA[Start]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2" bst:UID="217da586f3334b83b94c22d468670174">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2" bst:UID="bbac60d15a1641879dafd9daef838895">
                 <TEXT><![CDATA[Obergrenze n einlesen]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="3" bst:UID="b5e4d49ceec14cf9913d7e1f0d1f281c">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="3" bst:UID="a35db6382d194dd19bc5c6d751ff92d9">
                 <TEXT><![CDATA[z = 2]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="4" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="4" ASSOCIATE="10" bst:UID="17a21c8ecb624edd84f32077ae9b69c3">
+              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="4" ASSOCIATE="10" bst:UID="7caa1d223e4e47449d639e6b7fede58d">
                 <TEXT><![CDATA[solange z <= n]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="400" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapModule" FORMAT="1.00" ID="5" bst:UID="87f414958aaa4b42b1a3ff8dd4c5a136">
+              <FIGURE SUBTYPE="PapModule" FORMAT="1.00" ID="5" bst:UID="9d91af09493e4751aeb5c1f681c11b1c">
                 <TEXT><![CDATA[prüfePrim]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="6" bst:X="0" bst:Y="530" bst:WIDTH="160" bst:HEIGHT="120">
-              <FIGURE SUBTYPE="PapCondition" FORMAT="1.00" ID="6" bst:UID="03a5ffd99bfa4d85a1c8f65c53fc0286">
+              <FIGURE SUBTYPE="PapCondition" FORMAT="1.00" ID="6" bst:UID="6d6f705db6d74ca7ae5a42ccf068ff36">
                 <TEXT><![CDATA[prim ?]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="670" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="7" bst:UID="64ee4b6d92e1448d9d0e7b3a5ffb67b6">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="7" bst:UID="e4b0e76e39fe4d7dbc8d3b30a3a388f2">
                 <TEXT><![CDATA[z ausgeben]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="8" bst:X="0" bst:Y="760" bst:WIDTH="12" bst:HEIGHT="12">
-              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="8" bst:UID="95bffe9193074738b8bf7487bf7c285b">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="8" bst:UID="a6c66a7f49114ba18bdb8e1ad8ee29be">
                 <TEXT><![CDATA[]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="9" bst:X="0" bst:Y="840" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="9" bst:UID="93513580e98f43d889cc20008675ffef">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="9" bst:UID="22a87ee7346144d4aa82efa809c9926a">
                 <TEXT><![CDATA[z = z + 1]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="10" bst:X="0" bst:Y="940" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="10" ASSOCIATE="4" bst:UID="1c0bd9dd59354631b8b61fd2f63cad7b">
+              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="10" ASSOCIATE="4" bst:UID="0ac2afab8dfb471cbc6f8fb1244df4ee">
                 <TEXT><![CDATA[Schleifenende]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="11" bst:X="0" bst:Y="1040" bst:WIDTH="120" bst:HEIGHT="40">
-              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="11" bst:UID="866216a7c472401ba762900378ea30bb">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="11" bst:UID="6b29343c3227429da025cb6a27289171">
                 <TEXT><![CDATA[Ende]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="2" bst:X="-390" bst:Y="100" bst:WIDTH="300" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="12" bst:UID="1b92d77549f8469ea84c90cf7569021e">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="12" bst:UID="525f90f1c542424a9b27d2bd4afc86e1">
                 <TEXT><![CDATA[Gibt alle Primzahlen von 2 bis n aus.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="6" bst:X="-390" bst:Y="530" bst:WIDTH="300" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="df1a3d2aa6db443fbbdc71b6861b252a">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="8664643e262a4438b67cf440a5ca08a4">
                 <TEXT><![CDATA[„prim“ ist wahr oder falsch –
 gesetzt im Unterprogramm.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="100">
-              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="14" bst:UID="db5926df64494b09848695de8d0cd59d">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="14" bst:UID="f90576cc1b914163bbab20026cb7536a">
                 <TEXT><![CDATA[Extras → Code erzeugen macht aus dem
 Plan Pseudocode, Python oder Java;
 Extras → Struktogramm zeigt ihn als
 Nassi-Shneiderman-Diagramm.]]></TEXT>
               </FIGURE>
             </ENTRY>
+            <ENTRY COLUMN="2" ROW="6" bst:X="364" bst:Y="530" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="15" bst:UID="5b6a67888d904341bc2f65127018bc43.15">
+                <TEXT></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="2" ROW="8" bst:X="364" bst:Y="760" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="16" bst:UID="5b6a67888d904341bc2f65127018bc43.16">
+                <TEXT></TEXT>
+              </FIGURE>
+            </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS>
-          <CONNECTION FORMAT="1.00" ID="15" FROM="1" TO="2" TEXT="" bst:UID="df16ba14f7a048b0bcbf834e278ff266" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="16" FROM="2" TO="3" TEXT="" bst:UID="e3441a04207e410d9257bc116387b3bb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="17" FROM="3" TO="4" TEXT="" bst:UID="8b16d2a6a7524fd989db04b7d1cde8a5" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="18" FROM="4" TO="5" TEXT="" bst:UID="61f23408992c4937a29902b509242efd" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="19" FROM="5" TO="6" TEXT="" bst:UID="0c09dbc1697f46979d4982220a78cc52" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="20" FROM="6" TO="7" TEXT="ja" bst:UID="684755687f0a4669beebcd7a98cb9ad6" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="21" FROM="6" TO="8" TEXT="nein" bst:UID="774047f6650f4f488ddf249681c83e7f" bst:SOURCE_PORT="right" bst:TARGET_PORT="right" />
-          <CONNECTION FORMAT="1.00" ID="22" FROM="7" TO="8" TEXT="" bst:UID="8d824be6e1234989928ea002f5a76478" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="23" FROM="8" TO="9" TEXT="" bst:UID="e6a2f99878d04a988678b5a164a689ae" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="24" FROM="9" TO="10" TEXT="" bst:UID="7c9115876ee44691ba0377b7869d2a5d" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="25" FROM="10" TO="11" TEXT="" bst:UID="5eec4c2feb834f1b8e0ca1a5a771585a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="26" FROM="12" TO="1" TEXT="" bst:UID="4a39e1da12294ce6ab6f10bde3ab3d63" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
-          <CONNECTION FORMAT="1.00" ID="27" FROM="13" TO="6" TEXT="" bst:UID="94aa152a336840ab83d1f48ecbaddfb4" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 11, &quot;attributes&quot;: {&quot;FROM&quot;: 12, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;1a84f723411a4e439b798a18a1c6f65a&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 12, &quot;attributes&quot;: {&quot;FROM&quot;: 13, &quot;TO&quot;: 6, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;1af570de700245eeb1e80a3a595e9fb8&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}]">
+          <CONNECTION FORMAT="1.00" ID="17" FROM="1" TO="2" TEXT="" bst:UID="f9cf42dba3ce471f8d47545d03e6c762" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="2" TO="3" TEXT="" bst:UID="39e20567bcdf49df8fe64966853146fc" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="19" FROM="3" TO="4" TEXT="" bst:UID="2895041854cc411f81ec0568868fb5dc" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="20" FROM="4" TO="5" TEXT="" bst:UID="0e03c2435c2f4b54915ce134669331a4" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="21" FROM="5" TO="6" TEXT="" bst:UID="a2726b04ab074357a9a6e3eb397a346e" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="22" FROM="6" TO="7" TEXT="ja" bst:UID="8dda5f59fb6540b98df2779d1b8efddd" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="23" FROM="6" TO="15" TEXT="nein" bst:UID="5b6a67888d904341bc2f65127018bc43" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" bst:TO="8" bst:FULL_TARGET_PORT="right" />
+          <CONNECTION FORMAT="1.00" ID="24" FROM="15" TO="16" TEXT="" bst:UID="5b6a67888d904341bc2f65127018bc43.24" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:CORNER="True" />
+          <CONNECTION FORMAT="1.00" ID="25" FROM="16" TO="8" TEXT="" bst:UID="5b6a67888d904341bc2f65127018bc43.25" bst:SOURCE_PORT="left" bst:TARGET_PORT="right" bst:CORNER="True" />
+          <CONNECTION FORMAT="1.00" ID="26" FROM="7" TO="8" TEXT="" bst:UID="7b99fe19f351470fa785b33e1292dc18" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="27" FROM="8" TO="9" TEXT="" bst:UID="3869c32ee62942689ae92bfc617730a5" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="28" FROM="9" TO="10" TEXT="" bst:UID="5885a748cd3a4dd4b1c7d5ca1f3f1674" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="29" FROM="10" TO="11" TEXT="" bst:UID="c3f6bdde8d2a49ec85239e48f59efe45" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
         </CONNECTIONS>
       </DIAGRAM>
-      <DIAGRAM FORMAT="1.00" ID="1" NAME="prüfePrim" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48">
-        <LAYOUT FORMAT="1.00" COLUMNS="2" ROWS="10" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="420">
+      <DIAGRAM FORMAT="1.00" ID="1" NAME="prüfePrim" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51">
+        <LAYOUT FORMAT="1.00" COLUMNS="3" ROWS="10" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="420">
           <ENTRIES>
             <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
               <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
@@ -111,70 +121,81 @@ Nassi-Shneiderman-Diagramm.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
-              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="5752f5efaef144fe879afa48b63e7aab">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="b1157fec196440cdb0c56d6f26631cc5">
                 <TEXT><![CDATA[prüfePrim]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="2" bst:UID="bec5378cea9848e5909aab826e520bd5">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="2" bst:UID="96c46a3ef01f4634bc7415be6e559443">
                 <TEXT><![CDATA[prim = wahr
 t = 2]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="3" ASSOCIATE="8" bst:UID="4c6529316cad40c78ac7c6c35698c817">
+              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="3" ASSOCIATE="8" bst:UID="604e54aca33947beb6e2e815302a091d">
                 <TEXT><![CDATA[solange t * t <= z und prim]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="4" bst:X="0" bst:Y="330" bst:WIDTH="160" bst:HEIGHT="120">
-              <FIGURE SUBTYPE="PapCondition" FORMAT="1.00" ID="4" bst:UID="2d4e2115460449a7a5765e1d85086fa7">
+              <FIGURE SUBTYPE="PapCondition" FORMAT="1.00" ID="4" bst:UID="191eeb4522d34ce486a3e9162924a84c">
                 <TEXT><![CDATA[z mod t = 0 ?]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="470" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="5" bst:UID="2887297e7aa7406a93d9bc470fac27bb">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="5" bst:UID="5065debbc046477fba9b3dd6d5dc3543">
                 <TEXT><![CDATA[prim = falsch]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="6" bst:X="0" bst:Y="560" bst:WIDTH="12" bst:HEIGHT="12">
-              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="6" bst:UID="732bae05bb2b4abbbf0e71e45fd710be">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="6" bst:UID="748602a2c3254415a94d6f0dd6290687">
                 <TEXT><![CDATA[]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="640" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="7" bst:UID="261f568933e94e08a951b9e067bff154">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="7" bst:UID="8be541b23bfc4635ad67e25ba3cfe5d4">
                 <TEXT><![CDATA[t = t + 1]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="8" bst:X="0" bst:Y="740" bst:WIDTH="160" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="8" ASSOCIATE="3" bst:UID="1beabedf8e7b4eabbbe1796ecd896348">
+              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="8" ASSOCIATE="3" bst:UID="090323db4c41410ca809d31c1b1ccbb1">
                 <TEXT><![CDATA[Schleifenende]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="1" ROW="9" bst:X="0" bst:Y="840" bst:WIDTH="120" bst:HEIGHT="40">
-              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="9" bst:UID="d5a2a3ee00b449a69933b40aad508a01">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="9" bst:UID="b24b3886f7424a399d5fdccdfb9e29f4">
                 <TEXT><![CDATA[Ende]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="3" bst:X="-390" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="60">
-              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="1e19e108a3044d2e85814af234ea469c">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="f91f55cdbd5b4ae4a35c2eed408aa72d">
                 <TEXT><![CDATA[Teiler bis zur Wurzel von z prüfen;
 der erste Teiler beendet die Suche.]]></TEXT>
               </FIGURE>
             </ENTRY>
+            <ENTRY COLUMN="2" ROW="4" bst:X="240" bst:Y="330" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="11" bst:UID="b4fab75a3b9d4357ba9d0d6672e94651.11">
+                <TEXT></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="2" ROW="6" bst:X="240" bst:Y="560" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">
+              <FIGURE SUBTYPE="PapConnector" FORMAT="1.00" ID="12" bst:UID="b4fab75a3b9d4357ba9d0d6672e94651.12">
+                <TEXT></TEXT>
+              </FIGURE>
+            </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS>
-          <CONNECTION FORMAT="1.00" ID="11" FROM="1" TO="2" TEXT="" bst:UID="e2f235dfbbcf46bbadae8b932044f0d2" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="12" FROM="2" TO="3" TEXT="" bst:UID="db51f44b96ff498299d2cfc86f4fd7b3" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="13" FROM="3" TO="4" TEXT="" bst:UID="93736ca542b34a4d9d927064779466c4" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="5" TEXT="ja" bst:UID="f92903f3878e4705a0068957077715fc" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="15" FROM="4" TO="6" TEXT="nein" bst:UID="dd0b61ffe8784e35b9b46d0f821c4939" bst:SOURCE_PORT="right" bst:TARGET_PORT="right" />
-          <CONNECTION FORMAT="1.00" ID="16" FROM="5" TO="6" TEXT="" bst:UID="4e6aa6f562de4eb59199f2c5f9441cd7" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="17" FROM="6" TO="7" TEXT="" bst:UID="c9d8b2e5d2bf48bd81b26d92be91051c" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="18" FROM="7" TO="8" TEXT="" bst:UID="9c7dcb33f41c478993ba41cb255efe8f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="19" FROM="8" TO="9" TEXT="" bst:UID="48bf0700d16441269b6f4f095a932169" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="20" FROM="10" TO="3" TEXT="" bst:UID="33136c449ddd444f89fb69d0b48312c9" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 9, &quot;attributes&quot;: {&quot;FROM&quot;: 10, &quot;TO&quot;: 3, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;9ec0167a793c40d5964fb1e9ee44617c&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}]">
+          <CONNECTION FORMAT="1.00" ID="13" FROM="1" TO="2" TEXT="" bst:UID="6e007ac789544bce9dfe60d4cfd94be7" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="14" FROM="2" TO="3" TEXT="" bst:UID="75e0a303c37848318c20d0cbb0a1d0fc" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="15" FROM="3" TO="4" TEXT="" bst:UID="0d502ffdb05146d091e6b34e0eb6b397" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="16" FROM="4" TO="5" TEXT="ja" bst:UID="6edbc2a1cb4943e68d2bd3a0cba5de41" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="17" FROM="4" TO="11" TEXT="nein" bst:UID="b4fab75a3b9d4357ba9d0d6672e94651" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" bst:TO="6" bst:FULL_TARGET_PORT="right" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="11" TO="12" TEXT="" bst:UID="b4fab75a3b9d4357ba9d0d6672e94651.18" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:CORNER="True" />
+          <CONNECTION FORMAT="1.00" ID="19" FROM="12" TO="6" TEXT="" bst:UID="b4fab75a3b9d4357ba9d0d6672e94651.19" bst:SOURCE_PORT="left" bst:TARGET_PORT="right" bst:CORNER="True" />
+          <CONNECTION FORMAT="1.00" ID="20" FROM="5" TO="6" TEXT="" bst:UID="f8f1642022ab4afbbfc1c172c37ca4f3" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="21" FROM="6" TO="7" TEXT="" bst:UID="4bcc80ad56284ec29aac98ca25417385" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="22" FROM="7" TO="8" TEXT="" bst:UID="22ae81a1c008442da5cfcc03bf0707ea" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="23" FROM="8" TO="9" TEXT="" bst:UID="6217d812a2cd445b85db0a51419ee43c" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
         </CONNECTIONS>
       </DIAGRAM>
     </DIAGRAMS>

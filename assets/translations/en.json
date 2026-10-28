@@ -472,6 +472,7 @@
  "Die Datei ist beschädigt und kann nicht gelesen werden.": "The file is damaged and cannot be read.",
  "Die Datei ist kein Programmablaufplan im Format .pap.": "The file is not a program flowchart in .pap format.",
  "Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.": "An invalid grid size was set to the default value.",
+ "Ungültige Angaben zu Kommentarlinien wurden übersprungen.": "Invalid comment line data was skipped.",
  "Eine ungültige Größe wurde auf die Standardgröße gesetzt.": "An invalid size was set to the default size.",
  "Die Datei ist beschädigt oder inkompatibel.": "The file is damaged or incompatible.",
  "Das Projekt konnte nicht in das Dateiformat umgewandelt werden.": "The project could not be converted to the file format.",

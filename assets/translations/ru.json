@@ -422,6 +422,7 @@
  "Die Datei ist beschädigt und kann nicht gelesen werden.": "Файл повреждён и не может быть прочитан.",
  "Die Datei ist kein Programmablaufplan im Format .pap.": "Файл не является блок-схемой программы в формате .pap.",
  "Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.": "Недопустимый размер сетки заменён значением по умолчанию.",
+ "Ungültige Angaben zu Kommentarlinien wurden übersprungen.": "Недопустимые данные линий комментариев пропущены.",
  "Eine ungültige Größe wurde auf die Standardgröße gesetzt.": "Недопустимый размер заменён размером по умолчанию.",
  "Die Datei ist beschädigt oder inkompatibel.": "Файл повреждён или несовместим.",
  "Das Projekt konnte nicht in das Dateiformat umgewandelt werden.": "Не удалось преобразовать проект в формат файла.",

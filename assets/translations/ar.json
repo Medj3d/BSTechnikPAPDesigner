@@ -422,6 +422,7 @@
  "Die Datei ist beschädigt und kann nicht gelesen werden.": "الملف تالف ولا يمكن قراءته.",
  "Die Datei ist kein Programmablaufplan im Format .pap.": "الملف ليس مخططًا انسيابيًا بتنسيق .pap.",
  "Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.": "تم ضبط حجم شبكة غير صالح على القيمة الافتراضية.",
+ "Ungültige Angaben zu Kommentarlinien wurden übersprungen.": "تم تخطي بيانات غير صالحة لخطوط التعليقات.",
  "Eine ungültige Größe wurde auf die Standardgröße gesetzt.": "تم ضبط حجم غير صالح على الحجم الافتراضي.",
  "Die Datei ist beschädigt oder inkompatibel.": "الملف تالف أو غير متوافق.",
  "Das Projekt konnte nicht in das Dateiformat umgewandelt werden.": "تعذّر تحويل المشروع إلى تنسيق الملف.",

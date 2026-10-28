@@ -19,6 +19,11 @@ Versionen:
   Programmversionen würden deren Bausteine übereinanderlegen; sie lehnen eine
   solche Datei deshalb mit der Bitte um ein Update ab. Projekte ohne
   Unterprogramm-Seiten werden weiterhin als Version 1 geschrieben.
+* 3 – Kommentarlinien stehen nur noch in den Zusatzangaben (``bst:ANNOTATIONS``),
+  denn der PapDesigner kennt keine angehängten Kommentare und zeichnete sie als
+  Ablaufpfeil. Ältere Programmversionen sähen sie nicht und würden sie beim
+  Speichern verlieren; sie lehnen die Datei deshalb ab. Ohne Kommentarlinien
+  bleibt es bei Version 1 bzw. 2.
 
 Für eine zukünftige Version wird ``CURRENT_FORMAT_VERSION`` erhöht; der
 Leser in ``serializer.py`` behandelt ältere Versionen dann gezielt.
@@ -29,9 +34,11 @@ from __future__ import annotations
 from app import config
 from app.i18n import tr
 
-CURRENT_FORMAT_VERSION = 2
+CURRENT_FORMAT_VERSION = 3
 # Version für Projekte, die nur aus dem Hauptprogramm bestehen (lesbar auch für Programmversionen vor 1.8.0)
 SINGLE_PAGE_FORMAT_VERSION = 1
+# Version für Projekte mit Unterprogramm-Seiten, aber ohne Kommentarlinien (lesbar ab Programmversion 1.8.0)
+SUBPROGRAM_FORMAT_VERSION = 2
 
 # Namensraum der Zusatzangaben. Er ist Teil des Dateiformats und darf sich
 # nie ändern (auch nicht, wenn das Programm umbenannt wird).

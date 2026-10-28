@@ -220,6 +220,29 @@ UTF-8-kodiertes XML im Aufbau des PapDesigners:
   Unterprogramm-Seiten tragen `bst:VERSION="2"` – ältere Programmversionen
   bitten dann um ein Update, statt die Seiten übereinanderzulegen; Projekte
   ohne Unterprogramm-Seiten bleiben bei Version 1.
+* **Verträglich mit dem PapDesigner** (am Original 2.2.0.8 geprüft): Der
+  PapDesigner verbindet nur waagerecht oder senkrecht von Rasterzelle zu
+  Rasterzelle, jede Ecke ist ein eigener Verbindungspunkt; verlässt eine
+  Verbindung eine Verzweigung schräg oder nach oben, öffnet er die ganze Datei
+  nicht. Beim Speichern bekommt deshalb jede Verbindung, die nicht frei und
+  gerade in Richtung ihres Anschlusses läuft, **Eckpunkte** in freien Zellen
+  (`PapConnector` mit `bst:CORNER="True"`), so dass keine Strecke über einen
+  Baustein führt (nur wo ein Ziel ringsum zugebaut ist, läuft sie notfalls
+  darüber – das nimmt der PapDesigner an). Die erste Teilstrecke trägt die
+  Angaben der Verbindung, ihr eigentliches Ziel steht in `bst:TO`, Zielanschluss
+  und Linienverlauf in `bst:FULL_TARGET_PORT`, `bst:FULL_PATH` und
+  `bst:FULL_ROUTE_…`; die weiteren Teilstrecken sind mit `bst:CORNER`
+  markiert. Dieses Programm setzt sie beim Öffnen wieder zu einer Verbindung
+  zusammen; ältere Versionen lesen Eckpunkte als gewöhnliche Verbindungspunkte
+  (gleicher Ablauf, nichts geht verloren). Die Prüfsumme `CHECKSUM` wertet der
+  PapDesigner nicht aus.
+* **Kommentarlinien** kennt der PapDesigner nicht (in seinen Dateien ist kein
+  Kommentar verbunden; eine Linie wäre dort ein Ablaufpfeil). Sie stehen
+  deshalb nur in `bst:ANNOTATIONS` am `CONNECTIONS`-Element (JSON mit ihrer
+  Stelle in der Reihenfolge aller Verbindungen) – eigene XML-Elemente lehnt
+  der PapDesigner ab, Attribute übergeht er. Dateien mit Kommentarlinien tragen
+  `bst:VERSION="3"`: Ältere Programmversionen sähen die Linien nicht und
+  bitten deshalb um ein Update, statt sie beim Speichern zu verlieren.
 * Geöffnet werden ausschließlich Dateien mit der Endung `.pap` (Dialog,
   Befehlszeile, Hineinziehen, „Zuletzt geöffnet“); gespeichert wird immer als
   `.pap`.
@@ -356,6 +379,12 @@ jeder Plan ausgeben muss. Geprüft wird, dass jede Datei ohne Hinweise und
 Verluste geöffnet, genau so ausgeführt, gespeichert und wieder geöffnet wird
 und übersetzbaren Code ergibt. Die Lernbeispiele (`assets/examples`) erzeugt
 `python tools/make_examples.py`.
+
+Ist der PapDesigner installiert, prüft `python tools/papdesigner_gegenprobe.py
+--unser examples\*.pap` direkt im Original, ob er Dateien aus diesem Programm
+öffnet (`--unser` speichert sie vorher mit diesem Programm neu; ohne die Option
+werden die Dateien unverändert geprüft). Ein laufender PapDesigner wird dabei
+beendet; Tasten oder Klicks sendet das Werkzeug nicht.
 
 Die Tests laufen unter Windows mit der nativen Qt-Plattform (echte
 Schriftmetriken), öffnen dabei aber keine sichtbaren Fenster. Neben gezielten
@@ -509,6 +538,7 @@ dritte Zahl kleine Nachbesserungen.
 | 1.7 | 08.10.2026 | neun Sprachen (Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch); weitere Dateien öffnen sich als Reiter im laufenden Programm; Schullogo im Ladebildschirm vollständig und mittig |
 | 1.8 | 26.10.2026 | Unterprogramme auf eigenen Seiten (Hauptprogramm + Unterprogramme als Reiter, anlegen, öffnen per Strg+Doppelklick, umbenennen samt Aufrufen); Schreibtischtest springt ins Unterprogramm; PDF und Druck mit allen Seiten |
 | 1.9 | 27.10.2026 | Bild in die Zwischenablage (Strg+C bzw. „Als Bild kopieren“, auch Struktogramm); Schreibtischtest mit Schritt zurück, automatischem Abspielen und Spalten Bedingung/Ausgabe, Tabelle kopieren und als CSV speichern; Updates zentral abschaltbar (Setup /NOUPDATES, Richtlinie, policy.ini) und für sich selbst beim Start; Link zu medjed.net im Über-Dialog; PapDesigner-Kompatibilität mit echten Dateien geprüft: Unterprogramme heißen wie ihr Diagramm (auch mit Start „Start“ und Namen wie „bool isLeapYear(int year)“), Aufrufe mit Zuweisung und Argumenten werden zugeordnet, Nummerierung je Diagramm wie im Original, Kopieren per Strg+Ziehen, Baustein umwandeln, Gegenwort ja/nein, Unterprogramm-Auswahl „Ruft auf“ |
+| 1.10.1 | 28.10.2026 | Gegenprobe im Original-PapDesigner: Dateien aus diesem Programm öffnen sich jetzt dort – Verbindungen werden rechtwinklig mit Eckpunkten gespeichert (das Original lehnte Dateien mit schräg abgehenden Verzweigungen ab), Kommentarlinien stehen nur noch in den Zusatzangaben; die Verbindung eines Bausteins mit sich selbst bleibt auch im Original erhalten; erzeugte Testpläne sind wie Originaldateien aufgebaut. Geprüft mit allen 44 echten PapDesigner-Dateien, den Lernbeispielen und 60 komplexen Plänen direkt im Original |
 | 1.10 | 28.10.2026 | alle Bau-Funktionen des PapDesigners: Schleife mit Kopf- bzw. Fußbedingung, Verbindungspunkt auf einer Verbindung, Sonderzeichen, Strg+Enter, bedingter Trennstrich „~“; Seiten duplizieren, kopieren, ausschneiden, einfügen (auch zwischen Projekten) und verschieben (auch per Ziehen), „Aufgerufen von“, Auswahl in Unterprogramm auslagern, Zurück/Vorwärts zwischen Seiten; Präsentationsansicht (F11), Sicherungskopie `.pap-backup`, Standard-Autor, fünf Lernbeispiele; „Ausgabe von "Text" x“ gibt wie im PapDesigner auch den Wert aus; geprüft mit Hunderten erzeugter komplexer Pläne im Format des PapDesigners |
 
 ---

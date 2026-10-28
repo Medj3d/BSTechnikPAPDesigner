@@ -422,6 +422,7 @@
  "Die Datei ist beschädigt und kann nicht gelesen werden.": "O arquivo está danificado e não pode ser lido.",
  "Die Datei ist kein Programmablaufplan im Format .pap.": "O arquivo não é um fluxograma no formato .pap.",
  "Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.": "Um tamanho de grade inválido foi redefinido para o valor padrão.",
+ "Ungültige Angaben zu Kommentarlinien wurden übersprungen.": "Dados inválidos de linhas de comentário foram ignorados.",
  "Eine ungültige Größe wurde auf die Standardgröße gesetzt.": "Um tamanho inválido foi redefinido para o tamanho padrão.",
  "Die Datei ist beschädigt oder inkompatibel.": "O arquivo está danificado ou é incompatível.",
  "Das Projekt konnte nicht in das Dateiformat umgewandelt werden.": "Não foi possível converter o projeto para o formato de arquivo.",

@@ -58,6 +58,7 @@ bestehende Datei bei einem Fehler nicht beschädigt wird.
 
 from __future__ import annotations
 
+import heapq
 import json
 import math
 import os
@@ -71,7 +72,8 @@ from app import config
 from app.fileformat.project import (CURRENT_FORMAT_VERSION, EXTENSION_NAMESPACE, EXTENSION_PREFIX,
                                     PAP_APP_VERSION, PAP_CHECKSUM, PAP_ELEMENT_FORMAT,
                                     PAP_FRAME_FORMAT, PAP_FRAME_GUID, PAP_TIME_FORMAT,
-                                    SINGLE_PAGE_FORMAT_VERSION, ProjectFileError, check_version)
+                                    SINGLE_PAGE_FORMAT_VERSION, SUBPROGRAM_FORMAT_VERSION, ProjectFileError,
+                                    check_version)
 from app.i18n import tr
 from app.model.diagram import (ConnectionData, Diagram, DiagramSettings, ElementData,
                                ProjectMeta, SubprogramPage, new_id, now_iso)
@@ -297,6 +299,234 @@ def _grid_cells(elements: list[ElementData]) -> list[tuple[int, int]]:
     return cells
 
 
+# Richtung eines Anschlusses im Raster des PapDesigners: (Spalte, Zeile)
+_PORT_DIRECTIONS = {"bottom": (0, 1), "right": (1, 0), "left": (-1, 0), "top": (0, -1)}
+
+
+def _leaving_port(a: tuple[int, int], b: tuple[int, int]) -> str:
+    """Anschluss, über den eine gerade Strecke von Zelle ``a`` nach ``b`` ``a`` verlässt."""
+    if b[0] != a[0]:
+        return "right" if b[0] > a[0] else "left"
+    return "bottom" if b[1] > a[1] else "top"
+
+
+def _arriving_port(a: tuple[int, int], b: tuple[int, int]) -> str:
+    """Anschluss, über den eine gerade Strecke von ``a`` nach ``b`` in ``b`` ankommt."""
+    return {"right": "left", "left": "right", "bottom": "top", "top": "bottom"}[_leaving_port(a, b)]
+
+
+@dataclass
+class _Corner:
+    """Ein Eckpunkt, den nur der PapDesigner sieht: ein ``PapConnector`` in einer freien Rasterzelle."""
+    cell: tuple[int, int]
+    owner: str                  # Verbindung, für die er angelegt wurde (seine ID leitet sich davon ab)
+    leads_to: str | None        # Ziel, zu dem er direkt weiterführt – dann dürfen weitere Pfeile hinein
+    x: float = 0.0              # Lage für ältere Versionen dieses Programms (dort ein Verbindungspunkt)
+    y: float = 0.0
+    number: int = 0
+
+
+def _pap_routes(elements: list[ElementData], cells: list[tuple[int, int]],
+                connections: list[ConnectionData]) -> tuple[dict[str, list[_Corner]], list[_Corner]]:
+    """Rechtwinklige Wege für den PapDesigner.
+
+    Der PapDesigner zeichnet Verbindungen nur waagerecht oder senkrecht von Zelle zu Zelle; jede Ecke ist
+    ein eigener Verbindungspunkt. Läuft der Ausgang einer Verzweigung schräg oder nach oben, öffnet er die
+    ganze Datei nicht; andere schräge Linien zeichnet er schief und ohne Pfeil. Deshalb bekommt jede
+    Verbindung, die nicht frei und gerade in Richtung ihres Anschlusses läuft, Eckpunkte in freien Zellen –
+    so, dass keine Strecke über einen anderen Baustein führt. Pfeile zum selben Ziel teilen sich einen
+    Eckpunkt, wo es passt (wie eine Zusammenführung im PapDesigner).
+
+    Gibt je Verbindung ihre Eckpunkte (leer = gerade) und alle Eckpunkte in der Reihenfolge des Anlegens zurück.
+    """
+    cell_of = {element.id: cell for element, cell in zip(elements, cells)}
+    point_of = {element.id: (_finite(element.x), _finite(element.y)) for element in elements}
+    decisions = {element.id for element in elements if ElementType(element.type) is ElementType.DECISION}
+    column_x = _axis_positions({c: _finite(e.x) for e, (c, _r) in zip(elements, cells)}, COLUMN_WIDTH)
+    row_y = _axis_positions({r: _finite(e.y) for e, (_c, r) in zip(elements, cells)}, ROW_HEIGHT)
+    taken = set(cells) | {(0, 0)}
+    corners: dict[tuple[int, int], _Corner] = {}
+    lines: set[tuple[int, int]] = set()  # Zellen, über die schon eine Linie läuft: dort kein neuer Eckpunkt
+    used = list(cells) or [(0, 0)]
+    extent = (max(c for c, _r in used) - min(c for c, _r in used)) + (max(r for _c, r in used)
+                                                                         - min(r for _c, r in used)) + 4
+    # Suchraum der Wegsuche: das Diagramm mit zwei Zellen Rand
+    bounds = (min(c for c, _r in used) - 2, min(r for _c, r in used) - 2,
+              max(c for c, _r in used) + 2, max(r for _c, r in used) + 2)
+    routes: dict[str, list[_Corner]] = {}
+    for connection in connections:
+        source, target = cell_of.get(connection.source_id), cell_of.get(connection.target_id)
+        if source is None or target is None:
+            continue
+
+        def free(cell) -> bool:
+            return cell not in taken and cell not in corners and cell not in lines
+
+        def shared(cell, target_id=connection.target_id) -> bool:
+            corner = corners.get(cell)
+            return corner is not None and corner.leads_to == target_id
+
+        def blocked(cell) -> bool:
+            return cell in taken or cell in corners
+
+        way = _route_cells(source, target, connection.source_port, connection.source_id in decisions,
+                           free, shared, blocked, extent + len(corners), bounds)
+        (sx, sy), (tx, ty) = point_of[connection.source_id], point_of[connection.target_id]
+        route = []
+        for index, cell in enumerate(way):
+            corner = corners.get(cell)
+            if corner is None:
+                last = index == len(way) - 1
+                # Lage wie die Ecke der Linie: in der Spalte bzw. Zeile von Quelle oder Ziel, sonst im Raster
+                x = sx if cell[0] == source[0] else tx if cell[0] == target[0] else column_x(cell[0])
+                y = sy if cell[1] == source[1] else ty if cell[1] == target[1] else row_y(cell[1])
+                corner = _Corner(cell, connection.id, connection.target_id if last else None, x, y)
+                corners[cell] = corner
+            route.append(corner)
+        routes[connection.id] = route
+        hops = [source] + way + [target]
+        for a, b in zip(hops, hops[1:]):
+            lines.update(_cells_between(a, b))
+    return routes, list(corners.values())
+
+
+def _cells_between(a: tuple[int, int], b: tuple[int, int]) -> list[tuple[int, int]]:
+    """Die Zellen zwischen zwei Zellen einer geraden Strecke (ohne die beiden selbst)."""
+    if a[0] == b[0]:
+        step = 1 if b[1] > a[1] else -1
+        return [(a[0], row) for row in range(a[1] + step, b[1], step)]
+    if a[1] == b[1]:
+        step = 1 if b[0] > a[0] else -1
+        return [(column, a[1]) for column in range(a[0] + step, b[0], step)]
+    return []
+
+
+def _route_cells(source: tuple[int, int], target: tuple[int, int], port: str, from_decision: bool,
+                 free, shared, blocked, extent: int, bounds: tuple | None = None) -> list[tuple[int, int]]:
+    """Zellen der Eckpunkte von ``source`` nach ``target`` (leer: die Verbindung läuft gerade).
+
+    Bevorzugt wird – in dieser Reihenfolge – ein Weg, der ab der Quelle in Richtung ihres Anschlusses läuft und
+    über keinen anderen Baustein führt, dann einer, der wenigstens frei ist, dann irgendein rechtwinkliger.
+    """
+    (cs, rs), (ct, rt) = source, target
+    dx, dy = _PORT_DIRECTIONS.get(port, (0, 1))
+    if from_decision and dy < 0:
+        # nach oben verlässt im PapDesigner nichts eine Verzweigung: zur Seite des Ziels hinaus
+        dx, dy = (1 if ct >= cs else -1), 0
+
+    def clear(a, b) -> bool:
+        """Liegt zwischen den Zellen ``a`` und ``b`` (gerade Strecke) kein Baustein und kein Eckpunkt?"""
+        return not any(blocked(cell) for cell in _cells_between(a, b))
+
+    def acceptable(way, strictness: int) -> bool:
+        if any(cell in (source, target) for cell in way):
+            return False
+        if not all(free(cell) or (cell == way[-1] and shared(cell)) for cell in way):
+            return False
+        hops = [source] + way + [target]
+        if any(a == b or (a[0] != b[0] and a[1] != b[1]) for a, b in zip(hops, hops[1:])):
+            return False  # schräg (oder ohne Länge)
+        first = hops[1]
+        heading = ((first[0] > cs) - (first[0] < cs), (first[1] > rs) - (first[1] < rs))
+        if from_decision and heading[1] < 0:
+            return False  # aus einer Verzweigung nie nach oben
+        if strictness >= 2 and heading != (dx, dy):
+            return False
+        return strictness < 1 or all(clear(a, b) for a, b in zip(hops, hops[1:]))
+
+    candidates: list[list[tuple[int, int]]] = [[]] if source != target else []
+    one_corner = [[(ct, rs)], [(cs, rt)]]
+    candidates += one_corner[::-1] if dy else one_corner
+    # zwei Ecken: ein Stück in eine Richtung (zuerst die des Anschlusses), dann quer zur Zeile bzw. Spalte des Ziels
+    directions = [(dx, dy)] + [d for d in ((0, 1), (1, 0), (-1, 0), (0, -1)) if d != (dx, dy)]
+    for ex, ey in directions:
+        for step in range(1, extent + 1):
+            first = (cs + ex * step, rs + ey * step)
+            if first[0] == ct or first[1] == rt:
+                candidates.append([first])
+            else:
+                candidates.append([first, (first[0], rt) if ex else (ct, first[1])])
+    for strictness in (2, 1):
+        for way in candidates:
+            if acceptable(way, strictness):
+                return way
+    if bounds is not None:
+        way = _search_way(source, target, (dx, dy), from_decision, free, blocked, bounds)
+        if way is not None and acceptable(way, 1):
+            return way
+    for way in candidates:
+        if acceptable(way, 0):
+            return way
+    # (kommt nicht vor: jenseits des ganzen Diagramms ist immer Platz) – sicherheitshalber gerade weiter hinaus
+    step = extent + 1
+    while not free((cs + dx * step, rs + dy * step)):
+        step += 1
+    first = (cs + dx * step, rs + dy * step)
+    return [first, (first[0], rt) if dx else (ct, first[1])]
+
+
+def _search_way(source, target, heading: tuple[int, int], from_decision: bool, free, blocked,
+                bounds: tuple) -> list[tuple[int, int]] | None:
+    """Kürzester rechtwinkliger Weg mit wenigen Ecken, der über keinen Baustein und keinen Eckpunkt läuft –
+    für enge Stellen, an denen ein oder zwei Ecken nicht reichen. Gibt die Eckzellen zurück oder ``None``."""
+    left, top, right, bottom = bounds
+    turn_cost, wrong_start = 4, 6
+    directions = ((0, 1), (1, 0), (-1, 0), (0, -1))
+    # Zustand: (Zelle, Richtung, in der sie erreicht wurde); an der Quelle: die Richtung, in der es losgeht
+    queue, best, parent = [], {}, {}
+    for direction in directions:
+        if from_decision and direction[1] < 0:
+            continue  # aus einer Verzweigung nie nach oben
+        state = (source, direction)
+        best[state] = 0 if direction == heading else wrong_start
+        parent[state] = None
+        heapq.heappush(queue, (best[state], 0, state))
+    order = 0
+    while queue:
+        cost, _order, state = heapq.heappop(queue)
+        if cost > best.get(state, cost):
+            continue
+        cell, direction = state
+        for turn in directions:
+            if turn == (-direction[0], -direction[1]):
+                continue  # nie zurück
+            if turn != direction and (cell == source or not free(cell)):
+                continue  # abbiegen nur in einer freien Zelle (dort entsteht der Eckpunkt)
+            following = (cell[0] + turn[0], cell[1] + turn[1])
+            if following == target:
+                corners = [cell] if turn != direction else []
+                node = state
+                while parent[node] is not None:
+                    previous = parent[node]
+                    if previous[0] != source and previous[1] != node[1]:
+                        corners.append(previous[0])
+                    node = previous
+                return corners[::-1]
+            if not (left <= following[0] <= right and top <= following[1] <= bottom) or blocked(following):
+                continue
+            new_state = (following, turn)
+            new_cost = cost + 1 + (turn_cost if turn != direction else 0)
+            if new_cost < best.get(new_state, new_cost + 1):
+                best[new_state] = new_cost
+                parent[new_state] = state
+                order += 1
+                heapq.heappush(queue, (new_cost, order, new_state))
+    return None
+
+
+def _axis_positions(indices: dict[int, float], step: float):
+    """Szenen-Koordinate einer Rasterspalte bzw. -zeile – auch für Spalten ohne Baustein (für Eckpunkte)."""
+    known = sorted(indices)
+
+    def position(index: int) -> float:
+        if index in indices:
+            return indices[index]
+        nearest = min(known, key=lambda k: abs(k - index)) if known else 0
+        return indices.get(nearest, 0.0) + (index - nearest) * step
+
+    return position
+
+
 def loop_partners(elements: list[ElementData], connections: list[ConnectionData]) -> dict[str, str]:
     """Zusammengehörige Schleifenbegrenzungen (Beginn ↔ Ende) entlang des Ablaufs."""
     parts = {e.id: (LOOP_END if e.properties.get(LOOP_PART_KEY) == LOOP_END else LOOP_BEGIN)
@@ -377,19 +607,30 @@ def _figure_attributes(element: ElementData, number: int, associate: int | None)
     return attributes
 
 
-def _connection_attributes(connection: ConnectionData, number: int, source: int, target: int) -> list:
-    attributes = [("FORMAT", PAP_ELEMENT_FORMAT), ("ID", number), ("FROM", source), ("TO", target),
-                  ("TEXT", connection.label), (_ext("UID"), connection.id),
+def _connection_attributes(connection: ConnectionData, number: int, source: int, target: int,
+                           first_hop: int | None = None) -> list:
+    """Angaben einer Verbindung. ``first_hop``: Nummer ihres ersten Eckpunkts, wenn der PapDesigner sie über
+    Eckpunkte geführt sieht – dann steht ihr eigentliches Ziel in ``bst:TO``, und Linienführung und -verlauf
+    heißen ``bst:FULL_…`` (ältere Versionen dieses Programms lesen das Stück bis zum Eckpunkt als eigene
+    Verbindung und sollen den Verlauf der ganzen Linie nicht darauf anwenden)."""
+    split = first_hop is not None
+    attributes = [("FORMAT", PAP_ELEMENT_FORMAT), ("ID", number), ("FROM", source),
+                  ("TO", first_hop if split else target), ("TEXT", connection.label), (_ext("UID"), connection.id),
                   (_ext("SOURCE_PORT"), connection.source_port),
                   (_ext("TARGET_PORT"), connection.target_port)]
+    if split:
+        attributes.append((_ext("TO"), target))
+    prefix = "FULL_" if split else ""
     routing = connection.routing if isinstance(connection.routing, dict) else {}
     if routing.get("mode") == "manual" and routing.get("axis") in ("x", "y"):
         value, ok = _number(routing.get("value"), 0.0)
         if ok:
-            attributes += [(_ext("ROUTE_AXIS"), routing["axis"]), (_ext("ROUTE_VALUE"), _format_number(value))]
+            attributes += [(_ext(prefix + "ROUTE_AXIS"), routing["axis"]),
+                           (_ext(prefix + "ROUTE_VALUE"), _format_number(value))]
     path = _valid_path(connection.path)
     if path:
-        attributes.append((_ext("PATH"), " ".join(f"{_format_number(x)},{_format_number(y)}" for x, y in path)))
+        attributes.append((_ext(prefix + "PATH"),
+                           " ".join(f"{_format_number(x)},{_format_number(y)}" for x, y in path)))
     return attributes
 
 
@@ -440,9 +681,17 @@ def diagram_to_xml(diagram: Diagram) -> str:
 
 
 def format_version_for(diagram: Diagram) -> int:
-    """Version der Zusatzangaben: Projekte ohne Unterprogramm-Seiten bleiben in Version 1 – so öffnen auch
-    ältere Programmversionen sie weiterhin."""
-    return CURRENT_FORMAT_VERSION if diagram.subprograms else SINGLE_PAGE_FORMAT_VERSION
+    """Version der Zusatzangaben: so niedrig wie möglich, damit ältere Programmversionen die Datei öffnen, wo
+    sie es ohne Verlust können (Version 1 ohne Unterprogramm-Seiten, 2 mit, 3 mit Kommentarlinien)."""
+    if any(_has_comment_lines(elements, connections) for elements, connections in
+           [(diagram.elements, diagram.connections)] + [(p.elements, p.connections) for p in diagram.subprograms]):
+        return CURRENT_FORMAT_VERSION
+    return SUBPROGRAM_FORMAT_VERSION if diagram.subprograms else SINGLE_PAGE_FORMAT_VERSION
+
+
+def _has_comment_lines(elements, connections) -> bool:
+    comments = {element.id for element in elements if ElementType(element.type) is ElementType.COMMENT}
+    return any(c.source_id in comments or c.target_id in comments for c in connections)
 
 
 def _write_diagram(out: list, index: int, name: str, elements, connections, grid: list, view: tuple,
@@ -450,18 +699,34 @@ def _write_diagram(out: list, index: int, name: str, elements, connections, grid
     """Schreibt ein ``DIAGRAM`` (eine Seite). Gibt die zuletzt vergebene Nummer zurück."""
     elements, connections = list(elements), list(connections)
     cells = _grid_cells(elements)
-    # Nummern des PapDesigners: Titel, dann Bausteine, dann Verbindungen
+    # Kommentarlinien kennt der PapDesigner nicht (er zeichnete sie als Ablaufpfeil): Sie stehen nur in den
+    # Zusatzangaben, mit ihrer Stelle in der Reihenfolge aller Verbindungen
+    comments = {element.id for element in elements if ElementType(element.type) is ElementType.COMMENT}
+    notes = [(position, connection) for position, connection in enumerate(connections)
+             if connection.source_id in comments or connection.target_id in comments]
+    noted = {id(connection) for _position, connection in notes}
+    connections = [connection for connection in connections if id(connection) not in noted]
+    routes, corners = _pap_routes(elements, cells, connections)
+    # Der PapDesigner braucht Zeile 0 für den Titel und keine negativen Zellen: alles passend verschieben
+    used = cells + [corner.cell for corner in corners]
+    shift_column = -min((column for column, _row in used), default=0)
+    shift_row = max(0, 1 - min((row for _column, row in used), default=1))
+    placed = [(column + shift_column, row + shift_row) for column, row in cells]
+    # Nummern des PapDesigners: Titel, dann Bausteine, dann Eckpunkte, dann Verbindungen
     numbers: dict[str, int] = {}
     for number, element in enumerate(elements, start=title_number + 1):
         numbers.setdefault(element.id, number)
+    for number, corner in enumerate(corners, start=title_number + len(elements) + 1):
+        corner.number = number
     partners = loop_partners(elements, connections)
     zoom, view_x, view_y = view
+    every_cell = placed + [(c + shift_column, r + shift_row) for c, r in (corner.cell for corner in corners)]
     out.append(_tag("DIAGRAM", [("FORMAT", PAP_ELEMENT_FORMAT), ("ID", index), ("NAME", name),
                                 ("CREATED", created), ("MODIFIED", modified)], 3))
     out.append(_tag("LAYOUT", [
         ("FORMAT", PAP_ELEMENT_FORMAT),
-        ("COLUMNS", max((column for column, _row in cells), default=0) + 1),
-        ("ROWS", max((row for _column, row in cells), default=0) + 1),
+        ("COLUMNS", max((column for column, _row in every_cell), default=0) + 1),
+        ("ROWS", max((row for _column, row in every_cell), default=0) + 1),
         *grid,
         (_ext("ZOOM"), _format_number(zoom)),
         (_ext("VIEW_X"), _format_number(view_x)),
@@ -474,7 +739,7 @@ def _write_diagram(out: list, index: int, name: str, elements, connections, grid
     out.append(f"{'  ' * 8}<TEXT>{_text_content(name)}</TEXT>")
     out.append(f"{'  ' * 7}</FIGURE>")
     out.append(f"{'  ' * 6}</ENTRY>")
-    for number, (element, (column, row)) in enumerate(zip(elements, cells), start=title_number + 1):
+    for number, (element, (column, row)) in enumerate(zip(elements, placed), start=title_number + 1):
         entry = [("COLUMN", column), ("ROW", row),
                  (_ext("X"), _format_number(element.x)), (_ext("Y"), _format_number(element.y)),
                  (_ext("WIDTH"), _format_number(element.width)),
@@ -486,16 +751,77 @@ def _write_diagram(out: list, index: int, name: str, elements, connections, grid
         out.append(f"{'  ' * 8}<TEXT>{_text_content(element.text)}</TEXT>")
         out.append(f"{'  ' * 7}</FIGURE>")
         out.append(f"{'  ' * 6}</ENTRY>")
+    # Eckpunkte: für den PapDesigner Verbindungspunkte, für dieses Programm Teil der Verbindung (bst:CORNER).
+    # Sie tragen Lage und ID, damit ältere Versionen sie als gewöhnliche Verbindungspunkte lesen.
+    junction = spec_for(ElementType.JUNCTION)
+    for corner in corners:
+        column, row = corner.cell
+        out.append(_tag("ENTRY", [("COLUMN", column + shift_column), ("ROW", row + shift_row),
+                                  (_ext("X"), _format_number(corner.x)),
+                                  (_ext("Y"), _format_number(corner.y)),
+                                  (_ext("WIDTH"), _format_number(junction.default_width)),
+                                  (_ext("HEIGHT"), _format_number(junction.default_height)),
+                                  (_ext("CORNER"), "True")], 6))
+        out.append(_tag("FIGURE", [("SUBTYPE", "PapConnector"), ("FORMAT", PAP_ELEMENT_FORMAT),
+                                   ("ID", corner.number), (_ext("UID"), f"{corner.owner}.{corner.number}")], 7))
+        out.append(f"{'  ' * 8}<TEXT></TEXT>")
+        out.append(f"{'  ' * 7}</FIGURE>")
+        out.append(f"{'  ' * 6}</ENTRY>")
     out.append(f"{'  ' * 5}</ENTRIES>")
     out.append(f"{'  ' * 4}</LAYOUT>")
-    out.append(_tag("CONNECTIONS", [], 4))
-    number = title_number + len(elements)
+    annotations = []
+    for position, connection in notes:
+        source, target = numbers.get(connection.source_id), numbers.get(connection.target_id)
+        if source is not None and target is not None:
+            attributes = dict(_connection_attributes(connection, 0, source, target))
+            attributes.pop("FORMAT"), attributes.pop("ID")
+            annotations.append({"index": position, "attributes": attributes})
+    out.append(_tag("CONNECTIONS", [(_ext("ANNOTATIONS"), json.dumps(annotations, ensure_ascii=False))]
+                    if annotations else [], 4))
+    number = title_number + len(elements) + len(corners)
+    leaving: set[int] = set()  # Eckpunkte, deren Weg zum Ziel schon geschrieben ist
+    by_id = {element.id: element for element in elements}
+    cell_of = {element.id: cell for element, cell in zip(elements, cells)}
     for connection in connections:
         source, target = numbers.get(connection.source_id), numbers.get(connection.target_id)
         if source is None or target is None:
             continue  # ohne vorhandenen Baustein nicht darstellbar (würde beim Laden entfernt)
+        route = routes.get(connection.id, [])
         number += 1
-        out.append(_tag("CONNECTION", _connection_attributes(connection, number, source, target), 5, empty=True))
+        if not route:
+            out.append(_tag("CONNECTION", _connection_attributes(connection, number, source, target), 5,
+                            empty=True))
+            continue
+        # Ältere Versionen dieses Programms lesen die Teilstrecken als eigene Verbindungen über Verbindungspunkte.
+        # Ist das Ziel ein Verbindungspunkt, der an dieser Verbindung ausgerichtet ist (bst:TRUNK_IN), trägt für
+        # sie das letzte Stück die ID der Verbindung – dieses Programm liest sie aus bst:FULL_UID.
+        end_element = by_id.get(connection.target_id)
+        trunk_last = (end_element is not None and ElementType(end_element.type) is ElementType.JUNCTION
+                      and end_element.properties.get(TRUNK_IN_KEY) == connection.id)
+        cells_on_way = [cell_of[connection.source_id]] + [corner.cell for corner in route] + \
+            [cell_of[connection.target_id]]
+        attributes = _connection_attributes(connection, number, source, target, route[0].number)
+        attributes = [(name, _arriving_port(cells_on_way[0], cells_on_way[1]) if name == _ext("TARGET_PORT")
+                       else f"{connection.id}.a" if name == _ext("UID") and trunk_last else value)
+                      for name, value in attributes]
+        attributes.append((_ext("FULL_TARGET_PORT"), connection.target_port))
+        if trunk_last:
+            attributes.append((_ext("FULL_UID"), connection.id))
+        out.append(_tag("CONNECTION", attributes, 5, empty=True))
+        hops = [corner.number for corner in route] + [target]
+        for step, (start, end) in enumerate(zip(hops, hops[1:]), start=1):
+            if start in leaving:
+                break  # ab hier teilt sie den Weg einer anderen Verbindung
+            leaving.add(start)
+            number += 1
+            last = step == len(hops) - 1
+            a, b = cells_on_way[step], cells_on_way[step + 1]
+            uid = connection.id if last and trunk_last else f"{connection.id}.{number}"
+            out.append(_tag("CONNECTION", [
+                ("FORMAT", PAP_ELEMENT_FORMAT), ("ID", number), ("FROM", start), ("TO", end), ("TEXT", ""),
+                (_ext("UID"), uid), (_ext("SOURCE_PORT"), _leaving_port(a, b)),
+                (_ext("TARGET_PORT"), connection.target_port if last else _arriving_port(a, b)),
+                (_ext("CORNER"), "True")], 5, empty=True))
     out.append(f"{'  ' * 4}</CONNECTIONS>")
     out.append(f"{'  ' * 3}</DIAGRAM>")
     return number
@@ -595,19 +921,39 @@ def _properties_from(figure, etype: ElementType, subtype: str, native: bool, war
     return properties
 
 
-def _routing_from(node, native: bool, warnings: list) -> dict:
-    axis = node.get(_key("ROUTE_AXIS")) if native else None
+def _annotation_nodes(container, warnings: list) -> list:
+    """Kommentarlinien aus ``bst:ANNOTATIONS``: (Stelle, Angaben wie ein ``CONNECTION``) – oder leer."""
+    raw = container.get(_key("ANNOTATIONS")) if container is not None else None
+    if raw is None:
+        return []
+    try:
+        entries = json.loads(raw)
+        nodes = []
+        for entry in entries:
+            attributes = {}
+            for name, value in entry["attributes"].items():
+                prefix, _colon, local = str(name).partition(":")
+                attributes[_key(local) if prefix == EXTENSION_PREFIX and local else str(name)] = str(value)
+            nodes.append((int(entry["index"]), ET.Element("CONNECTION", attributes)))
+        return nodes
+    except (TypeError, ValueError, KeyError, AttributeError):
+        warnings.append(tr("Ungültige Angaben zu Kommentarlinien wurden übersprungen."))
+        return []
+
+
+def _routing_from(node, native: bool, warnings: list, prefix: str = "") -> dict:
+    axis = node.get(_key(prefix + "ROUTE_AXIS")) if native else None
     if axis is None:
         return {"mode": "auto"}
-    value, ok = _number(node.get(_key("ROUTE_VALUE")), 0.0)
+    value, ok = _number(node.get(_key(prefix + "ROUTE_VALUE")), 0.0)
     if axis in ("x", "y") and ok:
         return {"mode": "manual", "axis": axis, "value": value}
     warnings.append(tr("Eine ungültige Linienführung wurde auf „automatisch“ zurückgesetzt."))
     return {"mode": "auto"}
 
 
-def _path_from(node, native: bool, warnings: list) -> list | None:
-    raw = node.get(_key("PATH")) if native else None
+def _path_from(node, native: bool, warnings: list, prefix: str = "") -> list | None:
+    raw = node.get(_key(prefix + "PATH")) if native else None
     if raw is None:
         return None
     try:
@@ -727,8 +1073,8 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
             if figure is None:
                 continue
             figure_count += 1
-            if native and _flag(entry.get(_key("GENERATED")), False):
-                continue
+            if native and (_flag(entry.get(_key("GENERATED")), False) or _flag(entry.get(_key("CORNER")), False)):
+                continue  # Titel bzw. Eckpunkt, den nur der PapDesigner braucht
             page_name = " ".join((pap_diagram.get("NAME") or "").split())
             if (not native and index > 0 and figure.get("SUBTYPE") == "PapTitle"
                     and " ".join(_figure_text(figure, False).split()) == page_name):
@@ -789,15 +1135,25 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
             elements.append(element)
 
         used_ports: dict[str, set] = {}
-        for node in pap_diagram.findall("./CONNECTIONS/CONNECTION"):
+        nodes = [(None, node) for node in pap_diagram.findall("./CONNECTIONS/CONNECTION")]
+        if native:
+            nodes += _annotation_nodes(pap_diagram.find("CONNECTIONS"), warnings)
+        placed: list[tuple[int, ConnectionData]] = []
+        flow_start = len(connections)
+        for position, node in nodes:
+            if native and _flag(node.get(_key("CORNER")), False):
+                continue  # Teilstrecke zwischen Eckpunkten: gehört zur Verbindung davor
+            split = native and node.get(_key("TO")) is not None
             source = figures.get(_reference(node.get("FROM")))
-            target = figures.get(_reference(node.get("TO")))
+            target = figures.get(_reference(node.get(_key("TO")) if split else node.get("TO")))
             if source is None or target is None:
                 warnings.append(tr("Eine Verbindung zu einem nicht vorhandenen Element wurde entfernt."))
                 continue
             (s_elem, s_cell), (t_elem, t_cell) = source, target
             s_port = node.get(_key("SOURCE_PORT")) if native else None
-            t_port = node.get(_key("TARGET_PORT")) if native else None
+            t_port = None
+            if native:
+                t_port = (split and node.get(_key("FULL_TARGET_PORT"))) or node.get(_key("TARGET_PORT"))
             if s_port in ALL_PORTS and t_port in ALL_PORTS:
                 if s_elem is t_elem and s_port == t_port:
                     warnings.append(tr("Eine Verbindung ohne Länge (gleicher Anschluss) wurde entfernt."))
@@ -814,21 +1170,27 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
                 s_port = _fit_port(s_port, s_elem.type, ("bottom", "right", "left", "top"))
                 t_port = _fit_port(t_port, t_elem.type, ("top", "left", "right", "bottom"))
                 used.add(s_port)
-            connection_id = node.get(_key("UID")) if native else None
+            connection_id = (node.get(_key("FULL_UID")) or node.get(_key("UID"))) if native else None
             if not connection_id or not connection_id.strip() or connection_id in seen_connections:
                 connection_id = new_id()
             seen_connections.add(connection_id)
             label = node.get("TEXT") or ""
-            connections.append(ConnectionData(
+            connection = ConnectionData(
                 id=connection_id,
                 source_id=s_elem.id,
                 target_id=t_elem.id,
                 source_port=s_port,
                 target_port=t_port,
                 label=label if native else label.strip(),
-                routing=_routing_from(node, native, warnings),
-                path=_path_from(node, native, warnings),
-            ))
+                routing=_routing_from(node, native, warnings, "FULL_" if split else ""),
+                path=_path_from(node, native, warnings, "FULL_" if split else ""),
+            )
+            if position is None:
+                connections.append(connection)
+            else:
+                placed.append((position, connection))
+        for position, connection in sorted(placed, key=lambda item: item[0]):
+            connections.insert(flow_start + min(max(position, 0), len(connections) - flow_start), connection)
         if index > 0 and not diagram.subprograms[-1].name:
             diagram.subprograms[-1].name = _page_name_from(elements, len(diagram.subprograms))
 

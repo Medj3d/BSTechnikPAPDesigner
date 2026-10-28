@@ -205,13 +205,21 @@ def test_file_is_papdesigner_xml(tmp_path):
     assert raw.startswith(b'<?xml version="1.0" encoding="utf-8"?>\n<FRAME ')
     root = ET.fromstring(raw)
     assert root.tag == "FRAME" and root.get("APP_VERSION") and root.get("CHECKSUM")
-    # ohne Unterprogramm-Seiten: Version 1, damit auch ältere Programmversionen die Datei öffnen
-    assert root.get(BST + "VERSION") == str(SINGLE_PAGE_FORMAT_VERSION)
+    # mit Kommentarlinie: Version 3 (ältere Programmversionen sähen die Linie nicht und lehnen deshalb ab);
+    # ohne Kommentarlinien und ohne Unterprogramm-Seiten bleibt es bei Version 1
+    assert root.get(BST + "VERSION") == str(CURRENT_FORMAT_VERSION) == "3"
+    plain = full_diagram()
+    comments = {e.id for e in plain.elements if e.type is ElementType.COMMENT}
+    plain.connections = [c for c in plain.connections if c.source_id not in comments and c.target_id not in comments]
+    assert ET.fromstring(diagram_to_xml(plain).encode("utf-8")).get(BST + "VERSION") == str(SINGLE_PAGE_FORMAT_VERSION)
     project = root.find("PROJECT")
     assert project.get("NAME") == full_diagram().meta.name and project.get("CREATED") == "2025.01.02 03:04:05"
     (diagram,) = project.findall("./DIAGRAMS/DIAGRAM")
     layout = diagram.find("LAYOUT")
-    entries = layout.findall("./ENTRIES/ENTRY")
+    all_entries = layout.findall("./ENTRIES/ENTRY")
+    entries = [entry for entry in all_entries if entry.get(BST + "CORNER") != "True"]
+    corners = [entry for entry in all_entries if entry.get(BST + "CORNER") == "True"]
+    assert all(entry.find("FIGURE").get("SUBTYPE") == "PapConnector" for entry in corners)
     figures = [entry.find("FIGURE") for entry in entries]
     assert len(entries) == len(full_diagram().elements) + 1  # + Diagrammtitel
     assert entries[0].get("ANCHOR") == "True" and figures[0].get("SUBTYPE") == "PapTitle"
@@ -219,17 +227,26 @@ def test_file_is_papdesigner_xml(tmp_path):
         "PapStart", "PapInput", "PapLoopStart", "PapActivity", "PapModule", "PapLoopEnd", "PapCondition",
         "PapOutput", "PapOutput", "PapConnector", "PapEnd", "PapComment", "PapActivity", "PapActivity"]
     assert all(f.find("TEXT") is not None and f.get("FORMAT") == "1.00" for f in figures)
-    # jede Rasterzelle nur einmal, alle innerhalb der angegebenen Rastergröße
-    cells = [(int(e.get("COLUMN")), int(e.get("ROW"))) for e in entries]
+    # jede Rasterzelle nur einmal (auch mit Eckpunkten), alle innerhalb der angegebenen Rastergröße
+    cells = [(int(e.get("COLUMN")), int(e.get("ROW"))) for e in all_entries]
     assert len(set(cells)) == len(cells)
     assert max(c for c, _ in cells) < int(layout.get("COLUMNS")) and max(r for _, r in cells) < int(layout.get("ROWS"))
-    # fortlaufende Nummern; Verbindungen verweisen auf vorhandene Bausteine
+    # fortlaufende Nummern; Verbindungen verweisen auf vorhandene Bausteine bzw. Eckpunkte
     connections = diagram.findall("./CONNECTIONS/CONNECTION")
-    numbers = [f.get("ID") for f in figures] + [c.get("ID") for c in connections]
+    all_figures = [entry.find("FIGURE") for entry in all_entries]
+    numbers = [f.get("ID") for f in all_figures] + [c.get("ID") for c in connections]
     assert len(set(numbers)) == len(numbers) and all(n.isdigit() for n in numbers)
-    figure_numbers = {f.get("ID") for f in figures}
+    figure_numbers = {f.get("ID") for f in all_figures}
     assert all(c.get("FROM") in figure_numbers and c.get("TO") in figure_numbers for c in connections)
-    assert [c.get("TEXT") for c in connections][6] == "ja"
+    assert [c.get("TEXT") for c in connections if c.get(BST + "CORNER") != "True"][6] == "ja"
+    # wie im PapDesigner: jede Verbindung waagerecht oder senkrecht, kein Ausgang einer Verzweigung schräg/nach oben
+    cell_of = {f.get("ID"): cell for f, cell in zip(all_figures, cells)}
+    subtype_of = {f.get("ID"): f.get("SUBTYPE") for f in all_figures}
+    for c in connections:
+        (c1, r1), (c2, r2) = cell_of[c.get("FROM")], cell_of[c.get("TO")]
+        assert c1 == c2 or r1 == r2, c.attrib
+        if subtype_of[c.get("FROM")] == "PapCondition":
+            assert r2 > r1 or r1 == r2, c.attrib
     # zusammengehörige Schleifenbegrenzungen verweisen aufeinander
     by_subtype = {f.get("SUBTYPE"): f for f in figures}
     assert by_subtype["PapLoopStart"].get("ASSOCIATE") == by_subtype["PapLoopEnd"].get("ID")
@@ -262,13 +279,33 @@ def test_file_stays_readable_without_the_extension_data():
     assert not result.native
     elements = result.diagram.elements
     assert elements[0].type is ElementType.COMMENT and elements[0].text == original.meta.name  # Diagrammtitel
-    assert [(e.type, e.text) for e in elements[1:]] == [(e.type, e.text.strip()) for e in original.elements]
-    assert [e.properties.get("part") for e in elements[1:]] == [e.properties.get("part") for e in original.elements]
+    count = len(original.elements)
+    assert [(e.type, e.text) for e in elements[1:count + 1]] == [(e.type, e.text.strip()) for e in original.elements]
+    assert [e.properties.get("part") for e in elements[1:count + 1]] == [e.properties.get("part")
+                                                                        for e in original.elements]
+    # die Eckpunkte für den PapDesigner werden zu gewöhnlichen Verbindungspunkten auf dem Weg
+    corners = elements[count + 1:]
+    assert corners and all(e.type is ElementType.JUNCTION for e in corners)
+    corner_ids = {e.id for e in corners}
+    following = {}
+    for c in result.diagram.connections:
+        following.setdefault(c.source_id, []).append(c)
+
+    def end_of(element_id):
+        while element_id in corner_ids:
+            (onward,) = following[element_id]
+            element_id = onward.target_id
+        return element_id
+
     index_of = {e.id: i for i, e in enumerate(original.elements)}
     loaded_index = {e.id: i - 1 for i, e in enumerate(elements)}
-    expected = [(index_of[c.source_id], index_of[c.target_id], c.label) for c in original.connections
-                if c.source_id != c.target_id]
-    assert [(loaded_index[c.source_id], loaded_index[c.target_id], c.label) for c in result.diagram.connections] == expected
+    # auch eine Verbindung eines Bausteins mit sich selbst bleibt erhalten (über einen Eckpunkt); Kommentarlinien
+    # kennt der PapDesigner nicht – dort stehen Kommentare frei wie in seinen eigenen Dateien
+    comments = {e.id for e in original.elements if e.type is ElementType.COMMENT}
+    expected = sorted((index_of[c.source_id], index_of[c.target_id], c.label) for c in original.connections
+                      if c.source_id not in comments and c.target_id not in comments)
+    assert sorted((loaded_index[c.source_id], loaded_index[end_of(c.target_id)], c.label)
+                  for c in result.diagram.connections if c.source_id not in corner_ids) == expected
     # jede Rasterzelle ist eine eigene Position
     positions = [(e.x, e.y) for e in elements]
     assert len(set(positions)) == len(positions)

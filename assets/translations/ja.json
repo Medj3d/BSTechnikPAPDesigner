@@ -422,6 +422,7 @@
  "Die Datei ist beschädigt und kann nicht gelesen werden.": "ファイルが破損しているため、読み込めません。",
  "Die Datei ist kein Programmablaufplan im Format .pap.": "このファイルは .pap 形式のプログラムフローチャートではありません。",
  "Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.": "無効なグリッドサイズを既定値に設定しました。",
+ "Ungültige Angaben zu Kommentarlinien wurden übersprungen.": "無効なコメント線のデータをスキップしました。",
  "Eine ungültige Größe wurde auf die Standardgröße gesetzt.": "無効なサイズを既定のサイズに設定しました。",
  "Die Datei ist beschädigt oder inkompatibel.": "ファイルが破損しているか、互換性がありません。",
  "Das Projekt konnte nicht in das Dateiformat umgewandelt werden.": "プロジェクトをファイル形式に変換できませんでした。",

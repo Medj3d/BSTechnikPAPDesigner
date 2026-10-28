@@ -422,6 +422,7 @@
  "Die Datei ist beschädigt und kann nicht gelesen werden.": "Le fichier est endommagé et ne peut pas être lu.",
  "Die Datei ist kein Programmablaufplan im Format .pap.": "Le fichier n'est pas un organigramme de programmation au format .pap.",
  "Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.": "Une taille de grille invalide a été remplacée par la valeur par défaut.",
+ "Ungültige Angaben zu Kommentarlinien wurden übersprungen.": "Des données de lignes de commentaire non valides ont été ignorées.",
  "Eine ungültige Größe wurde auf die Standardgröße gesetzt.": "Une taille invalide a été remplacée par la taille par défaut.",
  "Die Datei ist beschädigt oder inkompatibel.": "Le fichier est endommagé ou incompatible.",
  "Das Projekt konnte nicht in das Dateiformat umgewandelt werden.": "Le projet n'a pas pu être converti au format de fichier.",

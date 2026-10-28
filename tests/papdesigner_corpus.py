@@ -515,6 +515,39 @@ class _Diagram:
                 row += 1
             used.add(row)
             self.figure("PapComment", column, row, text)
+        self.orthogonalize()
+
+    def orthogonalize(self) -> None:
+        """Wie der PapDesigner selbst: jede Verbindung waagerecht oder senkrecht, jede Ecke ein Verbindungspunkt.
+
+        (Schräge Ausgänge einer Verzweigung nimmt das Original gar nicht an, andere zeichnet es schief.)
+        """
+        cells = {f.id: (f.column, f.row) for f in self.figures}
+        subtype = {f.id: f.subtype for f in self.figures}
+        taken = set(cells.values())
+        straight = []
+        for number, source, target, label in self.connections:
+            (cs, rs), (ct, rt) = cells[source], cells[target]
+            decision = subtype[source] == "PapCondition"
+            if (cs == ct or rs == rt) and not (decision and rt < rs):
+                straight.append((number, source, target, label))
+                continue
+            options = [(ct, rs), (cs, rt)]
+            corner = next((cell for cell in options if cell not in taken and not (decision and cell[1] < rs)), None)
+            if corner is not None:
+                path = [corner]
+            else:  # zwei Ecken in einer freien Spalte rechts von allem
+                lane = max(column for column, _row in taken) + 1
+                path = [(lane, rs), (lane, rt)]
+            hops = [source]
+            for cell in path:
+                hub = self.figure("PapConnector", *cell)
+                taken.add(cell)
+                hops.append(hub.id)
+            hops.append(target)
+            for index, (start, end) in enumerate(zip(hops, hops[1:])):
+                straight.append((number if index == 0 else self.new_id(), start, end, label if index == 0 else ""))
+        self.connections = straight
 
     # -------------------------------------------------- Anordnung im Raster (wie der PapDesigner)
     def sequence(self, statements, column: int, row: int):

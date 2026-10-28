@@ -422,6 +422,7 @@
  "Die Datei ist beschädigt und kann nicht gelesen werden.": "文件已损坏，无法读取。",
  "Die Datei ist kein Programmablaufplan im Format .pap.": "该文件不是 .pap 格式的程序流程图。",
  "Eine ungültige Rastergröße wurde auf den Standardwert gesetzt.": "无效的网格大小已设为默认值。",
+ "Ungültige Angaben zu Kommentarlinien wurden übersprungen.": "已跳过无效的注释线数据。",
  "Eine ungültige Größe wurde auf die Standardgröße gesetzt.": "无效的大小已设为默认大小。",
  "Die Datei ist beschädigt oder inkompatibel.": "文件已损坏或不兼容。",
  "Das Projekt konnte nicht in das Dateiformat umgewandelt werden.": "无法将项目转换为文件格式。",
