@@ -31,6 +31,9 @@ _DEFINITIONS = {
     "save_as": (N_("Speichern &unter …"), "save_as", ["Ctrl+Shift+S"], N_("Projekt unter neuem Namen speichern")),
     "auto_save": (N_("&Automatisch speichern"), None, [],
                   N_("Bereits gespeicherte Projekte nach jeder Änderung von selbst speichern")),
+    "backup_on_save": (N_("Sicherungs&kopie anlegen"), None, [],
+                       N_("Vor dem ersten Speichern den Stand beim Öffnen als „.pap-backup“ neben der Datei "
+                          "aufheben")),
     "export_png": (N_("Als &PNG-Bild …"), None, [], N_("Diagramm als PNG-Bild exportieren")),
     "export_svg": (N_("Als &SVG-Grafik …"), None, [], N_("Diagramm als SVG-Vektorgrafik exportieren")),
     "export_pdf": (N_("Als P&DF-Dokument …"), None, [], N_("Diagramm als PDF exportieren")),
@@ -75,6 +78,11 @@ _DEFINITIONS = {
     "toggle_loop_part": (N_("Schleifenbeginn/-ende &umschalten"), None, [],
                          N_("Teil der Schleifenbegrenzung wechseln")),
     "reset_routing": (N_("Linienführung &zurücksetzen"), None, [], N_("Automatische Linienführung wiederherstellen")),
+    # Schleife mit Kopf- bzw. Fußbedingung (wie im PapDesigner)
+    "insert_loop_head": (N_("Schleife mit &Kopfbedingung"), None, [],
+                         N_("Schleife einfügen, deren Bedingung am Anfang geprüft wird (solange …)")),
+    "insert_loop_foot": (N_("Schleife mit &Fußbedingung"), None, [],
+                         N_("Schleife einfügen, deren Bedingung am Ende geprüft wird (wiederhole … bis …)")),
     # Unterprogramme (eigene Seiten des Projekts)
     "new_subprogram": (N_("Neues &Unterprogramm …"), None, ["Ctrl+Shift+U"],
                        N_("Ein Unterprogramm auf einer eigenen Seite anlegen")),
@@ -83,12 +91,32 @@ _DEFINITIONS = {
     "next_page": (N_("&Nächste Seite"), None, ["Ctrl+PgDown"], N_("Nächstes Unterprogramm anzeigen")),
     "previous_page": (N_("&Vorherige Seite"), None, ["Ctrl+PgUp"],
                       N_("Vorheriges Unterprogramm bzw. das Hauptprogramm anzeigen")),
+    "go_back": (N_("&Zurück"), None, ["Alt+Left"],
+                N_("Zur zuletzt angezeigten Seite zurück (z. B. vom Unterprogramm zum Aufruf)")),
+    "go_forward": (N_("V&orwärts"), None, ["Alt+Right"],
+                   N_("Wieder zu der Seite, von der aus „Zurück“ gewählt wurde")),
+    "extract_subprogram": (N_("Auswahl in Unterprogramm &auslagern …"), None, ["Ctrl+Alt+U"],
+                           N_("Die markierten Bausteine auf eine eigene Seite verschieben; an ihrer Stelle ruft "
+                              "ein Unterprogramm-Baustein sie auf")),
+    "duplicate_page": (N_("Seite d&uplizieren"), None, [], N_("Eine Kopie des angezeigten Unterprogramms anlegen")),
+    "copy_page": (N_("Seite &kopieren"), None, [],
+                  N_("Die angezeigte Seite in die Zwischenablage legen – zum Einfügen als Unterprogramm, auch in "
+                     "einem anderen Projekt")),
+    "cut_page": (N_("Seite aus&schneiden"), None, [],
+                 N_("Das angezeigte Unterprogramm in die Zwischenablage legen und entfernen")),
+    "paste_page": (N_("Seite &einfügen"), None, [], N_("Eine kopierte Seite als neues Unterprogramm einfügen")),
+    "move_page_left": (N_("Seite nach &links verschieben"), None, ["Ctrl+Shift+PgUp"],
+                       N_("Das angezeigte Unterprogramm in der Seitenleiste eine Stelle nach links verschieben")),
+    "move_page_right": (N_("Seite nach &rechts verschieben"), None, ["Ctrl+Shift+PgDown"],
+                        N_("Das angezeigte Unterprogramm in der Seitenleiste eine Stelle nach rechts verschieben")),
     # Extras
     "generate_code": (N_("&Code erzeugen …"), "code", ["Ctrl+Shift+C"],
                       N_("Pseudocode, Python oder Java aus dem PAP erzeugen")),
     "structogram": (N_("&Struktogramm …"), "structogram", ["Ctrl+Shift+N"],
                     N_("Ablauf als Struktogramm (Nassi-Shneiderman)")),
     "auto_layout": (N_("&Automatisch anordnen"), "layout", ["Ctrl+L"], N_("Bausteine übersichtlich neu anordnen")),
+    "presentation": (N_("&Präsentationsansicht"), None, ["F11"],
+                     N_("Nur den Plan im Vollbild zeigen – z. B. für den Beamer (F11 oder Esc beendet)")),
     "theme_dark": (N_("&Dunkel"), None, [], N_("Dunkles Farbschema")),
     "theme_light": (N_("&Hell"), None, [], N_("Helles Farbschema (z. B. für Beamer)")),
     # Hilfe
@@ -144,7 +172,8 @@ class ActionRegistry:
         for name in ("toggle_grid", "toggle_snap"):
             self._actions[name].setCheckable(True)
             self._actions[name].setChecked(True)
-        for name in ("theme_dark", "theme_light", "auto_save", "check_updates_on_start"):
+        for name in ("theme_dark", "theme_light", "auto_save", "backup_on_save", "check_updates_on_start",
+                     "presentation"):
             self._actions[name].setCheckable(True)
 
     def refresh_icons(self) -> None:

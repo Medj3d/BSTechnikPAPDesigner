@@ -283,7 +283,8 @@ def test_open_dialog_filters_pap(window, monkeypatch):
     monkeypatch.setattr(QFileDialog, "getOpenFileName",
                         lambda _p, _t, _d, file_filter, *a, **k: calls.append(file_filter) or ("", ""))
     window.open_file_dialog()
-    assert calls == ["Programmablaufpläne (*.pap)"] == [config.FILE_DIALOG_FILTER]
+    assert calls == ["Programmablaufpläne (*.pap);;Sicherungskopien (*.pap-backup)"] == [config.open_dialog_filter()]
+    assert calls[0].startswith(config.FILE_DIALOG_FILTER)
 
 
 def test_save_suggestion_uses_the_extension_exactly_once(window, monkeypatch, tmp_path):
@@ -387,7 +388,9 @@ def test_file_from_another_program_is_not_replaced_unasked(window, messages, mon
 
     choice[0] = "overwrite"
     assert window.save_document(document)
-    assert [p.name for p in tmp_path.iterdir() if p.is_file()] == ["mittelwert.pap"]
+    # die Datei des anderen Programms bleibt als Sicherungskopie erhalten
+    assert sorted(p.name for p in tmp_path.iterdir() if p.is_file()) == ["mittelwert.pap", "mittelwert.pap-backup"]
+    assert (tmp_path / "mittelwert.pap-backup").read_bytes() == original
     result = load_diagram(str(path))
     assert result.native and result.warnings == []
     assert (result.diagram.elements, result.diagram.connections) == before

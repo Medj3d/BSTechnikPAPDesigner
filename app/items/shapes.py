@@ -240,6 +240,15 @@ def geometry_for(element_type: ElementType) -> ShapeGeometry:
     return GEOMETRIES[ElementType(element_type)]
 
 
+# Bedingter Trennstrich wie im PapDesigner: „~“ trennt ein langes Wort nur, wenn dort umbrochen wird
+SOFT_HYPHEN_MARK = "~"
+
+
+def display_text(text: str) -> str:
+    """Text so, wie er im Baustein steht: „~“ wird zum bedingten Trennstrich (unsichtbar, außer am Zeilenende)."""
+    return text.replace(SOFT_HYPHEN_MARK, "\u00ad")
+
+
 class TextBlock:
     """Umbrochener, zentrierbarer Textblock auf Basis von ``QTextLayout``.
 
@@ -251,7 +260,7 @@ class TextBlock:
                  alignment=Qt.AlignmentFlag.AlignHCenter):
         self.text = text
         self.wrap_width = float(wrap_width)
-        layout_text = text.replace("\r\n", "\n").replace("\n", " ")
+        layout_text = display_text(text).replace("\r\n", "\n").replace("\n", " ")
         self.layout = QTextLayout(layout_text, font)
         option = QTextOption(alignment)
         option.setWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)

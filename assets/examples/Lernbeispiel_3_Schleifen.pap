@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="1" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+  <PROJECT FORMAT="1.00" NAME="Lernbeispiel 3 – Schleifen" AUTHOR="BS Technik" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48" bst:DESCRIPTION="Summe 1 + 2 + … + n mit Fuß- und Kopfbedingung." bst:CREATED="2026-10-28T02:55:48+01:00" bst:MODIFIED="2026-10-28T02:55:48+01:00">
+    <DIAGRAMS>
+      <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 3 – Schleifen" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48">
+        <LAYOUT FORMAT="1.00" COLUMNS="3" ROWS="13" bst:GRID_SIZE="20" bst:GRID_VISIBLE="True" bst:SNAP_TO_GRID="True" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="0">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
+              <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
+                <TEXT><![CDATA[Lernbeispiel 3 – Schleifen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="b1eecf2c9f034e19a5b99a0dc990c98e">
+                <TEXT><![CDATA[Start]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="2" ASSOCIATE="4" bst:UID="fa1ae6ef853d4f8993a0e9a9bb9fc315">
+                <TEXT><![CDATA[wiederhole]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="3" bst:UID="c63bc9972703419ca3cfdbd16228b0d1">
+                <TEXT><![CDATA[Zahl n einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="4" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="4" ASSOCIATE="2" bst:UID="345f54f16de144ecb46a526b40c20db1">
+                <TEXT><![CDATA[bis n > 0]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="400" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="5" bst:UID="6f912ef3fa1043c0bea9b19743673121">
+                <TEXT><![CDATA[summe = 0
+i = 1]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="6" bst:X="0" bst:Y="500" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="6" ASSOCIATE="9" bst:UID="2e5a1d22969547178b7b8de1544309b6">
+                <TEXT><![CDATA[solange i <= n]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="600" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="7" bst:UID="a04b2133d346420896cd0c0d235f8b3d">
+                <TEXT><![CDATA[summe = summe + i]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="8" bst:X="0" bst:Y="700" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="8" bst:UID="ec42cb0681464d74b8efc5978046ab02">
+                <TEXT><![CDATA[i = i + 1]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="10" bst:X="0" bst:Y="800" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="9" ASSOCIATE="6" bst:UID="b321a6e31d2c44c99ebac4ef115b9b5d">
+                <TEXT><![CDATA[Schleifenende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="11" bst:X="0" bst:Y="900" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="10" bst:UID="227dfb82ab7a437e986134fe8b7efb8c">
+                <TEXT><![CDATA[„Summe:“ summe]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="12" bst:X="0" bst:Y="1000" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="11" bst:UID="1ed937d3405b4d68865e335cacca383e">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="3" bst:X="-390" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="100">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="12" bst:UID="c02c446417d44680b66f0b680de2f6a8">
+                <TEXT><![CDATA[Schleife mit Fußbedingung: Der Inhalt
+läuft mindestens einmal; geprüft wird
+am Ende („bis …“). Hier: so lange
+fragen, bis n positiv ist.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="7" bst:X="-390" bst:Y="600" bst:WIDTH="300" bst:HEIGHT="80">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="203a4663405b4074b89bbd6a26ab5597">
+                <TEXT><![CDATA[Schleife mit Kopfbedingung: geprüft
+wird vorher („solange …“) – ist sie
+falsch, läuft der Inhalt gar nicht.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="2" ROW="5" bst:X="364" bst:Y="400" bst:WIDTH="300" bst:HEIGHT="80">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="14" bst:UID="b9ded469771b4910b426fc2e01641638">
+                <TEXT><![CDATA[Mehrere Zuweisungen in einem
+Baustein: je Zeile eine
+(Zeilenumbruch mit Strg+Enter).]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="2" ROW="9" bst:X="364" bst:Y="750" bst:WIDTH="300" bst:HEIGHT="100">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="15" bst:UID="cee95afc81c145ffbb739bf9203edae7">
+                <TEXT><![CDATA[Einfügen → Schleife mit Kopf- bzw.
+Fußbedingung legt beide Teile an.
+Eine Schleife geht auch mit einer
+Verzweigung und einem Pfeil zurück.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="16" FROM="1" TO="2" TEXT="" bst:UID="1efc45c9b1bc463bb7505f3b4d521b52" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="17" FROM="2" TO="3" TEXT="" bst:UID="94dd9f2b5c9f40ac834afc39cc284970" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="3" TO="4" TEXT="" bst:UID="95cefadb30d74bd78a09635fb886b1f7" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="19" FROM="4" TO="5" TEXT="" bst:UID="b78b8485e26345ac85d58f950c5de13f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="20" FROM="5" TO="6" TEXT="" bst:UID="b42d9f14afcc405b9609bb147e30806f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="21" FROM="6" TO="7" TEXT="" bst:UID="e859d39164f14312bb70e0de6b051882" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="22" FROM="7" TO="8" TEXT="" bst:UID="e10bc781382148e7a5bead3866ff9ac7" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="23" FROM="8" TO="9" TEXT="" bst:UID="ec3ee36c45f84e53ad928e5db8a5131b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="24" FROM="9" TO="10" TEXT="" bst:UID="bc1886e9a80348c585b780aebe1849a5" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="25" FROM="10" TO="11" TEXT="" bst:UID="7dea9d852a7f44ebbcb4761b552865a0" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="26" FROM="12" TO="4" TEXT="" bst:UID="2b54c7cb20e3477b9a286b52e8678e45" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+          <CONNECTION FORMAT="1.00" ID="27" FROM="13" TO="6" TEXT="" bst:UID="f38d78cfaf054756a42c163a45ca3402" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+          <CONNECTION FORMAT="1.00" ID="28" FROM="14" TO="5" TEXT="" bst:UID="1b09d345abce4f43a79c7dbf4c70907d" bst:SOURCE_PORT="left" bst:TARGET_PORT="right" />
+        </CONNECTIONS>
+      </DIAGRAM>
+    </DIAGRAMS>
+  </PROJECT>
+</FRAME>

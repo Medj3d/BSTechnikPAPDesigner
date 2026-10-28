@@ -16,16 +16,18 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Bereich | Umsetzung |
 |---|---|
 | Bausteine | Start, Ende, Eingabe, Ausgabe, Vorgang, Unterprogramm, Verzweigung, Schleife, Kommentar |
-| Unterprogramme | jedes Projekt hat neben dem **Hauptprogramm** beliebig viele **Unterprogramme auf eigenen Seiten** (Reiter unter der Arbeitsfläche, wie im PapDesigner). **„+ Unterprogramm“** bzw. **Einfügen → Neues Unterprogramm** (Strg+Umschalt+U) legt eine Seite mit Start „Name“ → Ende an. Ein Unterprogramm-Baustein mit diesem Namen ruft es auf (auch mit Argumenten, z. B. `berechne(x, y)`); **Strg+Doppelklick** oder Rechtsklick auf den Baustein öffnet das Unterprogramm bzw. legt es an. Doppelklick auf einen Seitenreiter benennt um – alle Aufrufe werden mit angepasst; Rechtsklick auf den Reiter löscht. Schreibtischtest, Code, Struktogramm, Hinweise, PDF und Druck umfassen alle Seiten |
+| Unterprogramme | jedes Projekt hat neben dem **Hauptprogramm** beliebig viele **Unterprogramme auf eigenen Seiten** (Reiter unter der Arbeitsfläche, wie im PapDesigner). **„+ Unterprogramm“** bzw. **Einfügen → Neues Unterprogramm** (Strg+Umschalt+U) legt eine Seite mit Start „Name“ → Ende an. Ein Unterprogramm-Baustein mit diesem Namen ruft es auf (auch mit Argumenten, z. B. `berechne(x, y)`); **Strg+Doppelklick** oder Rechtsklick auf den Baustein öffnet das Unterprogramm bzw. legt es an. Doppelklick auf einen Seitenreiter benennt um – alle Aufrufe werden mit angepasst. Rechtsklick auf den Reiter: **Duplizieren, Kopieren, Ausschneiden, Einfügen** (auch in ein anderes Projekt), **Verschieben** (oder Reiter ziehen), **„Aufgerufen von“** (springt zu jedem Aufruf) und Löschen. **Bearbeiten → Auswahl in Unterprogramm auslagern** (Strg+Alt+U) verschiebt markierte Bausteine auf eine eigene Seite und setzt an ihre Stelle den Aufruf. **Alt+← / Alt+→** wechselt zurück und vorwärts zwischen den zuletzt gezeigten Seiten. Schreibtischtest, Code, Struktogramm, Hinweise, PDF und Druck umfassen alle Seiten |
 | Formen | Start/Ende = abgerundet · Eingabe/Ausgabe = Parallelogramm · Vorgang = Rechteck · Unterprogramm = Rechteck mit doppelten Seitenlinien · Verzweigung = Raute · Schleife = Schleifenbegrenzung (Beginn oben / Ende unten abgeschrägt, DIN 66001) · Kommentar = Text mit offener Klammer |
 | Arbeitsfläche | praktisch unbegrenzt, dunkles Punktraster (adaptiv je Zoomstufe), präzises Einrasten |
 | Zoom / Schwenken | Mausrad zoomt am Mauszeiger (25 % – 400 %), rechte oder mittlere Maustaste bzw. Leertaste + linke Maustaste schwenkt |
 | Einfügen | Drag & Drop aus der Werkzeugpalette (mit eingerasteter Vorschau), Klick in der Palette, Menü „Einfügen“, Kontextmenü „Neu“ |
 | Einfügen in den Ablauf | Baustein auf eine bestehende Verbindung ziehen → wird automatisch dazwischen eingefügt |
+| Schleifen | **Einfügen → Schleife mit Kopfbedingung** („solange …“) bzw. **mit Fußbedingung** („wiederhole … bis …“) legt beide Teile mit passenden Platzhaltern an; außerdem Zählschleifen („für i = 1 bis n“), „n mal“ und Schleifen aus Verzweigung und Pfeil zurück |
+| Verbindungspunkte | Rechtsklick auf eine Verbindung → **Verbindungspunkt hier einfügen** (als Eckpunkt zum Führen der Linie oder als Abzweig für weitere Pfeile) |
 | Verbindungen | echte Objekte mit Quelle/Ziel, Anschlusspunkte je Bausteintyp, Pfeilspitzen, rechtwinklige Linienführung um Bausteine herum, Rückwärtsverbindungen/Zyklen, beschriftbar („ja“/„nein“ automatisch an Verzweigungen), mittleres Segment verschiebbar |
 | Anschluss an Pfeile | Verbindungen können an bestehenden Pfeilen beginnen oder enden; der Pfeil wird dort mit einem Verbindungspunkt aufgetrennt (A → ● → B), die Richtung des Pfeils bleibt erhalten |
 | Prüfung | fachlich fragwürdige Verbindungen werden **rot markiert, aber nicht verhindert**; nur technisch unmögliche Verbindungen werden abgelehnt |
-| Text | Inline-Editor direkt im Baustein, **Enter = bestätigen**, **Umschalt+Enter = neue Zeile**, Esc = abbrechen; automatische Größenanpassung in festen Schritten |
+| Text | Inline-Editor direkt im Baustein, **Enter = bestätigen**, **Umschalt+Enter oder Strg+Enter = neue Zeile**, Esc = abbrechen; automatische Größenanpassung in festen Schritten. **Sonderzeichen** (≤ ≥ ≠ ← × √ π ∧ ∨ ¬ „“ …) über Rechtsklick in der Texteingabe oder **Bearbeiten → Sonderzeichen**; **~** markiert einen bedingten Trennstrich (dort darf ein langes Wort umbrochen werden, wie im PapDesigner) |
 | Bearbeiten | Mehrfachauswahl (Strg+Klick, Auswahlrechteck), Verschieben mit Einrasten, Pfeiltasten, Kopieren/Ausschneiden/Einfügen/Duplizieren (neue IDs, nur interne Verbindungen), **Kopieren per Strg+Ziehen**, **Baustein umwandeln** (Rechtsklick → „Ändern in“, Text und Verbindungen bleiben), Löschen inkl. Verbindungen; beschriftet man einen Ausgang einer Verzweigung mit ja/nein (wahr/falsch, yes/no …), bekommt der andere das Gegenwort |
 | Rückgängig | vollständiges Undo/Redo über das Qt Undo Framework für alle Änderungen |
 | Anordnen | links/rechts/oben/unten, mittig (Spalte/Zeile), horizontal/vertikal verteilen, am Raster ausrichten, nach vorne/hinten |
@@ -40,9 +42,13 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 | Hinweise | **Extras → Hinweise** (Strg+Umschalt+H) oder Klick auf die Anzeige in der Statusleiste: rote Verbindungen, fehlender Start/Ende, unerreichbare Bausteine, Sackgassen, unbeschriftete Verzweigungsausgänge, Schleifen ohne Gegenstück, Standardtexte; Klick springt zur Stelle |
 | Automatisch speichern | ein Projekt, das einmal gespeichert wurde, wird rund 2 Sekunden nach jeder Änderung von selbst in seine Datei geschrieben (spätestens nach 10 Sekunden, nie mitten in einer Texteingabe); abschaltbar unter **Datei → Automatisch speichern** |
 | Sichern | noch nie gespeicherte Projekte werden jede Minute gesichert; nach einem Absturz bietet das Programm beim nächsten Start die Wiederherstellung an („Später“ behält die Sicherungen für den nächsten Start) |
+| Sicherungskopie | vor dem ersten Überschreiben einer Datei in einer Sitzung bleibt ihr bisheriger Stand als `Name.pap-backup` daneben erhalten – auch beim automatischen Speichern und für Dateien aus dem PapDesigner; abschaltbar unter **Datei → Sicherungskopie anlegen**. Eine Sicherungskopie öffnet sich über **Datei → Öffnen** (Dateityp „Sicherungskopien“) als unbenannte Kopie |
+| Standard-Autor | der zuletzt in den Projekteigenschaften eingetragene Autor wird für neue Projekte übernommen |
 | Updates | das fertige Programm prüft beim Start, ob eine neuere Version veröffentlicht wurde, und aktualisiert sich nach Rückfrage selbst, auch ohne Schreibrechte im Programmordner (z. B. bei Installation für alle Benutzer); auch über **Hilfe → Nach Updates suchen**. Die Prüfung beim Start lässt sich unter **Hilfe → Beim Start nach Updates suchen** abschalten; Administratoren schalten Updates zentral ab (siehe „Schulbetrieb“) |
 | Ladebildschirm / Über | beim Start erscheint als Erstes für 6 Sekunden das Schullogo mit Urheberzeile und Version; **Hilfe → Über das Programm** nennt Urheber, Version und Erscheinungsmonat |
 | Farbschema | **Ansicht → Farbschema**: dunkel oder hell (z. B. für Beamer), wird gespeichert |
+| Präsentationsansicht | **Ansicht → Präsentationsansicht** (F11): nur der Plan mit Seitenleiste im Vollbild, ohne Menüs und Fenster; Esc oder F11 beendet und stellt alles wieder her |
+| Lernbeispiele | **Hilfe → Lernbeispiele**: fünf aufeinander aufbauende Projekte wie die Tutorials des PapDesigners (Ablaufplan, Verzweigungen, Schleifen, Unterprogramme, Programmierung), mit erklärenden Kommentaren; sie öffnen sich als unbenannte Kopie und laufen im Schreibtischtest durch |
 | Sprachen | **Ansicht → Sprache / Language**: Deutsch, English, Français, Español, Português (Brasil), Русский, العربية, 中文 und 日本語; „Automatisch“ richtet sich nach der Sprache von Windows. Die Sprache gilt nach einem Neustart, den das Programm gleich anbietet (gespeicherte Projekte werden danach wieder geöffnet). Arabisch wird von rechts nach links dargestellt. Pläne aus jeder Sprache lassen sich in jeder Sprache öffnen: Standardtexte und die Beschriftungen ja/nein/sonst werden in allen Sprachen erkannt |
 | Ein Fenster | wird eine weitere Datei geöffnet (Doppelklick im Explorer, „Öffnen mit“), erscheint sie als neuer Reiter im schon laufenden Programm statt in einem zweiten Fenster; das Fenster kommt dabei nach vorne |
 | PapDesigner-Dateien | `.pap`-Dateien aus dem alten PapDesigner werden wie jedes andere Projekt geöffnet (**Datei → Öffnen** oder ins Fenster ziehen), weitere Diagramme der Datei werden zu Unterprogramm-Seiten. Wie im PapDesigner heißt ein Unterprogramm wie sein Diagramm (dessen Start darf einfach „Start“ heißen), und ein Aufruf passt über den Namen vor der Klammer: „bool ok := isLeapYear(jahr)“ ruft das Diagramm „bool isLeapYear(int year)“; Leerzeichen und Bindestriche zählen dabei nicht. Rechtsklick auf einen Unterprogramm-Baustein → „Ruft auf“ wählt ein vorhandenes Unterprogramm. Die Anordnung wird aus dem Raster der Datei übernommen. Vor dem ersten Überschreiben einer solchen Datei fragt das Programm nach |
@@ -92,7 +98,7 @@ Eine vollständige Übersicht gibt es im Programm unter **Hilfe → Tastenkürze
 | Verbinden | Maus über einen Baustein → Anschlusspunkte erscheinen → von einem Punkt auf den Zielbaustein **oder auf einen bestehenden Pfeil** ziehen (Ziel wird hervorgehoben, der Anschlusspunkt auf dem Pfeil als Kreis markiert) |
 | An einem Pfeil beginnen | **Umschalt** gedrückt halten und am Pfeil ziehen (beim Überfahren mit Umschalt zeigt ein Kreis die Ansatzstelle) · oder vom vorhandenen Verbindungspunkt ● ziehen |
 | Text bearbeiten | Doppelklick, F2, Enter oder einfach lostippen |
-| Zeilenumbruch | Umschalt+Enter |
+| Zeilenumbruch | Umschalt+Enter oder Strg+Enter |
 | Beschriftung einer Verbindung | Doppelklick auf Linie oder Beschriftung |
 | Linienverlauf anpassen | Verbindung auswählen, mittleres Segment ziehen (Rechtsklick → „Linienführung zurücksetzen“) |
 | Schwenken | rechte/mittlere Maustaste ziehen oder Leertaste + linke Maustaste |
@@ -102,6 +108,10 @@ Eine vollständige Übersicht gibt es im Programm unter **Hilfe → Tastenkürze
 | Unterprogramm anlegen | „+ Unterprogramm“ unter der Arbeitsfläche · Strg+Umschalt+U · Rechtsklick auf einen Unterprogramm-Baustein → „Unterprogramm … anlegen“ |
 | Unterprogramm öffnen | Seitenreiter anklicken · Strg+Doppelklick auf den Unterprogramm-Baustein · Strg+Bild ab / Strg+Bild auf blättert durch die Seiten |
 | Unterprogramm umbenennen / löschen | Doppelklick bzw. Rechtsklick auf den Seitenreiter (Umbenennen passt auch alle Aufrufe an) |
+| Seiten kopieren / verschieben | Rechtsklick auf den Seitenreiter → Duplizieren, Kopieren, Ausschneiden, Einfügen, nach links/rechts · Reiter ziehen |
+| Auswahl auslagern | Bausteine markieren → Strg+Alt+U (oder Rechtsklick → „Auswahl in Unterprogramm auslagern …“) |
+| Zurück / vorwärts | Alt+← / Alt+→ (z. B. vom geöffneten Unterprogramm zurück zum Aufruf) |
+| Präsentationsansicht | F11 (Esc beendet) |
 
 ### PAP-Regeln und Warnungen
 
@@ -337,6 +347,16 @@ Installationsordner), wird der erzeugte Java-Code in den Tests wirklich
 Schreibtischtest, erzeugtem Python und erzeugtem Java. Ohne JDK werden diese
 Java-Läufe übersprungen.
 
+`tests/test_papdesigner_corpus.py` erzeugt mit `tests/papdesigner_corpus.py`
+reproduzierbar viele komplexe Pläne im Dateiformat des PapDesigners
+(verschachtelte und mehrfache Verzweigungen, alle Schleifenarten, Schleifen mit
+Pfeil zurück, vorzeitiges Ende, bis zu 15 Diagramme mit Parametern und
+Zuweisungen im Aufruf, Kommentare, Sonderzeichen) und rechnet selbst aus, was
+jeder Plan ausgeben muss. Geprüft wird, dass jede Datei ohne Hinweise und
+Verluste geöffnet, genau so ausgeführt, gespeichert und wieder geöffnet wird
+und übersetzbaren Code ergibt. Die Lernbeispiele (`assets/examples`) erzeugt
+`python tools/make_examples.py`.
+
 Die Tests laufen unter Windows mit der nativen Qt-Plattform (echte
 Schriftmetriken), öffnen dabei aber keine sichtbaren Fenster. Neben gezielten
 Tests für Dateiformat, Regeln, Linienführung, Zwischenablage und Bedienung
@@ -489,6 +509,7 @@ dritte Zahl kleine Nachbesserungen.
 | 1.7 | 08.10.2026 | neun Sprachen (Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch); weitere Dateien öffnen sich als Reiter im laufenden Programm; Schullogo im Ladebildschirm vollständig und mittig |
 | 1.8 | 26.10.2026 | Unterprogramme auf eigenen Seiten (Hauptprogramm + Unterprogramme als Reiter, anlegen, öffnen per Strg+Doppelklick, umbenennen samt Aufrufen); Schreibtischtest springt ins Unterprogramm; PDF und Druck mit allen Seiten |
 | 1.9 | 27.10.2026 | Bild in die Zwischenablage (Strg+C bzw. „Als Bild kopieren“, auch Struktogramm); Schreibtischtest mit Schritt zurück, automatischem Abspielen und Spalten Bedingung/Ausgabe, Tabelle kopieren und als CSV speichern; Updates zentral abschaltbar (Setup /NOUPDATES, Richtlinie, policy.ini) und für sich selbst beim Start; Link zu medjed.net im Über-Dialog; PapDesigner-Kompatibilität mit echten Dateien geprüft: Unterprogramme heißen wie ihr Diagramm (auch mit Start „Start“ und Namen wie „bool isLeapYear(int year)“), Aufrufe mit Zuweisung und Argumenten werden zugeordnet, Nummerierung je Diagramm wie im Original, Kopieren per Strg+Ziehen, Baustein umwandeln, Gegenwort ja/nein, Unterprogramm-Auswahl „Ruft auf“ |
+| 1.10 | 28.10.2026 | alle Bau-Funktionen des PapDesigners: Schleife mit Kopf- bzw. Fußbedingung, Verbindungspunkt auf einer Verbindung, Sonderzeichen, Strg+Enter, bedingter Trennstrich „~“; Seiten duplizieren, kopieren, ausschneiden, einfügen (auch zwischen Projekten) und verschieben (auch per Ziehen), „Aufgerufen von“, Auswahl in Unterprogramm auslagern, Zurück/Vorwärts zwischen Seiten; Präsentationsansicht (F11), Sicherungskopie `.pap-backup`, Standard-Autor, fünf Lernbeispiele; „Ausgabe von "Text" x“ gibt wie im PapDesigner auch den Wert aus; geprüft mit Hunderten erzeugter komplexer Pläne im Format des PapDesigners |
 
 ---
 

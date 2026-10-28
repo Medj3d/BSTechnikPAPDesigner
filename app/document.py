@@ -12,7 +12,10 @@ Undo-Stapel. ``scene`` ist immer die Szene der gerade angezeigten Seite.
 
 from __future__ import annotations
 
+import logging
 import os
+import shutil
+import weakref
 from typing import Callable
 
 from PySide6.QtCore import QObject, Signal
@@ -26,11 +29,19 @@ from app.model.diagram import Diagram, ProjectMeta, SubprogramPage, now_iso
 from app.model.element_types import ElementType
 from app.scene import DiagramScene
 
+log = logging.getLogger(__name__)
+
+
+# so viele zuletzt angezeigte Seiten merkt sich „Zurück“
+HISTORY_LIMIT = 50
+
 
 def display_name_for_path(path: str) -> str:
     name = os.path.basename(path)
-    if name.lower().endswith(config.FILE_EXTENSION.lower()):
-        name = name[: -len(config.FILE_EXTENSION)]
+    for extension in (config.FILE_EXTENSION, config.BACKUP_EXTENSION):
+        if name.lower().endswith(extension.lower()):
+            name = name[: -len(extension)]
+            break
     return name or path
 
 
@@ -130,6 +141,13 @@ class DiagramDocument(QObject):
         self.undo_stack.setUndoLimit(0)
         self.pages: list[DiagramPage] = []
         self._current = 0
+        # zuletzt angezeigte Seiten (Zurück/Vorwärts wie im Browser, z. B. vom Unterprogramm zum Aufruf)
+        # schwache Verweise: Eine gelöschte Seite hält der Verlauf nicht am Leben
+        self._back: list[weakref.ref] = []
+        self._forward: list[weakref.ref] = []
+        self._navigating = False
+        # Dateien, von denen in dieser Sitzung schon eine Sicherungskopie angelegt wurde
+        self._backed_up: set[str] = set()
         main = self.new_page()
         self.pages.append(main)
         self.load_warnings: list[str] = main.scene.load_content(diagram.elements, diagram.connections)
@@ -192,8 +210,45 @@ class DiagramDocument(QObject):
             scene.cancel_edit()
             if scene.pointer_interaction_active() or scene.is_connecting:
                 scene.end_pointer_interaction(cancel=True)
+        if not self._navigating:
+            self._back.append(weakref.ref(self.pages[self._current]))
+            del self._back[:-HISTORY_LIMIT]
+            self._forward.clear()
         self._current = index
         self.current_page_changed.emit(index)
+
+    def _history(self, refs: list[weakref.ref]) -> list[DiagramPage]:
+        """Seiten des Verlaufs, die es noch gibt und die nicht gerade angezeigt werden."""
+        pages = (ref() for ref in refs)
+        return [page for page in pages if page is not None and page is not self.current_page
+                and self.page_index(page) >= 0]
+
+    def can_go_back(self) -> bool:
+        return bool(self._history(self._back))
+
+    def can_go_forward(self) -> bool:
+        return bool(self._history(self._forward))
+
+    def go_back(self) -> bool:
+        """Zur zuletzt angezeigten Seite zurück."""
+        return self._navigate(self._back, self._forward)
+
+    def go_forward(self) -> bool:
+        return self._navigate(self._forward, self._back)
+
+    def _navigate(self, source: list[weakref.ref], other: list[weakref.ref]) -> bool:
+        while source:
+            page = source.pop()()
+            if page is None or page is self.current_page or self.page_index(page) < 0:
+                continue
+            other.append(weakref.ref(self.current_page))
+            self._navigating = True
+            try:
+                self.show_page(page)
+            finally:
+                self._navigating = False
+            return True
+        return False
 
     def show_page(self, page: DiagramPage) -> None:
         index = self.page_index(page)
@@ -232,6 +287,19 @@ class DiagramDocument(QObject):
         self.pages_changed.emit()
         self.content_changed.emit()
         return index
+
+    def move_page(self, page: DiagramPage, index: int) -> None:
+        """Verschiebt eine Unterprogramm-Seite (für Befehle); die angezeigte Seite bleibt angezeigt."""
+        current = self.current_page
+        old = self.page_index(page)
+        index = max(1, min(len(self.pages) - 1, int(index)))
+        if old <= 0 or old == index:
+            return
+        self.pages.pop(old)
+        self.pages.insert(index, page)
+        self._current = self.page_index(current)
+        self.pages_changed.emit()
+        self.current_page_changed.emit(self._current)
 
     def find_element(self, element_id: str):
         """(Seite, Baustein) zu einer Element-ID – oder ``None``."""
@@ -333,10 +401,12 @@ class DiagramDocument(QObject):
                        elements=self.main_scene.element_data(), connections=self.main_scene.connection_data(),
                        subprograms=subprograms)
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, backup: bool = False) -> None:
         """Speichert das Projekt. Wirft ``ProjectFileError``."""
         self.scene.commit_edit()
         path = os.path.abspath(path)
+        if backup:
+            self._backup_once(path)
         old_modified, old_name = self.meta.modified, self.meta.name
         self.meta.modified = now_iso()
         if self._name_is_default:
@@ -351,6 +421,18 @@ class DiagramDocument(QObject):
         self.native_file = True
         self.undo_stack.setClean()
         self.title_changed.emit()
+
+    def _backup_once(self, path: str) -> None:
+        """Hebt den Stand einer vorhandenen Datei vor dem ersten Überschreiben in dieser Sitzung auf
+        („Projekt.pap-backup“). So bleibt auch beim automatischen Speichern der Stand beim Öffnen erhalten."""
+        key = os.path.normcase(path)
+        if key in self._backed_up or not os.path.isfile(path):
+            return
+        self._backed_up.add(key)
+        try:
+            shutil.copy2(path, config.backup_path_for(path))
+        except OSError as exc:  # eine fehlende Sicherungskopie verhindert das Speichern nicht
+            log.warning("Sicherungskopie von %s nicht möglich: %s", path, exc)
 
     # -------------------------------------------------------- Eigenschaften
     def apply_properties(self, meta: ProjectMeta, grid_size: int) -> None:

@@ -384,6 +384,8 @@ class OutputSpec:
 
 
 _OUTPUT_PREFIX = re.compile(r"^\s*(ausgabe|gib|zeige|drucke|schreibe)\b\s*:?\s*", re.IGNORECASE)
+# „Ausgabe von "Text" x“ schreibt der PapDesigner selbst so: „von“/„der“/„des“ gehören dann zum Vorspann
+_OUTPUT_FILLER = re.compile(r"^(von|der|des)\b\s*:?\s*", re.IGNORECASE)
 _OUTPUT_SUFFIX = re.compile(r"\s*\b(ausgeben|aus|anzeigen|drucken)\s*$", re.IGNORECASE)
 
 
@@ -412,6 +414,18 @@ def _parse_output_values(expr: str, known: dict) -> list | None:
     return elements
 
 
+def _strip_output_prefix(text: str, known: set) -> str:
+    """„Ausgabe: x“ → „x“, „Ausgabe von x“ → „x“ – außer es gibt eine Variable „von“ („Ausgabe von + x“)."""
+    match = _OUTPUT_PREFIX.match(text)
+    if not match:
+        return text
+    rest = text[match.end():]
+    filler = _OUTPUT_FILLER.match(rest)
+    if filler and filler.group(1) not in known:
+        rest = rest[filler.end():]
+    return rest
+
+
 def _mixed_output(text: str, known: set) -> OutputSpec | None:
     """„"Die Summe ist" summe“, „Ausgabe "Summe:", summe“ → Text und Wert(e)."""
     segments = _QUOTED.split(text)
@@ -422,7 +436,7 @@ def _mixed_output(text: str, known: set) -> OutputSpec | None:
             continue
         core = segment
         if index == 0:
-            core = _OUTPUT_PREFIX.sub("", core)
+            core = _strip_output_prefix(core, known)
         if index == len(segments) - 1:
             core = _OUTPUT_SUFFIX.sub("", core)
         core = core.strip().strip(",;+&").strip()

@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="2" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+  <PROJECT FORMAT="1.00" NAME="Lernbeispiel 4 – Unterprogramme" AUTHOR="BS Technik" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48" bst:DESCRIPTION="ggT mit dem euklidischen Algorithmus als Unterprogramm." bst:CREATED="2026-10-28T02:55:48+01:00" bst:MODIFIED="2026-10-28T02:55:48+01:00">
+    <DIAGRAMS>
+      <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 4 – Unterprogramme" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48">
+        <LAYOUT FORMAT="1.00" COLUMNS="3" ROWS="9" bst:GRID_SIZE="20" bst:GRID_VISIBLE="True" bst:SNAP_TO_GRID="True" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="0">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
+              <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
+                <TEXT><![CDATA[Lernbeispiel 4 – Unterprogramme]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="e47321c93e0343ad864369a821f877a8">
+                <TEXT><![CDATA[Start]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapModule" FORMAT="1.00" ID="2" bst:UID="1374a1d746d94b598f9d83b4ffb6f10c">
+                <TEXT><![CDATA[Begrüßung]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="3" bst:UID="6d98aa0c09104bc485546b4492e1dce3">
+                <TEXT><![CDATA[Zahl a einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="4" bst:UID="3fe5298929274ab6a6acd30dbf1b3e1f">
+                <TEXT><![CDATA[Zahl b einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="6" bst:X="0" bst:Y="400" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapModule" FORMAT="1.00" ID="5" bst:UID="b5f84327e3134bbcaa01d7a86e9e8311">
+                <TEXT><![CDATA[ggT]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="500" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="6" bst:UID="da8bbcf51f6b402384c74bd80bcad155">
+                <TEXT><![CDATA[„größter gemeinsamer Teiler:“ a]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="8" bst:X="0" bst:Y="600" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="7" bst:UID="ba708f1c70c04d8bb5330d3d35a1e077">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="2" bst:X="-390" bst:Y="100" bst:WIDTH="300" bst:HEIGHT="100">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="94e1113a72f84f55984c803b8c29d6ea">
+                <TEXT><![CDATA[Ein Unterprogramm-Baustein ruft den
+Ablauf auf, dessen Start so heißt.
+Jedes Unterprogramm hat eine eigene
+Seite (Reiter unten).]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="6" bst:X="-390" bst:Y="400" bst:WIDTH="300" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="9" bst:UID="6b97bd63bcb24db2a332ea546d9d1605">
+                <TEXT><![CDATA[Strg+Doppelklick öffnet das
+Unterprogramm, Alt+← führt zurück.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="2" ROW="4" bst:X="364" bst:Y="250" bst:WIDTH="300" bst:HEIGHT="100">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="bc922f7f21d1431dab80f96d2058bb52">
+                <TEXT><![CDATA[Mehrfach Benötigtes gehört in ein
+Unterprogramm: markieren, dann
+Bearbeiten → Auswahl in Unterprogramm
+auslagern (Strg+Alt+U).]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="11" FROM="1" TO="2" TEXT="" bst:UID="6c33243fbf5c4983ab68a2a0bdc73f3a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="12" FROM="2" TO="3" TEXT="" bst:UID="dd8cd050167043c4ac014239b5abfa11" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="13" FROM="3" TO="4" TEXT="" bst:UID="bba4dfb32d7046af9db96935f0e3c30d" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="5" TEXT="" bst:UID="2ea6d039d8074492b62acd053bc3c97f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="15" FROM="5" TO="6" TEXT="" bst:UID="030510f4778443a78e8afd5186e24102" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="16" FROM="6" TO="7" TEXT="" bst:UID="8bee6c3601f8493bb29c7ab690c1811e" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="17" FROM="8" TO="2" TEXT="" bst:UID="7c806148dd3f47b3927294114899dddc" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="9" TO="5" TEXT="" bst:UID="1f0a181c0f9d49819ac437500be1a562" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+        </CONNECTIONS>
+      </DIAGRAM>
+      <DIAGRAM FORMAT="1.00" ID="1" NAME="Begrüßung" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48">
+        <LAYOUT FORMAT="1.00" COLUMNS="1" ROWS="4" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="100">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
+              <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
+                <TEXT><![CDATA[Begrüßung]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="b2910211873644819ac217567dd1bc81">
+                <TEXT><![CDATA[Begrüßung]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="2" bst:UID="6f0ec0442f7d4ecb8309a48e62194061">
+                <TEXT><![CDATA[„Willkommen beim ggT-Rechner!“ ausgeben]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="3" bst:UID="13cfdb1ea37242ac938ca4e56a6e68ab">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="4" FROM="1" TO="2" TEXT="" bst:UID="94d1f70af3f749f7aff2e7c52318f6eb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="5" FROM="2" TO="3" TEXT="" bst:UID="e0878beacc58440fb6439d57dda4601b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+        </CONNECTIONS>
+      </DIAGRAM>
+      <DIAGRAM FORMAT="1.00" ID="2" NAME="ggT" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48">
+        <LAYOUT FORMAT="1.00" COLUMNS="3" ROWS="7" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="250">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
+              <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
+                <TEXT><![CDATA[ggT]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="f01b765123724e0dbf48e9dea04479d4">
+                <TEXT><![CDATA[ggT]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="2" ASSOCIATE="5" bst:UID="40d55b1a36a64dcdb904227e18940b87">
+                <TEXT><![CDATA[solange b ≠ 0]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="3" bst:UID="dff556367f1748558849882cccb8cd11">
+                <TEXT><![CDATA[r = a mod b]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="4" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="4" bst:UID="9118b5a576614c60945b7eeb9a6d6bfc">
+                <TEXT><![CDATA[a = b
+b = r]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="400" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapLoopEnd" FORMAT="1.00" ID="5" ASSOCIATE="2" bst:UID="3a369634e1de4462851aee6e5a9ceb9d">
+                <TEXT><![CDATA[Schleifenende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="6" bst:X="0" bst:Y="500" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="6" bst:UID="f9048d4a212c43a386c201771159b47f">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="1" bst:X="-390" bst:Y="0" bst:WIDTH="300" bst:HEIGHT="100">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="7" bst:UID="4538fd3652254101847fdd2630626035">
+                <TEXT><![CDATA[Euklidischer Algorithmus: Am Ende
+steht der ggT in a. Unterprogramme
+arbeiten mit denselben Variablen
+wie das Hauptprogramm.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="80">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="0fb22205a64747bb84ad267ac807b36f">
+                <TEXT><![CDATA[„mod“ ist der Rest der Division;
+„≠“ gibt es unter Bearbeiten →
+Sonderzeichen.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="9" FROM="1" TO="2" TEXT="" bst:UID="54aea375ac2e4223bb66a0f018e81d4a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="10" FROM="2" TO="3" TEXT="" bst:UID="75e5d647c09c49afb0d0fba5f0c20793" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="11" FROM="3" TO="4" TEXT="" bst:UID="ffdbf34e63d14bf3957e0cf7730b9d07" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="12" FROM="4" TO="5" TEXT="" bst:UID="79c3cb52024c415dae92a3b4c070706c" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="13" FROM="5" TO="6" TEXT="" bst:UID="ee14b801dcea47009bce204f9058141b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="14" FROM="7" TO="1" TEXT="" bst:UID="8cad70f7f9544455a63e255a3b323d04" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+          <CONNECTION FORMAT="1.00" ID="15" FROM="8" TO="3" TEXT="" bst:UID="9fa4dd54994b4cf3a7ba184aad7e9a26" bst:SOURCE_PORT="left" bst:TARGET_PORT="right" />
+        </CONNECTIONS>
+      </DIAGRAM>
+    </DIAGRAMS>
+  </PROJECT>
+</FRAME>

@@ -14,13 +14,13 @@ import time
 import shiboken6
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QActionGroup, QKeySequence, QUndoGroup
+from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QUndoGroup
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QLabel,
                                QMainWindow, QMenu, QMessageBox, QPushButton, QStackedWidget,
                                QTabBar, QTabWidget, QToolBar, QToolButton, QVBoxLayout, QWidget)
 
-from app import (alignment, clipboard, config, export, file_association, i18n, icons, restart, single_instance,
-                 styles, subprograms)
+from app import (alignment, clipboard, config, examples, export, file_association, i18n, icons, restart,
+                 single_instance, styles, subprograms)
 from app import theme as theme_module
 from app.actions import ALIGN_ACTIONS, ActionRegistry, insert_action_name
 from app.autosave import AutosaveManager
@@ -39,6 +39,7 @@ from app.dialogs.export_options import ExportOptionsDialog
 from app.dialogs.project_properties import ProjectPropertiesDialog
 from app.dialogs.shortcuts import ShortcutsDialog
 from app.dialogs.subprogram_name import SubprogramNameDialog
+from app.inline_editor import add_special_characters
 from app.document import DiagramDocument
 from app.fileformat.project import ProjectFileError
 from app.items.base_item import FlowItem
@@ -127,6 +128,7 @@ class MainWindow(QMainWindow):
         self.resize(1400, 880)
 
         self.settings_store = SettingsStore()
+        self._presentation: tuple | None = None  # (Fensterzustand, Fensterstatus) während der Präsentation
         self.undo_group = QUndoGroup(self)
         self.paste_tracker = clipboard.PasteTracker()
         self.export_options: dict[str, export.ExportOptions] = {}
@@ -179,6 +181,9 @@ class MainWindow(QMainWindow):
         self.page_bar.add_requested.connect(self.new_subprogram)
         self.page_bar.rename_requested.connect(self.rename_subprogram)
         self.page_bar.delete_requested.connect(self.delete_subprogram)
+        self.page_bar.action_requested.connect(self.page_command)
+        self.page_bar.move_requested.connect(self.move_page_to)
+        self.page_bar.caller_requested.connect(self.reveal_element)
         self.workspace = QWidget()
         workspace_layout = QVBoxLayout(self.workspace)
         workspace_layout.setContentsMargins(0, 0, 0, 0)
@@ -200,7 +205,7 @@ class MainWindow(QMainWindow):
             file_menu.addAction(a[name])
         self.recent_menu = file_menu.addMenu(tr("&Zuletzt geöffnet"))
         file_menu.addSeparator()
-        for name in ("save", "save_as", "auto_save"):
+        for name in ("save", "save_as", "auto_save", "backup_on_save"):
             file_menu.addAction(a[name])
         file_menu.addSeparator()
         export_menu = file_menu.addMenu(icons.icon("export"), tr("E&xportieren"))
@@ -222,6 +227,18 @@ class MainWindow(QMainWindow):
                 edit_menu.addSeparator()
             else:
                 edit_menu.addAction(a[name])
+        # Sonderzeichen in die gerade offene Texteingabe (wie „Symbolzeichen“ im PapDesigner)
+        self.special_menu = edit_menu.addMenu(tr("&Sonderzeichen"))
+        add_special_characters(self.special_menu, self._insert_special)
+        edit_menu.addSeparator()
+        edit_menu.addAction(a["extract_subprogram"])
+        page_menu = edit_menu.addMenu(tr("S&eite"))
+        for name in ("duplicate_page", "copy_page", "cut_page", "paste_page", None, "move_page_left",
+                     "move_page_right"):
+            if name is None:
+                page_menu.addSeparator()
+            else:
+                page_menu.addAction(a[name])
 
         view_menu = bar.addMenu(tr("&Ansicht"))
         for name in ("zoom_in", "zoom_out", "zoom_reset", "zoom_fit", None, "toggle_grid", "toggle_snap"):
@@ -229,6 +246,7 @@ class MainWindow(QMainWindow):
                 view_menu.addSeparator()
             else:
                 view_menu.addAction(a[name])
+        view_menu.addAction(a["presentation"])
         view_menu.addSeparator()
         theme_menu = view_menu.addMenu(tr("&Farbschema"))
         theme_group = QActionGroup(self)
@@ -238,7 +256,7 @@ class MainWindow(QMainWindow):
             theme_menu.addAction(a[name])
         self._build_language_menu(view_menu)
         view_menu.addSeparator()
-        for name in ("open_subprogram", "next_page", "previous_page"):
+        for name in ("open_subprogram", "next_page", "previous_page", "go_back", "go_forward"):
             view_menu.addAction(a[name])
         view_menu.addSeparator()
         self.view_menu = view_menu
@@ -246,11 +264,16 @@ class MainWindow(QMainWindow):
         insert_menu = bar.addMenu(tr("&Einfügen", ctx="Menü"))  # Bausteine einfügen (nicht: aus der Zwischenablage)
         for element_type in PALETTE_ORDER:
             insert_menu.addAction(a[insert_action_name(element_type)])
+            if element_type is ElementType.LOOP:
+                for name in ("insert_loop_head", "insert_loop_foot"):
+                    a[name].setIcon(icons.element_icon(ElementType.LOOP))
+                    insert_menu.addAction(a[name])
         insert_menu.addSeparator()
         for element_type in FLOW_TERMINALS:
             insert_menu.addAction(a[insert_action_name(element_type)])
         insert_menu.addSeparator()
         insert_menu.addAction(a["new_subprogram"])
+        insert_menu.addAction(a["extract_subprogram"])
 
         arrange_menu = bar.addMenu(tr("An&ordnen"))
         for name in ALIGN_ACTIONS[:6]:
@@ -277,6 +300,13 @@ class MainWindow(QMainWindow):
 
         help_menu = bar.addMenu(tr("&Hilfe"))
         help_menu.addAction(a["shortcuts"])
+        examples_menu = help_menu.addMenu(tr("&Lernbeispiele"))
+        for path, title in examples.example_files():
+            action = examples_menu.addAction(icons.icon("open"), tr(title))
+            action.setStatusTip(tr("Lernbeispiel als neues, unbenanntes Projekt öffnen"))
+            action.triggered.connect(lambda _=False, p=path: self.open_example(p))
+        examples_menu.setEnabled(not examples_menu.isEmpty())
+        help_menu.addSeparator()
         if file_association.is_supported():
             help_menu.addAction(a["register_filetype"])
         help_menu.addAction(a["check_updates"])
@@ -547,6 +577,8 @@ class MainWindow(QMainWindow):
         for element_type in PALETTE_ORDER + FLOW_TERMINALS:
             a[insert_action_name(element_type)].triggered.connect(
                 lambda _=False, t=element_type: self.insert_element(t))
+        a["insert_loop_head"].triggered.connect(lambda: self.insert_element(ElementType.LOOP, loop_kind="head"))
+        a["insert_loop_foot"].triggered.connect(lambda: self.insert_element(ElementType.LOOP, loop_kind="foot"))
 
         for name in ALIGN_ACTIONS + [alignment.SNAP_TO_GRID]:
             a[name].triggered.connect(lambda _=False, mode=name: self.align(mode))
@@ -558,6 +590,11 @@ class MainWindow(QMainWindow):
         a["open_subprogram"].triggered.connect(self.open_selected_subprogram)
         a["next_page"].triggered.connect(lambda: self._step_page(1))
         a["previous_page"].triggered.connect(lambda: self._step_page(-1))
+        a["go_back"].triggered.connect(lambda: self._go_history(back=True))
+        a["go_forward"].triggered.connect(lambda: self._go_history(back=False))
+        a["extract_subprogram"].triggered.connect(lambda: self.extract_subprogram())
+        for name in ("duplicate_page", "copy_page", "cut_page", "paste_page", "move_page_left", "move_page_right"):
+            a[name].triggered.connect(lambda _=False, n=name: self.page_command(n))
 
         a["generate_code"].triggered.connect(self.show_code_dialog)
         a["structogram"].triggered.connect(self.show_structogram)
@@ -573,6 +610,17 @@ class MainWindow(QMainWindow):
         self._sync_update_actions()
         a["auto_save"].setChecked(self._auto_save_enabled)
         a["auto_save"].triggered.connect(self._on_auto_save_triggered)
+        a["backup_on_save"].setChecked(self.settings_store.backup_on_save())
+        a["backup_on_save"].triggered.connect(self._on_backup_triggered)
+        a["presentation"].triggered.connect(self.set_presentation)
+        # Esc beendet die Präsentationsansicht – nur solange sie läuft (sonst gehört Esc der Arbeitsfläche)
+        self._exit_presentation = QAction(self)
+        self._exit_presentation.setShortcut(QKeySequence(Qt.Key.Key_Escape))
+        self._exit_presentation.setEnabled(False)
+        self._exit_presentation.triggered.connect(self._on_presentation_escape)
+        self.addAction(self._exit_presentation)
+        # Tastenkürzel wirken auch, wenn die Menüleiste ausgeblendet ist (Präsentationsansicht)
+        self.addActions(list(a.all().values()))
 
     # ============================================================ Zugriff
     def current_view(self) -> DiagramView | None:
@@ -722,17 +770,21 @@ class MainWindow(QMainWindow):
 
     # ============================================================ Datei
     def new_document(self) -> None:
-        self.add_document(DiagramDocument())
+        document = DiagramDocument()
+        # wie „Default author“ im PapDesigner: der zuletzt eingetragene Autor gilt auch für neue Projekte
+        document.meta.author = self.settings_store.default_author()
+        self.add_document(document)
 
     def open_file_dialog(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, tr("Projekt öffnen"), self.settings_store.last_directory(),
-                                              config.file_dialog_filter())
+                                              config.open_dialog_filter())
         if path:
             self.open_file(path)
 
     def open_file(self, path: str) -> bool:
         path = os.path.abspath(path)
-        if not _has_project_extension(path):
+        backup = path.lower().endswith(config.BACKUP_EXTENSION)
+        if not _has_project_extension(path) and not backup:
             # .pap ist das einzige Projektformat – auf jedem Weg (Dialog, Befehlszeile, Zuletzt geöffnet)
             self._error(tr("Datei kann nicht geöffnet werden"),
                         tr("„{name}“ ist kein Programmablaufplan im Format {ext}.\n\n"
@@ -747,6 +799,9 @@ class MainWindow(QMainWindow):
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             try:
                 document = DiagramDocument.open_file(path)
+                if backup:
+                    # eine Sicherungskopie wird nicht überschrieben: „Speichern“ fragt nach dem Ort
+                    document.file_path = None
             finally:
                 QApplication.restoreOverrideCursor()
         except ProjectFileError as exc:
@@ -771,8 +826,9 @@ class MainWindow(QMainWindow):
         view = self.add_document(document)
         if replace_index >= 0:
             self.close_tab(replace_index)
-            self.tabs.setCurrentIndex(self._find_document_by_path(path))
-        self.settings_store.add_recent_file(path)
+            self.tabs.setCurrentIndex(self.tabs.indexOf(view))
+        if not backup:
+            self.settings_store.add_recent_file(path)
         self.settings_store.set_last_directory(path)
         self._refresh_recent_menu()
         if document.load_warnings:
@@ -784,13 +840,39 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, tr("Datei wurde mit Korrekturen geöffnet"),
                                     tr("Die Datei enthielt fehlerhafte Angaben, die automatisch korrigiert "
                                        "wurden:\n\n{text}", text=text))
-        if document.native_file:
+        if backup:
+            self.statusBar().showMessage(tr("Sicherungskopie geöffnet – „Speichern“ legt eine neue Datei an."), 6000)
+        elif document.native_file:
             self.statusBar().showMessage(tr("„{name}“ geöffnet.", name=document.display_name), 4000)
         else:
             # Datei ohne gespeicherte Anordnung (z. B. aus dem PapDesigner)
             view.fit_diagram()
             self.statusBar().showMessage(tr("„{name}“ geöffnet – die Anordnung wurde aus "
                                             "dem Raster der Datei übernommen.", name=document.display_name), 8000)
+        return True
+
+    def open_example(self, path: str) -> bool:
+        """Öffnet ein Lernbeispiel als unbenannte Kopie: „Speichern“ fragt nach dem Ort."""
+        try:
+            document = DiagramDocument.open_file(path)
+        except ProjectFileError as exc:
+            log.warning("Lernbeispiel nicht lesbar: %s (%s)", path, exc.details)
+            self._error(tr("Datei kann nicht geöffnet werden"), exc.message)
+            return False
+        document.file_path = None
+        for page in document.pages[1:]:
+            page.fit_on_show = True
+        current = self.current_document()
+        replace = current is not None and current.file_path is None and not current.is_modified \
+            and current.is_empty() and len(current.pages) == 1
+        replace_index = self.tabs.currentIndex()
+        view = self.add_document(document)
+        if replace:
+            self.close_tab(replace_index)
+            self.tabs.setCurrentIndex(self.tabs.indexOf(view))
+        view.fit_diagram()
+        self.statusBar().showMessage(tr("Lernbeispiel „{name}“ geöffnet – F9 öffnet den Schreibtischtest.",
+                                        name=document.display_name), 6000)
         return True
 
     def open_external_files(self, paths: list[str]) -> None:
@@ -870,7 +952,7 @@ class MainWindow(QMainWindow):
     def _save_to(self, document: DiagramDocument, path: str, automatic: bool = False) -> bool:
         """Speichert das Projekt. ``automatic``: ohne Meldungsfenster (automatisches Speichern)."""
         try:
-            document.save(path)
+            document.save(path, backup=self.actions["backup_on_save"].isChecked())
         except ProjectFileError as exc:
             log.warning("Speichern fehlgeschlagen: %s (%s)", path, exc.details)
             if automatic:
@@ -925,6 +1007,58 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(tr("Das Programm sieht beim Start nach neuen Versionen.") if checked
                                      else tr("Beim Start wird nicht mehr nach neuen Versionen gesehen – von Hand "
                                              "weiterhin über Hilfe → Nach Updates suchen."), 5000)
+
+    def _on_backup_triggered(self, checked: bool) -> None:
+        self.settings_store.set_backup_on_save(checked)
+        self.statusBar().showMessage(tr("Beim ersten Speichern wird der bisherige Stand als „.pap-backup“ "
+                                        "aufgehoben.") if checked
+                                     else tr("Es werden keine Sicherungskopien mehr angelegt."), 5000)
+
+    # ------------------------------------------------ Präsentationsansicht
+    @property
+    def presenting(self) -> bool:
+        return self._presentation is not None
+
+    def set_presentation(self, enabled: bool) -> None:
+        """Präsentationsansicht: nur der Plan (mit der Seitenleiste) im Vollbild – ohne Menüs, Leisten und Fenster.
+
+        Beim Beenden kommt alles so zurück, wie es war.
+        """
+        enabled = bool(enabled)
+        self.actions["presentation"].setChecked(enabled)
+        if enabled == self.presenting:
+            return
+        if enabled:
+            self._presentation = (self.saveState(WINDOW_STATE_VERSION), self.windowState())
+            for widget in self.findChildren(QDockWidget) + self.findChildren(QToolBar):
+                widget.hide()
+            self.menuBar().hide()
+            self.statusBar().hide()
+            self.tabs.tabBar().hide()
+            self.showFullScreen()
+            self._exit_presentation.setEnabled(True)
+            view = self.current_view()
+            if view is not None:
+                view.setFocus()
+            return
+        state, window_state = self._presentation
+        self._presentation = None
+        self._exit_presentation.setEnabled(False)
+        self.menuBar().show()
+        self.statusBar().show()
+        self.tabs.tabBar().show()
+        self.restoreState(state, WINDOW_STATE_VERSION)
+        self.setWindowState(window_state)
+
+    def _on_presentation_escape(self) -> None:
+        """Esc: zuerst Texteingabe bzw. Auswahl aufheben, dann die Präsentationsansicht beenden."""
+        scene = self.current_scene()
+        if scene is not None and scene.is_editing:
+            scene.cancel_edit()
+        elif scene is not None and scene.selectedItems():
+            scene.clearSelection()
+        else:
+            self.set_presentation(False)
 
     def _on_auto_save_triggered(self, checked: bool) -> None:
         self.settings_store.set_auto_save(checked)
@@ -1004,6 +1138,7 @@ class MainWindow(QMainWindow):
                     self._restart_files = None  # Schließen abgebrochen: auch kein Neustart
                     event.ignore()
                     return
+        self.set_presentation(False)  # Fensteraufteilung ohne die ausgeblendeten Leisten merken
         self.settings_store.save_window(self.saveGeometry(), self.saveState(WINDOW_STATE_VERSION))
         self.simulation_panel.stop(silent=True)
         if self.autosave is not None:
@@ -1182,6 +1317,16 @@ class MainWindow(QMainWindow):
             self.paste_tracker.reset()
             self.statusBar().showMessage(tr("In die Zwischenablage kopiert."), 2500)
 
+    def _insert_special(self, text: str) -> None:
+        scene = self.current_scene()
+        if scene is None:
+            return
+        if not scene.is_editing and scene.single_selected is not None:
+            scene.begin_element_edit(scene.single_selected)  # Text des Bausteins am Ende ergänzen
+        if not scene.insert_into_editor(text):
+            self.statusBar().showMessage(tr("Sonderzeichen gibt es während der Texteingabe (Doppelklick auf einen "
+                                            "Baustein)."), 4000)
+
     def copy_image(self) -> None:
         """Auswahl bzw. ganze Seite als Bild in die Zwischenablage."""
         scene = self.current_scene()
@@ -1255,12 +1400,13 @@ class MainWindow(QMainWindow):
         if len(connections) == 1:
             scene.begin_label_edit(connections[0])
 
-    def insert_element(self, element_type: ElementType) -> None:
+    def insert_element(self, element_type: ElementType, loop_kind: str | None = None) -> None:
         view = self.current_view()
         if view is None:
             self.new_document()
             view = self.current_view()
-        element_id = view.document.scene.insert_element_smart(ElementType(element_type), view.visible_center())
+        element_id = view.document.scene.insert_element_smart(ElementType(element_type), view.visible_center(),
+                                                              loop_kind=loop_kind)
         self._reveal([element_id] if element_id else [])
 
     def align(self, mode: str) -> None:
@@ -1355,6 +1501,8 @@ class MainWindow(QMainWindow):
                     if element_type is not item.element_type:
                         change = change_menu.addAction(icons.element_icon(element_type), display_name_for(element_type))
                         change.triggered.connect(lambda _=False, t=element_type: scene.change_element_type(item, t))
+            if item.element_type not in (ElementType.START, ElementType.END) and not item.is_comment:
+                menu.addAction(a["extract_subprogram"])
             menu.addSeparator()
             if len(scene.selected_elements()) >= 2:
                 align_menu = menu.addMenu(tr("Ausrichten"))
@@ -1369,6 +1517,11 @@ class MainWindow(QMainWindow):
             reset = menu.addAction(tr("Linienführung zurücksetzen"))
             reset.setEnabled(item.has_manual_routing())
             reset.triggered.connect(lambda: scene.reset_routing(item))
+            junction = menu.addAction(icons.element_icon(ElementType.JUNCTION), tr("Verbindungspunkt hier einfügen"))
+            junction.setToolTip(tr("Teilt die Verbindung; am Punkt lassen sich die Linie führen und weitere Pfeile "
+                                   "anschließen"))
+            junction.setEnabled(not item.is_annotation)
+            junction.triggered.connect(lambda _=False, p=QPointF(scene_pos): scene.insert_junction(item, p))
             menu.addSeparator()
             menu.addAction(a["delete"])
         else:
@@ -1508,6 +1661,103 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(tr("Unterprogramm gelöscht (Rückgängig mit Strg+Z)."), 5000)
         return True
 
+    # ------------------------------------------------------------ Seiten kopieren, verschieben, auslagern
+    def page_command(self, name: str, index: int | None = None) -> bool:
+        """Seitenbefehle aus Menü und Seitenleiste: duplizieren, kopieren, ausschneiden, einfügen, verschieben."""
+        document = self.current_document()
+        if document is None:
+            return False
+        document.scene.prepare_for_command()
+        index = document.current_page_index if index is None else index
+        if not 0 <= index < len(document.pages):
+            return False
+        page = document.pages[index]
+        if name == "copy_page":
+            if not subprograms.copy_page(page):
+                self._error(tr("Seite kopieren"), CLIPBOARD_BUSY())
+                return False
+            self.statusBar().showMessage(tr("Seite „{name}“ kopiert – mit „Seite einfügen“ (auch in einem anderen "
+                                            "Projekt) wird sie ein Unterprogramm.", name=page.display_name), 6000)
+            return True
+        if name == "paste_page":
+            new = subprograms.paste_page(document, index + 1 if index > 0 else None)
+            if new is None:
+                return False
+            self._after_page_created(new)
+            self.statusBar().showMessage(tr("Unterprogramm „{name}“ eingefügt.", name=new.display_name), 5000)
+            return True
+        if page.is_main:
+            return False
+        if name == "duplicate_page":
+            new = subprograms.duplicate_subprogram(document, page)
+            self._after_page_created(new)
+            self.statusBar().showMessage(tr("Kopie „{name}“ angelegt.", name=new.display_name), 5000)
+            return True
+        if name == "cut_page":
+            if not subprograms.cut_page(document, page):
+                self._error(tr("Seite ausschneiden"), CLIPBOARD_BUSY())
+                return False
+            self.statusBar().showMessage(tr("Unterprogramm „{name}“ ausgeschnitten – mit „Seite einfügen“ wieder "
+                                            "einfügen (Rückgängig mit Strg+Z).", name=page.display_name), 6000)
+            return True
+        if name in ("move_page_left", "move_page_right"):
+            return subprograms.move_subprogram(document, page, -1 if name == "move_page_left" else 1)
+        return False
+
+    def move_page_to(self, source: int, target: int) -> bool:
+        """Ein Reiter wurde in der Seitenleiste an eine andere Stelle gezogen."""
+        document = self.current_document()
+        if document is None or not 0 < source < len(document.pages):
+            return False
+        return subprograms.move_subprogram(document, document.pages[source], target - source)
+
+    def _go_history(self, back: bool) -> None:
+        document = self.current_document()
+        if document is not None and (document.go_back() if back else document.go_forward()):
+            view = self.current_view()
+            if view is not None:
+                view.setFocus()
+
+    def reveal_element(self, page, item) -> None:
+        """Zeigt eine Seite, markiert den Baustein und holt ihn ins Bild."""
+        document = self.current_document()
+        if document is None or document.page_index(page) < 0 or not shiboken6.isValid(item) \
+                or item.scene() is not page.scene:
+            return
+        document.show_page(page)
+        page.scene.select_items([item])
+        view = self.current_view()
+        if view is not None:
+            view.ensureVisible(item.scene_rect(), 80, 80)
+            view.setFocus()
+
+    def extract_subprogram(self, name: str | None = None) -> bool:
+        """„Auswahl in Unterprogramm auslagern“: die markierten Bausteine kommen auf eine eigene Seite."""
+        document = self.current_document()
+        if document is None:
+            return False
+        scene = document.scene
+        scene.prepare_for_command()
+        title = tr("Auswahl in Unterprogramm auslagern")
+        error = subprograms.extraction_error(scene)
+        if error is not None:
+            self._error(title, error)
+            return False
+        if name is None:
+            name = self._ask_subprogram_name(document, title, subprograms.suggested_name(document))
+            if name is None:
+                return False
+        error = subprograms.name_error(document, name)
+        if error is not None:
+            self._error(title, error)
+            return False
+        page = subprograms.extract_to_subprogram(document, scene, name)
+        if page is None:
+            return False
+        self.statusBar().showMessage(tr("Ausgelagert nach „{name}“ – Strg+Doppelklick auf den Baustein öffnet es, "
+                                        "Alt+← kehrt zurück.", name=page.display_name), 6000)
+        return True
+
     def _request_subprogram(self, item) -> None:
         """Strg+Doppelklick: erst nach dem Doppelklick öffnen – bis dahin gehört die Maus der bisherigen Seite."""
         QTimer.singleShot(0, lambda: self.open_subprogram_for(item) if shiboken6.isValid(item) else None)
@@ -1588,6 +1838,8 @@ class MainWindow(QMainWindow):
         if changed:
             document.undo_stack.push(ProjectPropertiesCommand(document, old_meta, new_meta,
                                                               document.settings.grid_size, new_grid))
+        if new_meta.author != old_meta.author:
+            self.settings_store.set_default_author(new_meta.author)
 
     def _export_options(self, fmt: str) -> export.ExportOptions | None:
         current = self.export_options.get(fmt, export.ExportOptions())
@@ -1768,6 +2020,7 @@ class MainWindow(QMainWindow):
         a["cut"].setEnabled(bool(elements))
         a["copy"].setEnabled(bool(elements))
         a["copy_image"].setEnabled(has_doc and bool(scene.elements()))
+        self.special_menu.setEnabled(has_doc and (scene.is_editing or scene.single_selected is not None))
         a["duplicate"].setEnabled(bool(elements))
         a["delete"].setEnabled(bool(elements or connections))
         a["paste"].setEnabled(has_doc and clipboard.can_paste())
@@ -1783,8 +2036,18 @@ class MainWindow(QMainWindow):
         a["new_subprogram"].setEnabled(has_doc)
         a["open_subprogram"].setEnabled(single is not None and single.element_type is ElementType.SUBPROGRAM)
         pages = len(document.pages) if has_doc else 0
-        a["next_page"].setEnabled(has_doc and document.current_page_index < pages - 1)
-        a["previous_page"].setEnabled(has_doc and document.current_page_index > 0)
+        index = document.current_page_index if has_doc else -1
+        a["next_page"].setEnabled(has_doc and index < pages - 1)
+        a["previous_page"].setEnabled(has_doc and index > 0)
+        a["go_back"].setEnabled(has_doc and document.can_go_back())
+        a["go_forward"].setEnabled(has_doc and document.can_go_forward())
+        a["extract_subprogram"].setEnabled(any(not item.is_comment for item in elements))
+        for name in ("duplicate_page", "cut_page"):
+            a[name].setEnabled(index > 0)
+        a["copy_page"].setEnabled(has_doc)
+        a["paste_page"].setEnabled(has_doc and subprograms.can_paste_page())
+        a["move_page_left"].setEnabled(index > 1)
+        a["move_page_right"].setEnabled(0 < index < pages - 1)
         self.palette.set_entries_enabled(True)
         self.zoom_button.setEnabled(has_doc)
 
@@ -1836,6 +2099,11 @@ def _printable_scenes(document) -> list:
     """Seiten für Druck und PDF: alle, die etwas enthalten (Hauptprogramm zuerst)."""
     scenes = [scene for scene in document.scenes() if scene.elements()]
     return scenes or [document.scene]
+
+
+def CLIPBOARD_BUSY() -> str:  # noqa: N802 - Text, der erst beim Anzeigen übersetzt wird
+    return tr("Die Zwischenablage ist gerade von einem anderen Programm belegt. Bitte gleich noch einmal "
+              "versuchen – die Seite bleibt unverändert.")
 
 
 def _has_project_extension(path: str) -> bool:

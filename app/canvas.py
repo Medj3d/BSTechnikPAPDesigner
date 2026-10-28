@@ -238,8 +238,18 @@ class DiagramView(QGraphicsView):
         self._pan_moved = False
         self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
 
+    def _on_text_editor(self, event) -> bool:
+        """Liegt der Mauszeiger auf der gerade offenen Texteingabe?"""
+        scene = self.document.scene
+        editor = getattr(scene, "_editor", None)
+        return editor is not None and editor in self.items(event.position().toPoint())
+
     def mousePressEvent(self, event) -> None:
         button = event.button()
+        if button == Qt.MouseButton.RightButton and self._on_text_editor(event):
+            # Rechtsklick in die Texteingabe: deren Menü (Kopieren, Einfügen, Sonderzeichen) statt Schwenken
+            super().mousePressEvent(event)
+            return
         if button in (Qt.MouseButton.RightButton, Qt.MouseButton.MiddleButton) or (
                 button == Qt.MouseButton.LeftButton and self._space_pressed):
             if self._pan_button is None:
@@ -277,7 +287,10 @@ class DiagramView(QGraphicsView):
 
     def contextMenuEvent(self, event) -> None:
         # Maus-Kontextmenüs werden beim Loslassen der rechten Taste ausgelöst;
-        # hier nur die Kontextmenü-Taste der Tastatur behandeln.
+        # hier nur die Kontextmenü-Taste der Tastatur behandeln – außer in der Texteingabe, die ein eigenes hat.
+        if self.document.scene.is_editing:
+            super().contextMenuEvent(event)
+            return
         if event.reason() == event.Reason.Keyboard:
             scene = self.document.scene
             selected = scene.selectedItems()

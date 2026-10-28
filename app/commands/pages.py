@@ -65,3 +65,20 @@ class RenamePageCommand(QUndoCommand):
 
     def undo(self) -> None:
         self._apply(self._old)
+
+
+class MovePageCommand(QUndoCommand):
+    """Verschiebt eine Unterprogramm-Seite an eine andere Stelle (das Hauptprogramm bleibt vorn)."""
+
+    def __init__(self, document, page, new_index: int, text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Seite verschieben"), parent)
+        self._document = document
+        self.page = page
+        self._old = document.page_index(page)
+        self._new = new_index
+
+    def redo(self) -> None:
+        self._document.move_page(self.page, self._new)
+
+    def undo(self) -> None:
+        self._document.move_page(self.page, self._old)

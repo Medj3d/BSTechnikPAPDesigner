@@ -37,6 +37,7 @@ class ProjectPropertiesDialog(QDialog):
         self.name_edit.setPlaceholderText(tr("Projektname"))
         self.author_edit = QLineEdit(meta.author)
         self.author_edit.setPlaceholderText(tr("optional"))
+        self.author_edit.setToolTip(tr("Wird auch für neue Projekte übernommen."))
         self.description_edit = QPlainTextEdit(meta.description)
         self.description_edit.setPlaceholderText(tr("optional"))
         self.description_edit.setFixedHeight(90)

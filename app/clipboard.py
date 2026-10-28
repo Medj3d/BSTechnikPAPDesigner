@@ -59,11 +59,11 @@ def copy_selection(scene) -> bool:
             mime.setImageData(image)
         return mime
 
-    _set_clipboard(mime_data, lambda data: data is not None and data.hasFormat(MIME_TYPE))
+    set_clipboard(mime_data, lambda data: data is not None and data.hasFormat(MIME_TYPE))
     return True
 
 
-def _set_clipboard(make_mime, arrived, attempts: int = 10) -> bool:
+def set_clipboard(make_mime, arrived, attempts: int = 10) -> bool:
     """Legt Daten in die Zwischenablage und prüft, ob sie angekommen sind.
 
     Unter Windows hält manchmal ein anderes Programm (z. B. der Zwischenablage-Verlauf, der ein großes Bild
@@ -106,7 +106,7 @@ def copy_image(scene) -> bool:
         mime.setImageData(image)
         return mime
 
-    _set_clipboard(mime_data, lambda data: data is not None and data.hasImage() and not data.hasFormat(MIME_TYPE))
+    set_clipboard(mime_data, lambda data: data is not None and data.hasImage() and not data.hasFormat(MIME_TYPE))
     return True
 
 

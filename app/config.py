@@ -7,7 +7,7 @@ hier definiert, damit sie später an genau einer Stelle geändert werden können
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.9.0"
+APP_VERSION = "1.10.0"
 APP_RELEASE_DATE = "Oktober 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Kontakt und Website (im Dialog „Über das Programm“)
@@ -42,6 +42,26 @@ def file_dialog_filter() -> str:
     from app.i18n import tr
 
     return tr("Programmablaufpläne ({pattern})", pattern=f"*{FILE_EXTENSION}")
+
+
+def open_dialog_filter() -> str:
+    """Filter des Öffnen-Dialogs: Projekte und – als zweite Wahl – Sicherungskopien."""
+    from app.i18n import tr
+
+    return ";;".join((file_dialog_filter(),
+                      tr("Sicherungskopien ({pattern})", pattern=f"*{BACKUP_EXTENSION}")))
+
+
+# Sicherungskopie: der Stand vor dem ersten Speichern einer Sitzung („Projekt.pap-backup“, wie im PapDesigner)
+BACKUP_EXTENSION = ".pap-backup"
+BACKUP_ON_SAVE_DEFAULT = True
+
+
+def backup_path_for(path: str) -> str:
+    """„C:/…/Projekt.pap“ → „C:/…/Projekt.pap-backup“."""
+    import os
+
+    return os.path.splitext(path)[0] + BACKUP_EXTENSION
 
 
 # ProgID für die Windows-Dateizuordnung

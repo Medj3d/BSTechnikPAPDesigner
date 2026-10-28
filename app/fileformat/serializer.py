@@ -297,7 +297,7 @@ def _grid_cells(elements: list[ElementData]) -> list[tuple[int, int]]:
     return cells
 
 
-def _loop_partners(elements: list[ElementData], connections: list[ConnectionData]) -> dict[str, str]:
+def loop_partners(elements: list[ElementData], connections: list[ConnectionData]) -> dict[str, str]:
     """Zusammengehörige Schleifenbegrenzungen (Beginn ↔ Ende) entlang des Ablaufs."""
     parts = {e.id: (LOOP_END if e.properties.get(LOOP_PART_KEY) == LOOP_END else LOOP_BEGIN)
              for e in elements if ElementType(e.type) is ElementType.LOOP}
@@ -454,7 +454,7 @@ def _write_diagram(out: list, index: int, name: str, elements, connections, grid
     numbers: dict[str, int] = {}
     for number, element in enumerate(elements, start=title_number + 1):
         numbers.setdefault(element.id, number)
-    partners = _loop_partners(elements, connections)
+    partners = loop_partners(elements, connections)
     zoom, view_x, view_y = view
     out.append(_tag("DIAGRAM", [("FORMAT", PAP_ELEMENT_FORMAT), ("ID", index), ("NAME", name),
                                 ("CREATED", created), ("MODIFIED", modified)], 3))

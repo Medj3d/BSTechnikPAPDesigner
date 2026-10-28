@@ -35,7 +35,8 @@ from app.items.ghost_item import GhostItem
 from app.labels import yes_label
 from app.model import rules
 from app.model.diagram import ConnectionData, DiagramSettings, ElementData, new_id
-from app.model.element_types import (LOOP_BEGIN, LOOP_END, LOOP_PART_KEY, PORT_BOTTOM, PORT_LEFT,
+from app.model.element_types import (LOOP_BEGIN, LOOP_END, LOOP_FOOT_BEGIN_TEXT, LOOP_FOOT_END_TEXT,
+                                     LOOP_HEAD_TEXT, LOOP_PART_KEY, PORT_BOTTOM, PORT_LEFT,
                                      PORT_RIGHT, PORT_TOP, TRUNK_IN_KEY, TRUNK_OUT_KEY, ElementType,
                                      default_properties_for, default_text_for, display_name_for,
                                      is_default_text, spec_for)
@@ -511,14 +512,22 @@ class DiagramScene(QGraphicsScene):
             grabber.ungrabMouse()
 
     # ============================================================ Bausteine
-    def _build_new_elements(self, element_type: ElementType, pos: QPointF):
-        """Erzeugt Daten für einen neuen Baustein (bzw. ein Schleifenpaar)."""
+    def _build_new_elements(self, element_type: ElementType, pos: QPointF, loop_kind: str | None = None):
+        """Erzeugt Daten für einen neuen Baustein (bzw. ein Schleifenpaar).
+
+        ``loop_kind``: ``"head"`` (Bedingung im Schleifenbeginn) oder ``"foot"`` (Bedingung im Schleifenende) –
+        wie „Schleife - Kopfbedingung“ bzw. „Fußbedingung“ im PapDesigner; ohne Angabe die neutrale Schleife.
+        """
         element_type = ElementType(element_type)
         if element_type is ElementType.LOOP:
-            begin = new_element_data(ElementType.LOOP, pos.x(), pos.y(), properties={LOOP_PART_KEY: LOOP_BEGIN})
+            texts = {"head": (LOOP_HEAD_TEXT, None), "foot": (LOOP_FOOT_BEGIN_TEXT, LOOP_FOOT_END_TEXT)}
+            begin_text, end_text = texts.get(loop_kind, (None, None))
+            begin = new_element_data(ElementType.LOOP, pos.x(), pos.y(), properties={LOOP_PART_KEY: LOOP_BEGIN},
+                                     text=tr(begin_text, ctx="Standardtext") if begin_text else None)
             offset = begin.height / 2 + VERTICAL_GAP + spec_for(ElementType.LOOP).default_height / 2
             end = new_element_data(ElementType.LOOP, pos.x(), pos.y() + offset,
-                                   properties={LOOP_PART_KEY: LOOP_END})
+                                   properties={LOOP_PART_KEY: LOOP_END},
+                                   text=tr(end_text, ctx="Standardtext") if end_text else None)
             link = ConnectionData(new_id(), begin.id, end.id, PORT_BOTTOM, PORT_TOP)
             return [begin, end], [link]
         return [new_element_data(element_type, pos.x(), pos.y())], []
@@ -532,7 +541,8 @@ class DiagramScene(QGraphicsScene):
     def insert_element(self, element_type: ElementType, pos: QPointF, snap: bool = True,
                        connect_from: FlowItem | None = None,
                        into_connection: ConnectionItem | None = None,
-                       flow_axis: str | None = None, connect_port: str | None = None) -> str | None:
+                       flow_axis: str | None = None, connect_port: str | None = None,
+                       loop_kind: str | None = None) -> str | None:
         """Fügt einen neuen Baustein ein (ein Undo-Schritt). Gibt die ID zurück.
 
         Mit ``into_connection`` wird der Baustein in eine bestehende Verbindung
@@ -544,7 +554,7 @@ class DiagramScene(QGraphicsScene):
         self.prepare_for_command()
         element_type = ElementType(element_type)
         point = self.clamp_point(self.snap_point(pos) if snap else pos)
-        elements, connections = self._build_new_elements(element_type, point)
+        elements, connections = self._build_new_elements(element_type, point, loop_kind)
         first, last = elements[0], elements[-1]
         name = display_name_for(element_type)
         # Bei einer Schleife nur den Schleifenbeginn auswählen, damit direkt
@@ -675,7 +685,8 @@ class DiagramScene(QGraphicsScene):
             moves[it.element_id] = (old, new)
         return moves
 
-    def insert_element_smart(self, element_type: ElementType, fallback_center: QPointF) -> str | None:
+    def insert_element_smart(self, element_type: ElementType, fallback_center: QPointF,
+                             loop_kind: str | None = None) -> str | None:
         """Einfügen über Menü/Palette-Klick.
 
         Ist genau ein Ablaufbaustein ausgewählt, wird der neue Baustein daran
@@ -706,19 +717,20 @@ class DiagramScene(QGraphicsScene):
                 pos = self._free_position(self.force_snap_point(QPointF(x, below_y)), spec.default_width,
                                           spec.default_height, direction=(0, 1))
                 if port is None:
-                    return self.insert_element(element_type, pos)
-                return self.insert_element(element_type, pos, connect_from=anchor, connect_port=port)
+                    return self.insert_element(element_type, pos, loop_kind=loop_kind)
+                return self.insert_element(element_type, pos, connect_from=anchor, connect_port=port,
+                                           loop_kind=loop_kind)
             outgoing = [c for c in anchor.connections if c.source is anchor and not c.is_annotation]
             limit = anchor.spec.max_outgoing
             if outgoing and limit is not None and len(outgoing) >= limit and element_type in INSERTABLE_TYPES:
                 return self.insert_element(element_type, QPointF(anchor.pos().x(), below_y),
-                                           into_connection=outgoing[0], flow_axis="y")
+                                           into_connection=outgoing[0], flow_axis="y", loop_kind=loop_kind)
             pos = self._free_position(QPointF(anchor.pos().x(), below_y), spec.default_width, spec.default_height,
                                       direction=(0, 1))
-            return self.insert_element(element_type, pos, connect_from=anchor)
+            return self.insert_element(element_type, pos, connect_from=anchor, loop_kind=loop_kind)
         pos = self._free_position(self.force_snap_point(fallback_center), spec.default_width,
                                   spec.default_height, direction=(1, 1))
-        return self.insert_element(element_type, pos)
+        return self.insert_element(element_type, pos, loop_kind=loop_kind)
 
     def _free_position(self, pos: QPointF, width: float, height: float, direction=(0, 1)) -> QPointF:
         """Sucht ab ``pos`` schrittweise eine Stelle mit genügend Abstand zu anderen Bausteinen."""
@@ -1584,6 +1596,32 @@ class DiagramScene(QGraphicsScene):
             conn = self.connection(connection_id)
             if conn is not None and points:
                 conn.adopt_path(points)
+        return True
+
+    def insert_junction(self, conn: ConnectionItem, pos: QPointF) -> str | None:
+        """Setzt einen Verbindungspunkt auf eine Verbindung (A → ● → B), z. B. als Eckpunkt, um die Linie zu
+        führen, oder um dort weitere Pfeile anzuschließen (wie „Eckpunkt einfügen“ im PapDesigner)."""
+        if conn.scene() is not self or conn.is_annotation:
+            return None
+        end = self._edge_endpoint(conn, pos)
+        if end is None:
+            return None
+        self.prepare_for_command()
+        elements, connections, replaced, trunk_updates = [], [], [], []
+        junction_id = self._split_edge(end, elements, connections, replaced, trunk_updates)
+        self.undo_stack.beginMacro(tr("Verbindungspunkt einfügen"))
+        self.undo_stack.push(DeleteCommand(self, [], replaced, text=tr("Pfeil auftrennen")))
+        self.undo_stack.push(AddElementsCommand(self, elements, connections, text=tr("Verbindungspunkt einfügen"),
+                                                select_ids=[junction_id]))
+        self._push_trunk_updates(trunk_updates)
+        self.undo_stack.endMacro()
+        return junction_id
+
+    def insert_into_editor(self, text: str) -> bool:
+        """Fügt Text (z. B. ein Sonderzeichen) in die offene Texteingabe ein."""
+        if self._editor is None:
+            return False
+        self._editor.insert_text(text)
         return True
 
     def commit_edit(self) -> None:

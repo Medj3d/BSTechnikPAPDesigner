@@ -194,8 +194,9 @@ class FlowGraph:
             if etype is ElementType.COMMENT:
                 comments[e.id] = e.text
                 continue
-            nodes[e.id] = Node(e.id, etype, e.text or "", dict(e.properties), float(e.x), float(e.y),
-                               pages.get(e.id, 0))
+            # „~“ ist ein bedingter Trennstrich (wie im PapDesigner) und gehört nicht zum Inhalt
+            nodes[e.id] = Node(e.id, etype, (e.text or "").replace("~", ""), dict(e.properties), float(e.x),
+                               float(e.y), pages.get(e.id, 0))
         edges: list[Edge] = []
         annotations: dict[str, list[str]] = {}
         for c in connections:

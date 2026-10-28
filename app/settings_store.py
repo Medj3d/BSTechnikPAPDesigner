@@ -48,6 +48,24 @@ class SettingsStore:
     def set_auto_save(self, enabled: bool) -> None:
         self._settings.setValue("auto_save", bool(enabled))
 
+    def backup_on_save(self) -> bool:
+        """Vor dem ersten Speichern einer Sitzung den bisherigen Stand als Sicherungskopie aufheben?"""
+        value = self._settings.value("backup_on_save", None)
+        if value is None:
+            return bool(config.BACKUP_ON_SAVE_DEFAULT)
+        return str(value).strip().lower() in ("true", "1")
+
+    def set_backup_on_save(self, enabled: bool) -> None:
+        self._settings.setValue("backup_on_save", bool(enabled))
+
+    # ---------------------------------------------------------- Projekte
+    def default_author(self) -> str:
+        """Autor neuer Projekte: der zuletzt in den Projekteigenschaften eingetragene."""
+        return str(self._settings.value("project/author", "") or "").strip()
+
+    def set_default_author(self, author: str) -> None:
+        self._settings.setValue("project/author", str(author or "").strip())
+
     # ---------------------------------------------------------- Updates
     def check_updates_on_start(self) -> bool:
         """Soll das Programm beim Start nach einer neuen Version sehen? (Standard: ja)"""

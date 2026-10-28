@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="1" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+  <PROJECT FORMAT="1.00" NAME="Lernbeispiel 1 – Ablaufplan" AUTHOR="BS Technik" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48" bst:DESCRIPTION="Kreisfläche: Eingabe, Verarbeitung, Ausgabe." bst:CREATED="2026-10-28T02:55:48+01:00" bst:MODIFIED="2026-10-28T02:55:48+01:00">
+    <DIAGRAMS>
+      <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 1 – Ablaufplan" CREATED="2026.10.28 02:55:48" MODIFIED="2026.10.28 02:55:48">
+        <LAYOUT FORMAT="1.00" COLUMNS="3" ROWS="7" bst:GRID_SIZE="20" bst:GRID_VISIBLE="True" bst:SNAP_TO_GRID="True" bst:ZOOM="1" bst:VIEW_X="0" bst:VIEW_Y="0">
+          <ENTRIES>
+            <ENTRY COLUMN="0" ROW="0" ANCHOR="True" bst:GENERATED="True">
+              <FIGURE SUBTYPE="PapTitle" FORMAT="1.00" ID="0">
+                <TEXT><![CDATA[Lernbeispiel 1 – Ablaufplan]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="c454fcbb67b8466d8f5e1013ff72bc70">
+                <TEXT><![CDATA[Start]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2" bst:UID="0f953e5ec902483cb9450f9ea1d90c3b">
+                <TEXT><![CDATA[Radius r einlesen]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="4" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="3" bst:UID="18cd1d9a3eb24fb1959295a300353cea">
+                <TEXT><![CDATA[fläche = runden(pi * r ^ 2, 2)]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="4" bst:UID="a4cd5401707f4a64a89fd2654daad11f">
+                <TEXT><![CDATA[„Fläche:“ fläche]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="1" ROW="6" bst:X="0" bst:Y="400" bst:WIDTH="120" bst:HEIGHT="40">
+              <FIGURE SUBTYPE="PapEnd" FORMAT="1.00" ID="5" bst:UID="bce63b2d075647a7a898620a045a1c0b">
+                <TEXT><![CDATA[Ende]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="1" bst:X="-364" bst:Y="0" bst:WIDTH="300" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="6" bst:UID="85ae0222f5e14073b81107fa7c7e9598">
+                <TEXT><![CDATA[Jeder Ablauf beginnt mit Start
+und endet mit Ende.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="2" bst:X="-364" bst:Y="100" bst:WIDTH="300" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="7" bst:UID="90c38e2cc9b148a4bae95cf02fb0e0c7">
+                <TEXT><![CDATA[Eingabe (Parallelogramm):
+Der Wert landet in der Variablen r.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="4" bst:X="-364" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="80">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="550f15ae83cc4d169ab6f8b3d459b8b9">
+                <TEXT><![CDATA[Verarbeitung (Rechteck): links die
+Variable, rechts die Rechnung –
+hier auf 2 Stellen gerundet.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="0" ROW="5" bst:X="-364" bst:Y="300" bst:WIDTH="300" bst:HEIGHT="60">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="9" bst:UID="854c500863b14ff1bf50e596702f5028">
+                <TEXT><![CDATA[Ausgabe: Text in „…“, danach
+die Variable, deren Wert erscheint.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+            <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="150" bst:WIDTH="300" bst:HEIGHT="80">
+              <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="c875a63b54b04be4b6658fd9d0779f28">
+                <TEXT><![CDATA[Ausprobieren: F9 öffnet den Schreibtischtest,
+F5 lässt den Plan laufen. Mit F10 geht es
+Schritt für Schritt, mit Strg+F10 zurück.]]></TEXT>
+              </FIGURE>
+            </ENTRY>
+          </ENTRIES>
+        </LAYOUT>
+        <CONNECTIONS>
+          <CONNECTION FORMAT="1.00" ID="11" FROM="1" TO="2" TEXT="" bst:UID="df579e0284bd4a2599cf8df95504070b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="12" FROM="2" TO="3" TEXT="" bst:UID="0c925359183a4b168e90a271b00450a7" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="13" FROM="3" TO="4" TEXT="" bst:UID="e080a20d63c343eab821ba92b6a51437" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="5" TEXT="" bst:UID="87f6ca72f4b147c893dbd74adc01541f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="15" FROM="6" TO="1" TEXT="" bst:UID="8069a583a23f4216bb986413ecef76d9" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+          <CONNECTION FORMAT="1.00" ID="16" FROM="7" TO="2" TEXT="" bst:UID="e80258add5b4434cb1a9757a8525db79" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+          <CONNECTION FORMAT="1.00" ID="17" FROM="8" TO="3" TEXT="" bst:UID="87b92c5e304d4b56aedc6538db0f2bcf" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="9" TO="4" TEXT="" bst:UID="4b1575cb5e96434991dc0181f7ad186a" bst:SOURCE_PORT="right" bst:TARGET_PORT="left" />
+        </CONNECTIONS>
+      </DIAGRAM>
+    </DIAGRAMS>
+  </PROJECT>
+</FRAME>

@@ -137,6 +137,10 @@ _SPECS = {
 # Standardtexte der beiden Schleifenteile (deutscher Quelltext)
 _LOOP_BEGIN_TEXT = N_("Schleifenbeginn", ctx="Standardtext")
 _LOOP_END_TEXT = N_("Schleifenende", ctx="Standardtext")
+# Schleife mit Kopf- bzw. Fußbedingung (wie im PapDesigner): Platzhalter, die Schreibtischtest und Code verstehen
+LOOP_HEAD_TEXT = N_("solange Bedingung", ctx="Standardtext")
+LOOP_FOOT_BEGIN_TEXT = N_("wiederhole", ctx="Standardtext")
+LOOP_FOOT_END_TEXT = N_("bis Bedingung", ctx="Standardtext")
 
 # Reihenfolge in Werkzeugpalette und Menüs (entspricht der Referenz)
 PALETTE_ORDER = (
@@ -190,7 +194,12 @@ def is_default_text(text: str, element_type: ElementType, properties: dict | Non
     trotzdem als „noch mit Standardtext“ erkannt werden.
     """
     source = _default_text_source(ElementType(element_type), properties)
-    return bool(source) and text in i18n.all_translations(source, ctx="Standardtext")
+    sources = [source] if source else []
+    if ElementType(element_type) is ElementType.LOOP:
+        # auch die Platzhalter der Schleife mit Kopf- bzw. Fußbedingung
+        end = (properties or {}).get(LOOP_PART_KEY) == LOOP_END
+        sources += [LOOP_FOOT_END_TEXT] if end else [LOOP_HEAD_TEXT, LOOP_FOOT_BEGIN_TEXT]
+    return any(text in i18n.all_translations(s, ctx="Standardtext") for s in sources)
 
 
 def default_properties_for(element_type: ElementType) -> dict:
