@@ -2,7 +2,7 @@
 
 Moderner Desktop-Editor für **Programmablaufpläne (PAP)** unter Windows – als
 Nachfolger des PapDesigners. Die klassische PAP-Notation (Bedeutung und Form
-der Bausteine) bleibt unverändert; Bedienung, Optik und Technik sind neu.
+der Bausteine) bleibt unverändert;  Bedienung, Optik und Technik sind neu.
 
 Ein Programm von **Are Schäfer** und **Linus Twardzik** für die BS Technik.
 
