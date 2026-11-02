@@ -13,7 +13,8 @@ from app.analysis.ast import DoWhileLoop, If, LimitLoop, Loop, Unstructured, Whi
 from app.analysis.graph import FlowGraph, flow_name, subprogram_call_name
 from app.analysis.structure import structure_diagram
 from app.i18n import tr
-from app.model.element_types import ElementType, display_name_for, is_default_text
+from app.model.element_types import LOOSE_END_KEY, ElementType, display_name_for, is_default_text
+from app.model.rules import CAUTION
 
 WARNING = "warning"
 INFO = "info"
@@ -56,12 +57,13 @@ def run_checks(target) -> list[Issue]:
     flow_nodes = graph.nodes
     positions = {e.id: (page_of.get(e.id, 0), e.y, e.x) for e in elements}
 
-    # rot markierte Verbindungen (in Erstellungsreihenfolge – dieselbe wie nach dem Öffnen der Datei)
+    # markierte Verbindungen (in Erstellungsreihenfolge – dieselbe wie nach dem Öffnen der Datei): rote sind
+    # Warnungen, gelbe nur Hinweise
     for scene in scenes:
         for conn in scene.ordered_connections():
             if conn.warning:
-                issues.append(Issue(WARNING, tr("Verbindung: {warning}", warning=conn.warning), [],
-                                    [conn.connection_id]))
+                issues.append(Issue(INFO if conn.warning_level == CAUTION else WARNING,
+                                    tr("Verbindung: {warning}", warning=conn.warning), [], [conn.connection_id]))
 
     _subprogram_issues(pages, graph, issues)
 
@@ -77,6 +79,8 @@ def run_checks(target) -> list[Issue]:
         for start in starts:
             reachable |= graph.reachable_from(start.id)
         for node in flow_nodes.values():
+            if node.properties.get(LOOSE_END_KEY):
+                continue  # steht schon als nicht angeschlossener Pfeil in der Liste
             outs = graph.outgoing(node.id)
             if node.type is ElementType.START and not outs:
                 issues.append(Issue(WARNING, tr("{name} ist mit keinem Baustein verbunden.", name=_name(node)),

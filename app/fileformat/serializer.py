@@ -622,7 +622,9 @@ def _connection_attributes(connection: ConnectionData, number: int, source: int,
         attributes.append((_ext("TO"), target))
     prefix = "FULL_" if split else ""
     routing = connection.routing if isinstance(connection.routing, dict) else {}
-    if routing.get("mode") == "manual" and routing.get("axis") in ("x", "y"):
+    if routing.get("mode") == "manual" and "axes" in routing:
+        attributes.append((_ext(prefix + "ROUTE_AXES"), json.dumps(routing["axes"])))
+    elif routing.get("mode") == "manual" and routing.get("axis") in ("x", "y"):
         value, ok = _number(routing.get("value"), 0.0)
         if ok:
             attributes += [(_ext(prefix + "ROUTE_AXIS"), routing["axis"]),
@@ -942,6 +944,16 @@ def _annotation_nodes(container, warnings: list) -> list:
 
 
 def _routing_from(node, native: bool, warnings: list, prefix: str = "") -> dict:
+    axes = node.get(_key(prefix + "ROUTE_AXES")) if native else None
+    if axes is not None:
+        try:
+            parsed = [[str(axis), float(value)] for axis, value in json.loads(axes)]
+            if not all(axis in ("x", "y") for axis, _value in parsed):
+                raise ValueError(axes)
+            return {"mode": "manual", "axes": parsed}
+        except (TypeError, ValueError):
+            warnings.append(tr("Eine ungültige Linienführung wurde auf „automatisch“ zurückgesetzt."))
+            return {"mode": "auto"}
     axis = node.get(_key(prefix + "ROUTE_AXIS")) if native else None
     if axis is None:
         return {"mode": "auto"}

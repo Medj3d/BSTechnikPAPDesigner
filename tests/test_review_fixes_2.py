@@ -111,7 +111,7 @@ def test_paste_and_duplicate_respect_odd_grid(scene):
     scene.settings.grid_size = 25
     a = add(scene, ElementType.PROCESS, 0, 250)
     scene.select_items([a])
-    clipboard.copy_selection(scene)
+    assert clipboard.copy_selection(scene), "Zwischenablage belegt"
     ids = clipboard.paste_payload(scene, clipboard.clipboard_payload(), offset=QPointF(40, 40))
     item = scene.element(ids[0])
     assert item.pos().x() % 25 == 0 and item.pos().y() % 25 == 0

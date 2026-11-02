@@ -66,6 +66,22 @@ class Edge:
         return labels.is_else(self.label)
 
 
+def edge_order(edge: Edge) -> tuple:
+    """Reihenfolge der Ausgänge eines Bausteins: „ja“ vor „nein“ vor sonstigen, „sonst“ zuletzt, dann nach Anschluss.
+
+    Der Schreibtischtest und die Struktur folgen dieser Reihenfolge; sie gehört also zum Ablauf.
+    """
+    if edge.is_yes:
+        rank = 0
+    elif edge.is_no:
+        rank = 1
+    elif edge.is_else:
+        rank = 3
+    else:
+        rank = 2
+    return rank, PORT_ORDER.get(edge.source_port, 9), edge.id
+
+
 def yes_no_edges(outs: list) -> tuple:
     """Ordnet die zwei Ausgänge einer Verzweigung zu: (Ja-Ausgang, Nein-Ausgang).
 
@@ -179,7 +195,7 @@ class FlowGraph:
             self._out.setdefault(edge.source, []).append(edge)
             self._in.setdefault(edge.target, []).append(edge)
         for nid, out in self._out.items():
-            out.sort(key=self._edge_sort_key)
+            out.sort(key=edge_order)
 
     # ------------------------------------------------------------ Aufbau
     @classmethod
@@ -263,18 +279,6 @@ class FlowGraph:
         return FlowGraph(nodes, edges, self.annotations, self.page_names)
 
     # ------------------------------------------------------------ Abfragen
-    def _edge_sort_key(self, edge: Edge) -> tuple:
-        # Verzweigungen: „ja“ vor „nein“ vor sonstigen, „sonst“ zuletzt, dann nach Anschluss
-        if edge.is_yes:
-            rank = 0
-        elif edge.is_no:
-            rank = 1
-        elif edge.is_else:
-            rank = 3
-        else:
-            rank = 2
-        return rank, PORT_ORDER.get(edge.source_port, 9), edge.id
-
     def outgoing(self, node_id: str) -> list[Edge]:
         return list(self._out.get(node_id, []))
 

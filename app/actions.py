@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import re
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 
-from app import icons
+from app import icons, preferences
 from app.alignment import (ALIGN_BOTTOM, ALIGN_CENTER_X, ALIGN_CENTER_Y, ALIGN_LEFT, ALIGN_RIGHT,
                            ALIGN_TOP, DISTRIBUTE_H, DISTRIBUTE_V, LABELS, SNAP_TO_GRID)
 from app.i18n import N_, tr
@@ -119,6 +120,11 @@ _DEFINITIONS = {
                      N_("Nur den Plan im Vollbild zeigen – z. B. für den Beamer (F11 oder Esc beendet)")),
     "theme_dark": (N_("&Dunkel"), None, [], N_("Dunkles Farbschema")),
     "theme_light": (N_("&Hell"), None, [], N_("Helles Farbschema (z. B. für Beamer)")),
+    "settings": (N_("&Einstellungen …"), "properties", ["Ctrl+,"],
+                 N_("Schalter und frei belegbare Tastenkürzel")),
+    "search": (N_("&Suchen …"), None, ["Ctrl+K"], N_("Funktionen, Einstellungen und Bausteine im Plan finden")),
+    "add_bend": (N_("&Knick einfügen"), None, [],
+                 N_("In die ausgewählte Verbindung eine Stufe einfügen (ändert nur das Aussehen)")),
     # Hilfe
     "shortcuts": (N_("&Tastenkürzel und Bedienung"), "keyboard", [K.HelpContents], N_("Übersicht der Bedienung")),
     "register_filetype": (N_("Dateityp registrieren …"), "register", [],
@@ -128,7 +134,15 @@ _DEFINITIONS = {
     "check_updates": (N_("Nach &Updates suchen …"), None, [],
                       N_("Prüfen, ob eine neuere Version veröffentlicht wurde")),
     "about": (N_("Ü&ber das Programm"), "info", [], N_("Version, Urheber und Informationen über das Programm")),
+    # Schreibtischtest (die Knöpfe stehen im Bedienfeld; die Tasten gelten im ganzen Fenster)
+    "simulation_back": (N_("Schreibtischtest: Schritt zurück"), None, ["Ctrl+F10"], N_("Einen Schritt zurück")),
+    "simulation_step": (N_("Schreibtischtest: Schritt ausführen"), None, ["F10"], N_("Einen Schritt ausführen")),
+    "simulation_run": (N_("Schreibtischtest: Ausführen"), None, ["F5"], N_("Ausführen bis zur nächsten Eingabe")),
+    "simulation_play": (N_("Schreibtischtest: Abspielen"), None, ["F6"], N_("Automatisch abspielen bzw. anhalten")),
 }
+
+# Bausteine liegen auf den Zifferntasten, in der Reihenfolge der Werkzeugpalette
+BLOCK_KEYS = dict(zip(PALETTE_ORDER + FLOW_TERMINALS, "123456789"))
 
 ALIGN_ACTIONS = [ALIGN_LEFT, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM, ALIGN_CENTER_X, ALIGN_CENTER_Y,
                  DISTRIBUTE_H, DISTRIBUTE_V]
@@ -138,12 +152,30 @@ def insert_action_name(element_type) -> str:
     return f"insert_{element_type.value}"
 
 
+def _is_media_key(sequence: QKeySequence) -> bool:
+    """Sondertaste wie „Save“ auf Multimedia-Tastaturen: Sie würde einen der beiden Plätze belegen."""
+    return sequence.count() == 1 and sequence[0].key().value >= Qt.Key.Key_Back.value
+
+
+def clean_text(text: str) -> str:
+    """Menütext ohne Mnemonik und ohne Auslassungspunkte."""
+    clean = _EAST_ASIAN_MNEMONIC.sub("", text)
+    clean = _TRAILING_ELLIPSIS.sub("", clean)
+    return _MNEMONIC_AMPERSAND.sub(r"\1", clean)
+
+
+def sequence_text(sequence: QKeySequence) -> str:
+    """Tastenkürzel, wie es im Menü steht („Strg+S“)."""
+    return sequence.toString(QKeySequence.SequenceFormat.NativeText)
+
+
 class ActionRegistry:
     """Erzeugt und hält alle QActions eines Hauptfensters."""
 
     def __init__(self, parent):
         self._actions: dict[str, QAction] = {}
         self._icon_names: dict[str, str] = {}
+        self._default_shortcuts: dict[str, list[QKeySequence]] = {}
         for name, (text_source, icon_name, shortcuts, tip_source) in _DEFINITIONS.items():
             text = tr(text_source)
             action = QAction(text, parent)
@@ -155,12 +187,13 @@ class ActionRegistry:
                 if isinstance(shortcut, str):
                     sequences.append(QKeySequence(shortcut))
                 else:
-                    sequences.extend(QKeySequence.keyBindings(shortcut))
+                    sequences.extend(s for s in QKeySequence.keyBindings(shortcut) if not _is_media_key(s))
             if sequences:
                 action.setShortcuts(sequences)
             action.setStatusTip(tr(tip_source))
             action.setToolTip(self._tooltip(text, sequences))
             self._actions[name] = action
+            self._default_shortcuts[name] = sequences
         for element_type in PALETTE_ORDER + FLOW_TERMINALS:
             block_name = display_name_for(element_type)
             action = QAction(block_name, parent)
@@ -168,7 +201,21 @@ class ActionRegistry:
             action.setStatusTip(tr("{name} einfügen – {description}", name=block_name,
                                    description=description_for(element_type)))
             action.setData(element_type)
-            self._actions[insert_action_name(element_type)] = action
+            name = insert_action_name(element_type)
+            sequences = [QKeySequence(BLOCK_KEYS[element_type])]
+            action.setShortcuts(sequences)
+            action.setToolTip(self._tooltip(block_name, sequences))
+            self._actions[name] = action
+            self._default_shortcuts[name] = sequences
+        for preference in preferences.PREFERENCES:
+            name = preferences.action_name(preference.name)
+            action = QAction(tr(preference.text), parent)
+            action.setStatusTip(tr(preference.tip))
+            action.setCheckable(True)
+            action.setChecked(preferences.enabled(preference.name))
+            action.setData(preference.name)
+            self._actions[name] = action
+            self._default_shortcuts[name] = []
         for name in ("toggle_grid", "toggle_snap"):
             self._actions[name].setCheckable(True)
             self._actions[name].setChecked(True)
@@ -190,12 +237,63 @@ class ActionRegistry:
         Erkennt auch die ostasiatische Schreibweise der Mnemonik („保存(&S)…“) und Auslassungspunkte ohne
         Leerzeichen davor, damit auch übersetzte Menütexte saubere Kurzinfos ergeben.
         """
-        clean = _EAST_ASIAN_MNEMONIC.sub("", text)
-        clean = _TRAILING_ELLIPSIS.sub("", clean)
-        clean = _MNEMONIC_AMPERSAND.sub(r"\1", clean)
+        clean = clean_text(text)
         if sequences:
-            return f"{clean} ({sequences[0].toString(QKeySequence.SequenceFormat.NativeText)})"
+            return f"{clean} ({sequence_text(sequences[0])})"
         return clean
+
+    # ------------------------------------------------------- Tastenkürzel
+    def adopt(self, name: str, action: QAction, shortcuts: list[str]) -> None:
+        """Nimmt eine fremde QAction (z. B. den Schalter eines Docks) in die Tastenbelegung auf."""
+        sequences = [QKeySequence(shortcut) for shortcut in shortcuts]
+        action.setShortcuts(sequences)
+        self._actions[name] = action
+        self._default_shortcuts[name] = sequences
+
+    def bindable(self) -> list[str]:
+        """Namen aller Funktionen, die auf einer Taste liegen können (Menüreihenfolge)."""
+        return list(self._actions)
+
+    def default_shortcuts(self, name: str) -> list[QKeySequence]:
+        return list(self._default_shortcuts.get(name, []))[:2]
+
+    def assign(self, name: str, sequences: list[QKeySequence]) -> list[tuple[QKeySequence, str]]:
+        """Legt eine Funktion auf bis zu zwei Tasten. Gibt zurück, welche Tasten woanders weichen mussten."""
+        moved = []
+        for sequence in sequences:
+            for other, action in self._actions.items():
+                if other != name and sequence in action.shortcuts():
+                    action.setShortcuts([s for s in action.shortcuts() if s != sequence])
+                    self._refresh_tooltip(other)
+                    moved.append((sequence, other))
+        self._actions[name].setShortcuts(sequences[:2])
+        self._refresh_tooltip(name)
+        return moved
+
+    def _refresh_tooltip(self, name: str) -> None:
+        action = self._actions[name]
+        action.setToolTip(self._tooltip(action.text(), action.shortcuts()))
+
+    def reset_shortcuts(self) -> None:
+        for name, sequences in self._default_shortcuts.items():
+            self._actions[name].setShortcuts(sequences)
+            self._refresh_tooltip(name)
+
+    def custom_shortcuts(self) -> dict[str, list[str]]:
+        """Alle Belegungen, die vom Standard abweichen (zum Speichern)."""
+        custom = {}
+        for name, action in self._actions.items():
+            current = [s.toString(QKeySequence.SequenceFormat.PortableText) for s in action.shortcuts()]
+            default = [s.toString(QKeySequence.SequenceFormat.PortableText) for s in self.default_shortcuts(name)]
+            if current[:2] != default:
+                custom[name] = current[:2]
+        return custom
+
+    def apply_custom_shortcuts(self, custom: dict) -> None:
+        """Stellt eine gespeicherte Belegung wieder her; Unbekanntes wird übergangen."""
+        for name, keys in custom.items():
+            if name in self._actions and isinstance(keys, list):
+                self.assign(name, [QKeySequence(str(key)) for key in keys if str(key)])
 
     def __getitem__(self, name: str) -> QAction:
         return self._actions[name]

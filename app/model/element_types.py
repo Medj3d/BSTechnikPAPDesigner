@@ -59,6 +59,8 @@ LOOP_END = "end"
 TRUNK_IN_KEY = "trunk_in"
 TRUNK_OUT_KEY = "trunk_out"
 JUNCTION_SIZE = 12
+# Verbindungspunkt als loses Ende eines Pfeils (ins Leere gezogen, noch nicht angeschlossen)
+LOOSE_END_KEY = "loose_end"
 
 
 @dataclass(frozen=True)

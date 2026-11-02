@@ -13,10 +13,11 @@ kopieren“ legt nur das Bild ab.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QMimeData, QPointF, QRectF, QThread
+from PySide6.QtCore import QEventLoop, QMimeData, QPointF, QRectF, QThread
 from PySide6.QtWidgets import QApplication
 
 from app.commands import AddElementsCommand, DeleteCommand
+from app.connections import routing
 from app.fileformat.project import ProjectFileError
 from app.fileformat.serializer import diagram_from_xml, diagram_to_xml
 from app.i18n import tr
@@ -42,7 +43,10 @@ def selection_payload(scene) -> Diagram | None:
 
 
 def copy_selection(scene) -> bool:
-    """Kopiert die Auswahl: als ``.pap``-Inhalt (zum Einfügen hier), als Text und als Bild (für Word & Co.)."""
+    """Kopiert die Auswahl: als ``.pap``-Inhalt (zum Einfügen hier), als Text und als Bild (für Word & Co.).
+
+    ``False``: nichts ausgewählt, oder die Zwischenablage war belegt – dann ist nichts kopiert.
+    """
     scene.prepare_for_command()
     payload = selection_payload(scene)
     if payload is None:
@@ -59,8 +63,7 @@ def copy_selection(scene) -> bool:
             mime.setImageData(image)
         return mime
 
-    set_clipboard(mime_data, lambda data: data is not None and data.hasFormat(MIME_TYPE))
-    return True
+    return set_clipboard(mime_data, lambda data: data is not None and data.hasFormat(MIME_TYPE))
 
 
 def set_clipboard(make_mime, arrived, attempts: int = 10) -> bool:
@@ -75,6 +78,9 @@ def set_clipboard(make_mime, arrived, attempts: int = 10) -> bool:
         board.setMimeData(make_mime())
         if arrived(board.mimeData()):
             return True
+        # Bilder liefert Windows erst auf Anfrage: Liest das andere Programm gerade unser voriges Bild, wartet es auf
+        # uns. Ohne Ereignisverarbeitung bliebe die Zwischenablage die ganze Wartezeit über belegt.
+        QApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
         QThread.msleep(20 * (attempt + 1))
     return False
 
@@ -186,9 +192,8 @@ def paste_payload(scene, payload: Diagram, target_center: QPointF | None = None,
         conn.source_id = id_map[conn.source_id]
         conn.target_id = id_map[conn.target_id]
         if conn.routing.get("mode") == "manual":
-            # manuelle Mittelachse gemeinsam mit den Bausteinen versetzen
-            shift = delta.x() if conn.routing.get("axis") == "x" else delta.y()
-            conn.routing = dict(conn.routing, value=float(conn.routing.get("value", 0.0)) + shift)
+            # von Hand verschobene Linien gemeinsam mit den Bausteinen versetzen
+            conn.routing = routing.translated(conn.routing, delta.x(), delta.y())
         connections.append(conn)
 
     # Verbindungsknoten: Verweise auf ihren Stamm auf die neuen IDs umstellen

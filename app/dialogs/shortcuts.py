@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QHeaderView, QLabel,
-                               QTableWidget, QTableWidgetItem, QVBoxLayout)
+from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QHeaderView, QLabel, QLineEdit,
+                               QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout)
 
+from app.actions import BLOCK_KEYS, insert_action_name, sequence_text
 from app.i18n import N_, tr
+from app.search_text import matches
 
 # (Taste bzw. Aktion, Funktion); eine Zeile ohne Funktion ist eine Überschrift.
 # Beides ist deutscher Quelltext (mit N_ markiert) und wird beim Aufbau der Tabelle mit tr() übersetzt:
 # Die Tastennamen („Strg“, „Umschalt“, „Entf“ …) gehören zum Text, denn sie heißen je nach Sprache anders.
 SHORTCUTS = [
+    (N_("Suchen und Einstellen"), ""),
+    (N_("Strg+K"), N_("Suchleiste: Funktionen, Einstellungen und Bausteine finden")),
+    (N_("Strg+,"), N_("Einstellungen: Schalter und Tastenkürzel")),
+    (N_("1 bis 9"), N_("Baustein einfügen (Reihenfolge wie in der Werkzeugpalette)")),
     (N_("Datei"), ""),
     (N_("Strg+N"), N_("Neues Projekt")),
     (N_("Strg+O"), N_("Projekt öffnen")),
@@ -76,23 +82,52 @@ SHORTCUTS = [
     (N_("Anschlusspunkt auf einen Pfeil ziehen"),
      N_("Verbindung an den Pfeil anschließen (Verbindungspunkt entsteht)")),
     (N_("Umschalt + Pfeil ziehen"), N_("Neue Verbindung an einem bestehenden Pfeil beginnen")),
-    (N_("Rote Verbindung"), N_("Hinweis: Verbindung ist möglicherweise falsch (bleibt erhalten)")),
-    (N_("Mittleres Liniensegment ziehen"), N_("Linienführung anpassen")),
+    (N_("Rote Verbindung"), N_("Fehler im Plan: Der Grund steht beim Überfahren des Warnzeichens")),
+    (N_("Gelbe Verbindung"), N_("Auffällig, kann aber gewollt sein")),
+    (N_("Linie ziehen"), N_("Linie verschieben (nur das Aussehen ändert sich, sie bleibt rechtwinklig)")),
+    (N_("Ausgewählte Linie: Ecke ziehen"), N_("Ecke verschieben")),
+    (N_("Ausgewählte Linie: Punkt am Ende ziehen"), N_("Pfeil an einen anderen Baustein umhängen")),
+    (N_("Rechtsklick → Knick hier einfügen"), N_("Zusätzliche Stufe in der Linie, die sich weiterziehen lässt")),
+    (N_("Pfeil ins Leere ziehen"), N_("Schnellmenü: Baustein am Pfeilende anlegen (oder Pfeil stehen lassen, siehe "
+                                      "Einstellungen)")),
     (N_("Baustein auf eine Verbindung ziehen"), N_("Baustein in den Ablauf einfügen")),
     (N_("Rechtsklick auf eine Verbindung"), N_("Verbindungspunkt einfügen (Eckpunkt oder Abzweig)")),
     (N_("Rechtsklick"), N_("Kontextmenü")),
 ]
 
 
+# Zeilen, deren Taste aus der aktuellen Belegung kommt: So stimmt die Liste auch nach einer Änderung
+_LIVE_KEYS = {
+    "Strg+K": ("search",), "Strg+,": ("settings",), "Strg+N": ("new",), "Strg+O": ("open",), "Strg+S": ("save",),
+    "Strg+Umschalt+S": ("save_as",), "Strg+P": ("print",), "Strg+W": ("close",), "Strg+Z": ("undo",),
+    "Strg+Y": ("redo",), "Strg+X / Strg+C / Strg+V": ("cut", "copy", "paste"), "Strg+D": ("duplicate",),
+    "Strg+Umschalt+B": ("copy_image",), "Entf": ("delete",), "Strg+A": ("select_all",),
+    "Strg+Umschalt+U oder „+ Unterprogramm“": ("new_subprogram",), "Strg+Bild ab / Strg+Bild auf":
+    ("next_page", "previous_page"), "Strg+Alt+U": ("extract_subprogram",), "Alt+← / Alt+→": ("go_back", "go_forward"),
+    "Strg+Umschalt+C": ("generate_code",), "Strg+Umschalt+N": ("structogram",), "Strg+L": ("auto_layout",),
+    "F9": ("toggle_simulation",), "F10 / F5": ("simulation_step", "simulation_run"), "Strg+F10": ("simulation_back",),
+    "F6": ("simulation_play",), "Strg+Umschalt+H": ("toggle_diagnostics",), "Strg++ / Strg+-": ("zoom_in", "zoom_out"),
+    "Strg+0": ("zoom_reset",), "Strg+1": ("zoom_fit",), "Strg+G": ("toggle_grid",), "F11": ("presentation",),
+    "1 bis 9": tuple(insert_action_name(element_type) for element_type in BLOCK_KEYS),
+}
+
+
 class ShortcutsDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, actions=None):
         super().__init__(parent)
+        self.actions = actions
         self.setWindowTitle(tr("Tastenkürzel und Bedienung"))
         self.resize(560, 640)
         title = QLabel(tr("Tastenkürzel und Bedienung"))
         title.setObjectName("DialogTitle")
 
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr("Taste oder Funktion suchen …"))
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self._filter)
+
         table = QTableWidget(len(SHORTCUTS), 2)
+        self.table = table
         table.setHorizontalHeaderLabels([tr("Taste / Aktion"), tr("Funktion")])
         table.verticalHeader().setVisible(False)
         table.setShowGrid(False)
@@ -101,7 +136,7 @@ class ShortcutsDialog(QDialog):
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         for row, (key, text) in enumerate(SHORTCUTS):
-            key_item = QTableWidgetItem(tr(key))
+            key_item = QTableWidgetItem(self._key_text(key))
             text_item = QTableWidgetItem(tr(text) if text else "")
             if not text:
                 font = key_item.font()
@@ -113,10 +148,43 @@ class ShortcutsDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(tr("Schließen"))
         buttons.rejected.connect(self.reject)
+        self.change_button = QPushButton(tr("Tasten ändern …"))
+        self.change_button.setVisible(actions is not None and "settings" in actions.all())
+        self.change_button.clicked.connect(self._change_keys)
+        buttons.addButton(self.change_button, QDialogButtonBox.ButtonRole.ActionRole)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 16)
         layout.setSpacing(12)
         layout.addWidget(title)
+        layout.addWidget(self.search)
         layout.addWidget(table, 1)
         layout.addWidget(buttons)
+
+    def _key_text(self, key: str) -> str:
+        names = _LIVE_KEYS.get(key)
+        if self.actions is None or names is None:
+            return tr(key)
+        keys = [sequence_text(sequence) for name in names if (action := self.actions.get(name)) is not None
+                for sequence in action.shortcuts()]
+        return " / ".join(keys) or tr("nicht belegt")
+
+    def _filter(self, text: str) -> None:
+        """Zeigt nur passende Zeilen; eine Überschrift bleibt, solange unter ihr etwas passt."""
+        heading = None
+        visible_below = False
+        for row, (_key, function) in enumerate(SHORTCUTS):
+            if not function:
+                if heading is not None:
+                    self.table.setRowHidden(heading, not visible_below)
+                heading, visible_below = row, False
+                continue
+            hidden = not matches(text, self.table.item(row, 1).text(), self.table.item(row, 0).text())
+            self.table.setRowHidden(row, hidden)
+            visible_below = visible_below or not hidden
+        if heading is not None:
+            self.table.setRowHidden(heading, not visible_below)
+
+    def _change_keys(self) -> None:
+        self.accept()
+        self.parent().show_settings(show_shortcuts=True)

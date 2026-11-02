@@ -11,17 +11,20 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF, QTransform
-from PySide6.QtWidgets import QFrame, QGraphicsView
+from PySide6.QtWidgets import QFrame, QGraphicsView, QMenu
 
-from app import config, styles
+from app import config, icons, styles
 from app.document import DiagramDocument
-from app.model.element_types import ElementType, is_valid_type
+from app.model.element_types import ElementType, display_name_for, is_valid_type
 
 ELEMENT_MIME_TYPE = "application/x-bstechnik-element"
 PAN_CLICK_TOLERANCE = 4
 MIN_DOT_SPACING_PX = 10.0
+# Was ein ins Leere gezogener Pfeil anlegen kann
+QUICK_MENU_TYPES = (ElementType.INPUT, ElementType.OUTPUT, ElementType.PROCESS, ElementType.SUBPROGRAM,
+                    ElementType.DECISION, ElementType.LOOP, ElementType.END)
 
 
 class DiagramView(QGraphicsView):
@@ -237,6 +240,19 @@ class DiagramView(QGraphicsView):
         self._pan_origin = self._pan_last
         self._pan_moved = False
         self.viewport().setCursor(Qt.CursorShape.ClosedHandCursor)
+
+    def show_quick_menu(self, scene_pos: QPointF) -> None:
+        """Schnellmenü am Ende eines ins Leere gezogenen Pfeils: Welcher Baustein soll dort entstehen?"""
+        scene = self.document.scene
+        menu = QMenu(self)
+        menu.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        for element_type in QUICK_MENU_TYPES:
+            action = menu.addAction(icons.element_icon(element_type), display_name_for(element_type))
+            action.setData(element_type)
+        # Der Klick auf einen Eintrag kommt erst nach dem Schließen an; deshalb wird das „Abbrechen“ verzögert
+        menu.triggered.connect(lambda action: scene.finish_quick_menu(action.data()))
+        menu.aboutToHide.connect(lambda: QTimer.singleShot(0, lambda: scene.finish_quick_menu(None)))
+        menu.popup(self.viewport().mapToGlobal(self.mapFromScene(scene_pos)))
 
     def _on_text_editor(self, event) -> bool:
         """Liegt der Mauszeiger auf der gerade offenen Texteingabe?"""

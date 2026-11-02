@@ -25,8 +25,9 @@ from app import config
 from app.analysis.graph import FlowGraph, flow_name
 from app.fileformat.serializer import load_diagram, save_diagram
 from app.i18n import tr
-from app.model.diagram import Diagram, ProjectMeta, SubprogramPage, now_iso
-from app.model.element_types import ElementType
+from app.items.factory import new_element_data
+from app.model.diagram import ConnectionData, Diagram, ProjectMeta, SubprogramPage, new_id, now_iso
+from app.model.element_types import PORT_BOTTOM, PORT_TOP, ElementType, is_default_text, spec_for
 from app.scene import DiagramScene
 
 log = logging.getLogger(__name__)
@@ -43,6 +44,9 @@ def display_name_for_path(path: str) -> str:
             name = name[: -len(extension)]
             break
     return name or path
+
+# Abstand zwischen Start und Ende eines neuen Projekts
+NEW_PLAN_GAP = 80.0
 
 
 class DiagramPage:
@@ -340,6 +344,25 @@ class DiagramDocument(QObject):
 
     def is_empty(self) -> bool:
         return not any(page.scene.elements() for page in self.pages)
+
+    def add_start_end(self) -> None:
+        """Füllt ein neues Projekt mit Start → Ende (kein Rückgängig-Schritt: das Projekt gilt als unverändert)."""
+        scene = self.main_scene
+        start = new_element_data(ElementType.START, 0.0, 0.0)
+        end_y = scene.snap_value(start.height / 2 + NEW_PLAN_GAP + spec_for(ElementType.END).default_height / 2)
+        end = new_element_data(ElementType.END, 0.0, end_y)
+        scene.load_content([start, end], [ConnectionData(new_id(), start.id, end.id, PORT_BOTTOM, PORT_TOP)])
+        self.pages[0].view_state = (1.0, 0.0, end_y / 2)
+
+    def is_blank(self) -> bool:
+        """Noch nichts Eigenes im Projekt? Leer oder nur das Start → Ende eines neuen Projekts."""
+        if len(self.pages) != 1:
+            return False
+        elements = self.main_scene.elements()
+        return all(item.element_type in (ElementType.START, ElementType.END)
+                   and is_default_text(item.data.text, item.element_type) for item in elements) \
+            and len(elements) <= 2 and len({item.element_type for item in elements}) == len(elements) \
+            and len(self.main_scene.connections()) <= 1
 
     def command_page(self, command) -> DiagramPage | None:
         """Seite, die ein Undo-Befehl ändert (bei zusammengesetzten Befehlen: die des ersten Teils)."""

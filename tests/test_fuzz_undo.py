@@ -47,7 +47,7 @@ def check_invariants(scene):
         assert points[-1] == pytest.approx((t.x(), t.y()))
     # Warnungen entsprechen jederzeit der fachlichen Bewertung
     expected = rules.evaluate_connections([scene._connection_info(c) for c in scene.ordered_connections()])
-    assert scene.connection_warnings() == expected
+    assert scene.connection_warnings() == {key: finding.message for key, finding in expected.items()}
     # Stamm-Verweise von Verbindungspunkten sind konsistent, sofern vorhanden
     for item in items:
         if item.is_junction:

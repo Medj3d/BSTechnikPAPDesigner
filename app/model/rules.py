@@ -1,24 +1,29 @@
 """Regeln für Verbindungen.
 
-Es gibt zwei klar getrennte Stufen:
+Es gibt drei klar getrennte Stufen. Die Verbindung wird in den ersten beiden
+Fällen trotzdem erstellt und gespeichert; der Benutzer entscheidet selbst.
 
-**Warnung** („Diese Verbindung ist möglicherweise falsch.“)
-    Fachliche PAP-Prüfung. Die Verbindung wird trotzdem erstellt, gespeichert
-    und rot markiert. Der Benutzer entscheidet selbst, ob sie sinnvoll ist.
+**Fehler** (rot): Der Plan ist an dieser Stelle sicher falsch.
 
-    * Baustein mit sich selbst verbunden
     * Start-Element mit eingehender bzw. Ende-Element mit ausgehender Verbindung
-    * doppelte Verbindung zwischen denselben Bausteinen
     * mehr als ein Ausgang bei einem Baustein, der nur einen Nachfolger hat
-      (alle außer der Verzweigung; auch eine Abzweigung an einem
-      Verbindungspunkt ohne Bedingung)
+    * Baustein mit sich selbst verbunden (ohne Bedingung läuft er endlos)
+    * Pfeil mit losem Ende
+
+**Unsicher** (gelb): Kann gewollt sein, ist aber auffällig.
+
+    * doppelte Verbindung zwischen denselben Bausteinen
+    * Abzweigung an einem Verbindungspunkt ohne Bedingung
     * Kommentar mit Kommentar verbunden, doppelte Kommentarzuordnung
+    * mit der erweiterten Prüfung: siehe ``extended_findings``
 
 **Blockierender Fehler** („Diese Verbindung kann überhaupt nicht erstellt werden.“)
     Nur technisch unmögliche Fälle, z. B. Anfang und Ende am selben Anschluss
     oder ein nicht vorhandener Anschluss.
 
-Rückwärtsverbindungen und Zyklen (Schleifen) sind immer unproblematisch.
+Nicht markiert werden Rückwärtsverbindungen und Zyklen (Schleifen), eine
+Verzweigung, die zu sich selbst zurückführt (Warteschleife), und eine
+Verzweigung, deren beide Ausgänge zum selben Ziel führen.
 """
 
 from __future__ import annotations
@@ -28,6 +33,16 @@ from dataclasses import dataclass
 from app import labels
 from app.i18n import tr
 from app.model.element_types import ElementType, display_name_for, spec_for
+
+ERROR = "error"
+CAUTION = "caution"
+
+
+@dataclass(frozen=True)
+class Finding:
+    """Grund, warum eine Verbindung markiert ist, und wie sicher er ist."""
+    message: str
+    level: str = ERROR
 
 
 @dataclass(frozen=True)
@@ -73,7 +88,7 @@ def blocking_error(source: ConnectionEnd, target: ConnectionEnd) -> str | None:
     return None
 
 
-def _warning_for(info: ConnectionInfo, seen_pairs: set, seen_annotations: set, outgoing: dict) -> str | None:
+def _finding_for(info: ConnectionInfo, seen_pairs: set, seen_annotations: set, outgoing: dict) -> Finding | None:
     source_spec = spec_for(info.source_type)
     target_spec = spec_for(info.target_type)
     if is_annotation(info.source_type, info.target_type):
@@ -81,9 +96,9 @@ def _warning_for(info: ConnectionInfo, seen_pairs: set, seen_annotations: set, o
         duplicate = pair in seen_annotations
         seen_annotations.add(pair)
         if info.source_type is ElementType.COMMENT and info.target_type is ElementType.COMMENT:
-            return tr("Kommentare werden normalerweise nicht miteinander verbunden.")
+            return Finding(tr("Kommentare werden normalerweise nicht miteinander verbunden."), CAUTION)
         if duplicate:
-            return tr("Der Kommentar ist diesem Baustein bereits zugeordnet.")
+            return Finding(tr("Der Kommentar ist diesem Baustein bereits zugeordnet."), CAUTION)
         return None
 
     pair = (info.source_id, info.target_id)
@@ -91,50 +106,106 @@ def _warning_for(info: ConnectionInfo, seen_pairs: set, seen_annotations: set, o
     seen_pairs.add(pair)
     count = outgoing.get(info.source_id, 0)
     outgoing[info.source_id] = count + 1
+    decision = info.source_type is ElementType.DECISION
 
-    if info.source_id == info.target_id:
-        return tr("Der Baustein ist mit sich selbst verbunden.")
+    if info.source_id == info.target_id and not decision:
+        return Finding(tr("Der Baustein ist mit sich selbst verbunden."))
     if not source_spec.can_be_source:
-        return tr("Ein „{name}“-Element hat normalerweise keine ausgehende Verbindung.",
-                  name=display_name_for(info.source_type))
+        return Finding(tr("Ein „{name}“-Element hat normalerweise keine ausgehende Verbindung.",
+                          name=display_name_for(info.source_type)))
     if not target_spec.can_be_target:
-        return tr("Ein „{name}“-Element hat normalerweise keine eingehende Verbindung.",
-                  name=display_name_for(info.target_type))
+        return Finding(tr("Ein „{name}“-Element hat normalerweise keine eingehende Verbindung.",
+                          name=display_name_for(info.target_type)))
+    if decision:
+        return None  # zurück zu sich selbst und beide Ausgänge zum selben Ziel sind gültige Abläufe
+    if info.source_type is ElementType.JUNCTION:
+        if duplicate:
+            return Finding(tr("Diese Verbindung existiert bereits."), CAUTION)
+        if source_spec.max_outgoing is not None and count >= source_spec.max_outgoing:
+            return Finding(tr("Abzweigung ohne Verzweigung: Der Ablauf teilt sich hier ohne Bedingung. "
+                              "Für mehrere Ausgänge ist normalerweise eine Verzweigung vorgesehen."), CAUTION)
+        return None
     if duplicate:
-        return tr("Diese Verbindung existiert bereits.")
+        return Finding(tr("Diese Verbindung existiert bereits."), CAUTION)
     if source_spec.max_outgoing is not None and count >= source_spec.max_outgoing:
-        if info.source_type is ElementType.JUNCTION:
-            return tr("Abzweigung ohne Verzweigung: Der Ablauf teilt sich hier ohne Bedingung. "
-                      "Für mehrere Ausgänge ist normalerweise eine Verzweigung vorgesehen.")
-        return tr("„{name}“ hat normalerweise nur einen Ausgang. "
-                  "Für mehrere Ausgänge ist eine Verzweigung vorgesehen.", name=display_name_for(info.source_type))
+        return Finding(tr("„{name}“ hat normalerweise nur einen Ausgang. "
+                          "Für mehrere Ausgänge ist eine Verzweigung vorgesehen.",
+                          name=display_name_for(info.source_type)))
     return None
 
 
-def evaluate_connections(connections: list[ConnectionInfo]) -> dict[str, str]:
+def evaluate_connections(connections: list[ConnectionInfo]) -> dict[str, Finding]:
     """Bewertet alle Verbindungen in Erstellungsreihenfolge.
 
-    Gibt ``{connection_id: warnung}`` für problematische Verbindungen zurück.
+    Gibt ``{connection_id: Befund}`` für problematische Verbindungen zurück.
     Bei Konflikten (z. B. zweiter Ausgang, Duplikat) wird die jeweils später
     erstellte Verbindung markiert.
     """
     seen_pairs: set = set()
     seen_annotations: set = set()
     outgoing: dict = {}
-    warnings: dict[str, str] = {}
+    findings: dict[str, Finding] = {}
     for info in connections:
-        message = _warning_for(info, seen_pairs, seen_annotations, outgoing)
-        if message:
-            warnings[info.id] = message
-    return warnings
+        finding = _finding_for(info, seen_pairs, seen_annotations, outgoing)
+        if finding is not None:
+            findings[info.id] = finding
+    return findings
+
+
+def extended_findings(graph) -> dict[str, Finding]:
+    """Zusätzliche, gelbe Hinweise der erweiterten Prüfung (``graph``: Ablaufgraph einer Seite).
+
+    * Ausgang einer Verzweigung ohne Beschriftung, doppelte Beschriftung, nur ein Ausgang
+    * Verbindung auf einem Weg, der kein Ende mehr erreicht (Sackgasse oder Endlosschleife)
+    * Verbindung von einem Baustein, den der Ablauf nie erreicht
+    """
+    findings: dict[str, Finding] = {}
+    nodes = graph.nodes
+    ends = [node_id for node_id, node in nodes.items() if node.type is ElementType.END]
+    reaches_end = set(ends)
+    stack = list(ends)
+    while stack:
+        for edge in graph.incoming(stack.pop()):
+            if edge.source not in reaches_end:
+                reaches_end.add(edge.source)
+                stack.append(edge.source)
+    reached: set = set()
+    for node in nodes.values():
+        if node.type is ElementType.START:
+            reached |= graph.reachable_from(node.id)
+
+    for edge in graph.edges:
+        source = nodes.get(edge.source)
+        if source is None:
+            continue
+        if reached and edge.source not in reached:
+            findings[edge.id] = Finding(tr("Dieser Weg wird vom Start aus nie erreicht."), CAUTION)
+        elif ends and edge.target not in reaches_end:
+            findings[edge.id] = Finding(tr("Von hier aus wird das Ende nie erreicht."), CAUTION)
+    for node in nodes.values():
+        if node.type is not ElementType.DECISION:
+            continue
+        exits = graph.outgoing(node.id)
+        if len(exits) == 1:
+            findings.setdefault(exits[0].id, Finding(tr("Die Verzweigung hat nur diesen einen Ausgang."), CAUTION))
+            continue
+        written = [" ".join(edge.label.split()).lower() for edge in exits]
+        for edge, label in zip(exits, written):
+            if not label:
+                findings.setdefault(edge.id, Finding(tr("Dieser Ausgang der Verzweigung ist nicht beschriftet."),
+                                                     CAUTION))
+            elif written.count(label) > 1:
+                findings.setdefault(edge.id, Finding(tr("Diese Beschriftung kommt an der Verzweigung mehrfach vor."),
+                                                     CAUTION))
+    return findings
 
 
 def validate_connection(source: ConnectionEnd, target: ConnectionEnd,
                         existing: list[ExistingConnection]) -> str | None:
     """Bewertet eine geplante Verbindung gegenüber den vorhandenen.
 
-    Gibt eine Warnung bzw. (bei technisch unmöglichen Verbindungen) die
-    Fehlermeldung zurück, sonst ``None``.
+    Gibt den Grund einer Markierung bzw. (bei technisch unmöglichen Verbindungen)
+    die Fehlermeldung zurück, sonst ``None``.
     """
     error = blocking_error(source, target)
     if error is not None:
@@ -150,7 +221,8 @@ def validate_connection(source: ConnectionEnd, target: ConnectionEnd,
             outgoing[conn.source_id] = outgoing.get(conn.source_id, 0) + 1
     info = ConnectionInfo("__neu__", source.element_id, ElementType(source.element_type), source.port,
                           target.element_id, ElementType(target.element_type), target.port)
-    return _warning_for(info, seen_pairs, seen_annotations, outgoing)
+    finding = _finding_for(info, seen_pairs, seen_annotations, outgoing)
+    return finding.message if finding is not None else None
 
 
 def suggest_decision_label(existing_labels: list[str]) -> str:

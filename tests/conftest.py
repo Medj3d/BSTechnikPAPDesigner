@@ -22,7 +22,7 @@ if not sys.platform.startswith("win") and not os.environ.get("DISPLAY") and not 
 from PySide6.QtCore import QPointF, Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
-from app import config  # noqa: E402
+from app import config, preferences  # noqa: E402
 
 # Tests dürfen die echten Programmeinstellungen (Fensterlayout, Farbschema,
 # zuletzt geöffnete Dateien) nicht verändern.
@@ -40,6 +40,17 @@ def _isolated_local_appdata(monkeypatch, tmp_path_factory):
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path_factory.mktemp("localappdata")))
     monkeypatch.delenv("BSTECHNIK_PAP_STARTED_FROM_UPDATE", raising=False)
     yield
+
+
+@pytest.fixture(autouse=True)
+def _default_preferences():
+    # Die Tests bauen ihre Pläne selbst auf und erwarten beim Ziehen ins Leere keinen Dialog; was mit diesen
+    # beiden Schaltern geschieht, prüft tests/test_user_wishes.py.
+    preferences.reset()
+    preferences.set_enabled(preferences.START_END, False)
+    preferences.set_enabled(preferences.QUICK_MENU, False)
+    yield
+    preferences.reset()
 
 
 @pytest.fixture(autouse=True)

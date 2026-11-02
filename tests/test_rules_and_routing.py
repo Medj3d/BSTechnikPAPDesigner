@@ -67,9 +67,12 @@ def test_only_decision_has_multiple_outputs():
 
 
 def test_duplicate_connection_flagged():
-    existing = [X("d", "b", False)]
-    assert rules.validate_connection(E("d", ElementType.DECISION, "left"), E("b", ElementType.PROCESS, "top"),
+    existing = [X("p", "b", False)]
+    assert rules.validate_connection(E("p", ElementType.PROCESS, "left"), E("b", ElementType.PROCESS, "top"),
                                      existing) is not None
+    # beide Ausgänge einer Verzweigung dürfen zum selben Ziel führen
+    assert rules.validate_connection(E("d", ElementType.DECISION, "left"), E("b", ElementType.PROCESS, "top"),
+                                     [X("d", "b", False)]) is None
 
 
 def test_comment_annotation_rules():

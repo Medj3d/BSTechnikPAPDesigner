@@ -14,19 +14,24 @@ import math
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPainterPathStroker, QPen, QPolygonF
-from PySide6.QtWidgets import QGraphicsItem, QGraphicsObject
+from PySide6.QtWidgets import QApplication, QGraphicsItem, QGraphicsObject
 
-from app import styles
+from app import preferences, styles
 from app.connections import routing
 from app.connections.label import ConnectionLabel
 from app.i18n import tr
 from app.items.base_item import LAYER_CONNECTION, FlowItem
 from app.model.diagram import ConnectionData
-from app.model.element_types import TRUNK_IN_KEY
+from app.model.element_types import LOOSE_END_KEY, TRUNK_IN_KEY
+from app.model.rules import CAUTION, ERROR
 
 ARROW_LENGTH = 10.0
 ARROW_HALF_WIDTH = 4.5
 JUNCTION_DOT_RADIUS = 4.0
+CORNER_RADIUS = 7.0
+MARK_RADIUS = 7.5
+GRIP_RADIUS = 3.5
+END_GRIP_RADIUS = 4.5
 
 
 def rect_from_qrect(rect: QRectF) -> routing.Rect:
@@ -42,13 +47,26 @@ def build_arrow(tip: tuple, previous: tuple) -> QPolygonF:
     return QPolygonF([QPointF(*tip), QPointF(bx + px, by + py), QPointF(bx - px, by - py)])
 
 
-def build_line_path(points: list, shorten_end: float) -> QPainterPath:
+def _toward(a: tuple, b: tuple, distance: float) -> QPointF:
+    length = math.hypot(b[0] - a[0], b[1] - a[1]) or 1.0
+    return QPointF(a[0] + (b[0] - a[0]) / length * distance, a[1] + (b[1] - a[1]) / length * distance)
+
+
+def build_line_path(points: list, shorten_end: float, radius: float = 0.0) -> QPainterPath:
+    """Linienzug als Pfad; mit ``radius`` werden die Ecken mit einem kleinen Bogen gezeichnet."""
     path = QPainterPath()
     if len(points) < 2:
         return path
     path.moveTo(QPointF(*points[0]))
-    for p in points[1:-1]:
-        path.lineTo(QPointF(*p))
+    for previous, corner, following in zip(points[:-2], points[1:-1], points[2:]):
+        room = min(math.hypot(corner[0] - previous[0], corner[1] - previous[1]),
+                   math.hypot(following[0] - corner[0], following[1] - corner[1])) / 2
+        bend = min(radius, room)
+        if bend < 1.0:
+            path.lineTo(QPointF(*corner))
+            continue
+        path.lineTo(_toward(corner, previous, bend))
+        path.quadTo(QPointF(*corner), _toward(corner, following, bend))
     last, prev = points[-1], points[-2]
     if shorten_end > 0:
         dx, dy = last[0] - prev[0], last[1] - prev[1]
@@ -77,6 +95,7 @@ class ConnectionItem(QGraphicsObject):
         self._segment_drag: dict | None = None
         self._last_route_key: tuple | None = None
         self._warning: str | None = None
+        self._warning_level = ERROR
         # Erstellungsreihenfolge (von der Szene vergeben; bestimmt bei
         # Konflikten, welche Verbindung als Warnung markiert wird)
         self.order: int | None = None
@@ -98,9 +117,17 @@ class ConnectionItem(QGraphicsObject):
     def points(self) -> list:
         return list(self._points)
 
+    @property
+    def has_loose_end(self) -> bool:
+        """Endet oder beginnt die Verbindung im Leeren?"""
+        return bool(self.source.data.properties.get(LOOSE_END_KEY) or self.target.data.properties.get(LOOSE_END_KEY))
+
     def set_label(self, text: str) -> None:
         self.data.label = text or ""
         self.label.set_text(self.data.label)
+        scene = self.scene()
+        if scene is not None and hasattr(scene, "request_validation"):
+            scene.request_validation()  # die erweiterte Prüfung sieht auf die Beschriftung
 
     def set_routing(self, routing_info: dict) -> None:
         self.data.routing = copy.deepcopy(routing_info) if routing_info else {"mode": "auto"}
@@ -117,14 +144,20 @@ class ConnectionItem(QGraphicsObject):
     # ------------------------------------------------------------ Warnung
     @property
     def warning(self) -> str | None:
-        """Fachliche Warnung (Verbindung möglicherweise falsch) oder ``None``."""
+        """Grund, warum die Verbindung markiert ist (siehe ``rules``), oder ``None``."""
         return self._warning
 
-    def set_warning(self, message: str | None) -> None:
-        if message != self._warning:
+    @property
+    def warning_level(self) -> str:
+        """Rot (``ERROR``) oder gelb (``CAUTION``)."""
+        return self._warning_level
+
+    def set_warning(self, message: str | None, level: str = ERROR) -> None:
+        if message != self._warning or level != self._warning_level:
             self._warning = message
+            self._warning_level = level
             self.setToolTip(tr("Hinweis: {message}", message=message) if message else "")
-            self.update()
+            self.set_points(self._points)
             self.label.update()
 
     # ------------------------------------------------------------ Knoten
@@ -158,13 +191,7 @@ class ConnectionItem(QGraphicsObject):
                 if abs(dx) < 1e-9 and abs(dy) < 1e-9:
                     return
                 if self.has_manual_routing():
-                    axis = self.data.routing.get("axis")
-                    try:
-                        value = float(self.data.routing.get("value", 0.0))
-                    except (TypeError, ValueError):
-                        value = 0.0
-                    self.data.routing = {"mode": "manual", "axis": axis,
-                                         "value": value + (dx if axis == "x" else dy)}
+                    self.data.routing = routing.translated(self.data.routing, dx, dy)
                 self._last_route_key = key
                 self.set_points([(x + dx, y + dy) for x, y in self._points])
                 return
@@ -173,11 +200,12 @@ class ConnectionItem(QGraphicsObject):
         t = self.target.port_scene_pos(tp)
         scene = self.scene()
         obstacles = scene.routing_obstacles(self) if scene is not None and hasattr(scene, "routing_obstacles") else []
+        lines = scene.routing_lines(self) if scene is not None and hasattr(scene, "routing_lines") else []
         # Ein Verbindungsknoten hat keinen „Körper“, den die Linie meiden müsste
         source_rect = None if self.source.is_junction else rect_from_qrect(self.source.scene_rect())
         target_rect = None if self.target.is_junction else rect_from_qrect(self.target.scene_rect())
         points = routing.route((s.x(), s.y()), sp, (t.x(), t.y()), tp, source_rect, target_rect,
-                               obstacles, self.data.routing)
+                               obstacles, self.data.routing, lines)
         self._last_route_key = key
         self.set_points(points)
 
@@ -224,7 +252,8 @@ class ConnectionItem(QGraphicsObject):
             if length > JUNCTION_DOT_RADIUS + 2:
                 ratio = (JUNCTION_DOT_RADIUS + 1) / length
                 drawn = points[:-1] + [(tx - (tx - px) * ratio, ty - (ty - py) * ratio)]
-        self._line_path = build_line_path(drawn, 0.0 if no_arrow else ARROW_LENGTH * 0.8)
+        radius = CORNER_RADIUS if preferences.enabled(preferences.ROUNDED_LINES) else 0.0
+        self._line_path = build_line_path(drawn, 0.0 if no_arrow else ARROW_LENGTH * 0.8, radius)
         self._arrow = QPolygonF() if no_arrow else self._arrow_polygon(drawn)
         full = QPainterPath(self._line_path)
         if not self._arrow.isEmpty():
@@ -234,6 +263,9 @@ class ConnectionItem(QGraphicsObject):
         stroker.setCapStyle(Qt.PenCapStyle.SquareCap)
         self._shape = stroker.createStroke(full)
         self._shape.addPolygon(self._arrow)
+        mark = self._mark_center()
+        if mark is not None:
+            self._shape.addEllipse(mark, MARK_RADIUS + 1, MARK_RADIUS + 1)
         self._bounds = self._shape.boundingRect().adjusted(-8, -8, 8, 8)
         self.label.update_position()
         self.update()
@@ -258,8 +290,8 @@ class ConnectionItem(QGraphicsObject):
                 color = QColor(theme.selection)
                 width = 2.4
             elif self._warning:
-                # Warnung: rot, auch wenn ausgewählt (dann etwas kräftiger)
-                color = QColor(theme.connection_invalid)
+                # Warnung: rot oder gelb, auch wenn ausgewählt (dann etwas kräftiger)
+                color = QColor(self._warning_color(theme))
                 width = 2.2 if self.isSelected() else 1.7
                 if self._hovered and not self.isSelected():
                     color = color.lighter(115)
@@ -282,18 +314,56 @@ class ConnectionItem(QGraphicsObject):
             painter.setPen(QPen(color, 1.0))
             painter.setBrush(color)
             painter.drawPolygon(self._arrow)
-        if self.isSelected() and not exporting:
-            self._paint_segment_handles(painter, theme)
+        if exporting:
+            return
+        mark = self._mark_center()
+        if mark is not None:
+            self._paint_mark(painter, theme, mark)
+        if self.isSelected():
+            self._paint_handles(painter, theme)
 
-    def _paint_segment_handles(self, painter: QPainter, theme) -> None:
+    def _warning_color(self, theme) -> str:
+        return theme.connection_caution if self._warning_level == CAUTION else theme.connection_invalid
+
+    def _mark_center(self) -> QPointF | None:
+        """Stelle des Warnzeichens: die Mitte des längsten Stücks."""
+        if not self._warning or len(self._points) < 2 or not preferences.enabled(preferences.WARNING_MARKS):
+            return None
+        a, b = max(zip(self._points[:-1], self._points[1:]),
+                   key=lambda pair: abs(pair[0][0] - pair[1][0]) + abs(pair[0][1] - pair[1][1]))
+        return QPointF((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+
+    def _paint_mark(self, painter: QPainter, theme, center: QPointF) -> None:
+        painter.setPen(QPen(QColor(theme.canvas_bg), 1.5))
+        painter.setBrush(QColor(self._warning_color(theme)))
+        painter.drawEllipse(center, MARK_RADIUS, MARK_RADIUS)
+        # Ausrufezeichen als Form: unabhängig von Schriftart und Zoom
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor("#FFFFFF"))
+        painter.drawRoundedRect(QRectF(center.x() - 1.1, center.y() - 4.6, 2.2, 6.0), 1.0, 1.0)
+        painter.drawEllipse(QPointF(center.x(), center.y() + 3.4), 1.25, 1.25)
+
+    def _paint_handles(self, painter: QPainter, theme) -> None:
+        """Griffe der ausgewählten Verbindung: Stücke, Ecken und die beiden Enden."""
         pen = QPen(QColor(theme.selection), 1.2)
         pen.setCosmetic(True)
         painter.setPen(pen)
         painter.setBrush(QColor(theme.canvas_bg))
-        for index in routing.interior_segments(self._points):
+        for index in routing.movable_segments(self._points):
             a, b = self._points[index], self._points[index + 1]
-            center = QPointF((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
-            painter.drawEllipse(center, 3.5, 3.5)
+            if abs(a[0] - b[0]) + abs(a[1] - b[1]) >= 3 * GRIP_RADIUS:
+                painter.drawEllipse(QPointF((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), GRIP_RADIUS, GRIP_RADIUS)
+        for corner in self._movable_corners():
+            x, y = self._points[corner]
+            painter.drawRect(QRectF(x - GRIP_RADIUS, y - GRIP_RADIUS, 2 * GRIP_RADIUS, 2 * GRIP_RADIUS))
+        painter.setBrush(QColor(theme.selection))
+        for x, y in (self._points[0], self._points[-1]):
+            painter.drawEllipse(QPointF(x, y), END_GRIP_RADIUS, END_GRIP_RADIUS)
+
+    def _movable_corners(self) -> list[int]:
+        """Ecken mit mindestens einem inneren Nachbarstück."""
+        last = len(self._points) - 2
+        return [corner for corner in range(1, len(self._points) - 1) if 0 < corner - 1 < last or 0 < corner < last]
 
     # -------------------------------------------------------------- Events
     def _view_scale(self) -> float:
@@ -302,10 +372,32 @@ class ConnectionItem(QGraphicsObject):
             return max(0.01, scene.views()[0].transform().m11())
         return 1.0
 
-    def interior_segment_at(self, scene_pos: QPointF) -> int | None:
-        tolerance = max(5.0, 6.0 / self._view_scale())
+    def _grip_tolerance(self) -> float:
+        return max(5.0, 6.0 / self._view_scale())
+
+    def end_at(self, scene_pos: QPointF) -> str | None:
+        """Greift der Mauszeiger ein Ende der ausgewählten Verbindung? ``"source"``, ``"target"`` oder ``None``."""
+        if not self.isSelected() or len(self._points) < 2:
+            return None
+        tolerance = self._grip_tolerance() + 1.0
+        for name, (x, y) in (("target", self._points[-1]), ("source", self._points[0])):
+            if abs(scene_pos.x() - x) <= tolerance and abs(scene_pos.y() - y) <= tolerance:
+                return name
+        return None
+
+    def corner_at(self, scene_pos: QPointF) -> int | None:
+        tolerance = self._grip_tolerance()
+        for corner in self._movable_corners():
+            x, y = self._points[corner]
+            if abs(scene_pos.x() - x) <= tolerance and abs(scene_pos.y() - y) <= tolerance:
+                return corner
+        return None
+
+    def segment_at(self, scene_pos: QPointF) -> int | None:
+        """Verschiebbares Stück unter dem Mauszeiger."""
+        tolerance = self._grip_tolerance()
         x, y = scene_pos.x(), scene_pos.y()
-        for index in routing.interior_segments(self._points):
+        for index in routing.movable_segments(self._points):
             (x1, y1), (x2, y2) = self._points[index], self._points[index + 1]
             if abs(x1 - x2) < 1e-6:
                 if abs(x - x1) <= tolerance and min(y1, y2) - tolerance <= y <= max(y1, y2) + tolerance:
@@ -321,8 +413,13 @@ class ConnectionItem(QGraphicsObject):
         super().hoverEnterEvent(event)
 
     def hoverMoveEvent(self, event) -> None:
-        index = self.interior_segment_at(event.scenePos()) if self.isSelected() else None
-        if index is not None:
+        pos = event.scenePos()
+        index = self.segment_at(pos) if self.isSelected() else None
+        if self.end_at(pos) is not None:
+            self.setCursor(Qt.CursorShape.CrossCursor)
+        elif self.isSelected() and self.corner_at(pos) is not None:
+            self.setCursor(Qt.CursorShape.SizeAllCursor)
+        elif index is not None:
             axis = routing.segment_axis(self._points, index)
             self.setCursor(Qt.CursorShape.SplitHCursor if axis == "x" else Qt.CursorShape.SplitVCursor)
         else:
@@ -337,28 +434,44 @@ class ConnectionItem(QGraphicsObject):
 
     def mousePressEvent(self, event) -> None:
         ctrl = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
-        if event.button() == Qt.MouseButton.LeftButton and not ctrl:
-            index = self.interior_segment_at(event.scenePos())
-            if index is not None:
+        if event.button() == Qt.MouseButton.LeftButton and not ctrl and len(self._points) >= 2:
+            pos = event.scenePos()
+            corner = self.corner_at(pos) if self.isSelected() else None
+            index = self.segment_at(pos) if corner is None else None
+            if corner is not None or index is not None:
                 scene = self.scene()
                 if not self.isSelected() and scene is not None:
                     scene.clearSelection()
                     self.setSelected(True)
-                axis = routing.segment_axis(self._points, index)
-                if axis is not None:
-                    self._segment_drag = {"axis": axis, "old": copy.deepcopy(self.data.routing)}
-                    event.accept()
-                    return
+                self._segment_drag = {"corner": corner, "index": index, "points": list(self._points), "press": pos,
+                                      "moved": False, "old": copy.deepcopy(self.data.routing)}
+                event.accept()
+                return
         super().mousePressEvent(event)
 
+    def _dragged_points(self, pos: QPointF) -> list:
+        """Linienzug, wenn das gegriffene Stück bzw. die gegriffene Ecke bei ``pos`` liegt."""
+        drag = self._segment_drag
+        scene = self.scene()
+        snap = scene.snap_value if scene is not None and hasattr(scene, "snap_value") else float
+        points = drag["points"]
+        if drag["corner"] is not None:
+            return routing.move_corner(points, drag["corner"], snap(pos.x()), snap(pos.y()))
+        axis = routing.segment_axis(points, drag["index"])
+        return routing.move_segment(points, drag["index"], snap(pos.x() if axis == "x" else pos.y()))
+
     def mouseMoveEvent(self, event) -> None:
-        if self._segment_drag is not None:
-            axis = self._segment_drag["axis"]
-            value = event.scenePos().x() if axis == "x" else event.scenePos().y()
-            scene = self.scene()
-            if scene is not None and hasattr(scene, "snap_value"):
-                value = scene.snap_value(value)
-            new_routing = {"mode": "manual", "axis": axis, "value": float(value)}
+        drag = self._segment_drag
+        if drag is not None:
+            pos = event.scenePos()
+            if not drag["moved"]:
+                distance = (pos - drag["press"]).manhattanLength() * self._view_scale()
+                if distance < QApplication.startDragDistance():
+                    event.accept()
+                    return
+                drag["moved"] = True
+            points = routing.simplify(self._dragged_points(pos))
+            new_routing = {"mode": "manual", "axes": routing.axes_from_points(points)}
             if new_routing != self.data.routing:
                 self.data.routing = new_routing
                 self.update_route()
@@ -380,6 +493,8 @@ class ConnectionItem(QGraphicsObject):
             if old != self.data.routing:
                 self.set_routing(old)
             return
+        if len(self._points) == 2:  # wieder gerade: nichts mehr von Hand festgelegt
+            self.data.routing = {"mode": "auto"}
         new = copy.deepcopy(self.data.routing)
         scene = self.scene()
         if commit and old != new and scene is not None and hasattr(scene, "commit_routing_change"):

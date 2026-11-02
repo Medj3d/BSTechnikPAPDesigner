@@ -10,11 +10,17 @@ wird nach den üblichen PAP-Konventionen angeordnet:
   Rücksprung
 * mehrere Abläufe (mehrere Start-Elemente) nebeneinander
 
-Kommentare wandern mit dem Baustein, dem sie zugeordnet sind;
-Verbindungspunkte werden zwischen ihre beiden Stammteile gesetzt. Nicht
-erreichbare Bausteine werden rechts neben den angeordneten Bereich gesetzt.
-Die Positionen werden nur berechnet (``plan_auto_layout``); ``apply_layout``
-wendet sie als ein einziger Rückgängig-Schritt an.
+Kommentare wandern mit dem Baustein, dem sie zugeordnet sind (ohne Kommentarlinie
+mit dem nächstgelegenen). Nicht erreichbare Bausteine werden rechts neben den
+angeordneten Bereich gesetzt.
+
+Nach dem Platzieren werden die Verbindungen aufgeräumt: Reine Eckpunkte (ein
+Pfeil hinein, einer heraus – im PapDesigner ist jede Ecke einer) fallen weg,
+Zusammenführungen stehen in einer eigenen Zeile kurz über ihrem Ziel, und die
+Anschlüsse passen zur neuen Lage. Der Ablauf bleibt dabei derselbe.
+
+Alles wird nur berechnet (``plan_auto_layout``); ``apply_layout`` wendet es als
+ein einziger Rückgängig-Schritt an.
 """
 
 from __future__ import annotations
@@ -24,25 +30,35 @@ from dataclasses import dataclass, field
 
 from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndStmt, If, LimitLoop, Loop,
                               Unstructured, WhileLoop)
-from app.analysis.graph import FlowGraph
+from app.analysis.graph import Edge, FlowGraph, edge_order
 from app.analysis.structure import structure_diagram
 from app.i18n import tr
-from app.model.element_types import PORT_DIRECTIONS, TRUNK_IN_KEY, TRUNK_OUT_KEY
+from app.model.diagram import ConnectionData, new_id
+from app.model.element_types import (LOOSE_END_KEY, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT, PORT_TOP, TRUNK_IN_KEY,
+                                     TRUNK_OUT_KEY, ElementType)
 
 V_GAP = 60.0          # Abstand zwischen Unterkante und Oberkante
 H_GAP = 80.0          # Abstand zwischen Spalten
-LOOP_MARGIN = 40.0    # Platz für Rücksprunglinien
+LOOP_MARGIN = 60.0    # Platz für Rücksprunglinien
+MERGE_ROW = 30.0      # zusätzliche Zeile unter einer Verzweigung für die Zusammenführung
+MERGE_GAP = 30.0      # Abstand einer Zusammenführung zu ihrem Ziel
 PROGRAM_GAP = 160.0
 UNPLACED_GAP = 160.0
+COMMENT_REACH = 240.0  # bis zu diesem Abstand gehört ein Kommentar ohne Linie zum nächsten Baustein
+COMMENT_SPACE = 20.0   # Mindestabstand eines Kommentars zu seinem Baustein
 
 
 @dataclass
 class LayoutPlan:
     moves: dict = field(default_factory=dict)          # id → ((alt_x, alt_y), (neu_x, neu_y))
     reset_routing: list = field(default_factory=list)  # Verbindungen mit manueller Linienführung
+    ports: dict = field(default_factory=dict)          # id → ((alt_quelle, alt_ziel), (neu_quelle, neu_ziel))
+    removed_corners: list = field(default_factory=list)  # reine Eckpunkte, die wegfallen
+    bridges: list = field(default_factory=list)        # Verbindungen, die stattdessen direkt laufen
+    trunks: list = field(default_factory=list)         # (Verbindungspunkt, Schlüssel, alt, neu) der Stammverweise
 
     def is_empty(self) -> bool:
-        return not self.moves and not self.reset_routing
+        return not (self.moves or self.reset_routing or self.ports or self.removed_corners)
 
 
 @dataclass
@@ -213,7 +229,7 @@ class _Layouter:
             # Platz für den „nein“-Weg rechts um den Ja-Zweig herum
             box.right = max(box.right, column_right + LOOP_MARGIN)
         branch_height = max((branch.height for branch in boxes if branch.positions), default=0.0)
-        box.height = head.height + (V_GAP + branch_height if branch_height else 0.0)
+        box.height = head.height + (V_GAP + branch_height if branch_height else 0.0) + MERGE_ROW
         return box
 
 
@@ -232,7 +248,8 @@ def plan_auto_layout(scene, only_ids: set | None = None) -> LayoutPlan:
     primary = set()
     for program in programs:
         primary |= {program.start_id} | _primary_ids(program.body)
-    layouter = _Layouter(sizes, _comment_extents(items), primary)
+    partners = _comment_partners(items)
+    layouter = _Layouter(sizes, _comment_extents(items, partners), primary)
 
     placed: dict[str, tuple[float, float]] = {}
     x_cursor = None
@@ -259,12 +276,15 @@ def plan_auto_layout(scene, only_ids: set | None = None) -> LayoutPlan:
             new_positions[eid] = (_snap(x + ox, grid), _snap(y + oy, grid))
 
     _place_unplaced_flow(items, new_positions, grid)
-    _place_junctions(scene, items, new_positions, grid)
-    _place_comments(scene, items, new_positions)
-
     plan = LayoutPlan()
+    edges = _final_edges(scene, items, plan) if only_ids is None else _current_edges(scene)
+    _place_merges(items, new_positions, edges, grid)
+    if only_ids is None:
+        _plan_ports(items, new_positions, edges, plan)
+    _place_comments(items, new_positions, partners)
+
     for eid, (nx, ny) in new_positions.items():
-        if only_ids is not None and eid not in only_ids:
+        if (only_ids is not None and eid not in only_ids) or eid in plan.removed_corners:
             continue
         item = items[eid]
         old = (item.pos().x(), item.pos().y())
@@ -272,7 +292,8 @@ def plan_auto_layout(scene, only_ids: set | None = None) -> LayoutPlan:
             plan.moves[eid] = (old, (nx, ny))
     moved = set(plan.moves)
     for conn in scene.connections():
-        if conn.has_manual_routing() and (conn.data.source_id in moved or conn.data.target_id in moved):
+        if conn.has_manual_routing() and (conn.data.source_id in moved or conn.data.target_id in moved
+                                          or conn.connection_id in plan.ports):
             plan.reset_routing.append(conn.connection_id)
     return plan
 
@@ -298,81 +319,284 @@ def _place_unplaced_flow(items: dict, positions: dict, grid: int) -> None:
         positions[item.element_id] = (_snap(item.pos().x() + dx, grid), _snap(item.pos().y() + dy, grid))
 
 
-def _place_junctions(scene, items: dict, positions: dict, grid: int) -> None:
-    """Verbindungspunkte in die Mitte zwischen ihre beiden Stammteile setzen."""
-    for item in items.values():
-        if not item.is_junction:
+@dataclass
+class _Edge:
+    """Verbindung, wie sie nach dem Aufräumen läuft."""
+    source: str
+    target: str
+    ports: tuple
+    connection_id: str
+    label: str = ""
+    data: ConnectionData | None = None  # gesetzt: Verbindung, die anstelle reiner Eckpunkte neu entsteht
+
+
+def _current_edges(scene) -> list:
+    return [_Edge(c.data.source_id, c.data.target_id, (c.data.source_port, c.data.target_port), c.connection_id,
+                  c.data.label) for c in scene.ordered_connections() if not c.is_annotation]
+
+
+def _is_pass_through(item) -> bool:
+    """Ein Verbindungspunkt mit genau einem Pfeil heraus: Er ist eine Ecke oder führt Pfeile zusammen."""
+    if not item.is_junction or item.data.properties.get(LOOSE_END_KEY):
+        return False
+    if any(c.is_annotation for c in item.connections):
+        return False
+    outgoing = [c for c in item.connections if c.source is item]
+    return len(outgoing) == 1 and outgoing[0].target is not item
+
+
+def _final_edges(scene, items: dict, plan: LayoutPlan) -> list:
+    """Verbindungen nach dem Aufräumen; was sich ändert, steht danach in ``plan``.
+
+    Verbindungspunkte, die auf denselben Baustein zulaufen, werden zu einem einzigen: Ein Plan aus dem PapDesigner
+    hat oft ganze Ketten davon. Führt in eine solche Gruppe nur ein Pfeil, ist sie bloß eine Ecke und fällt ganz weg.
+    """
+    passing = {eid for eid, item in items.items() if _is_pass_through(item)}
+    next_of = {eid: next(c for c in items[eid].connections if c.source is items[eid]) for eid in passing}
+
+    def terminal(element_id: str) -> str | None:
+        seen = set()
+        while element_id in passing:
+            if element_id in seen:
+                return None  # ein Ring aus Verbindungspunkten bleibt, wie er ist
+            seen.add(element_id)
+            element_id = next_of[element_id].data.target_id
+        return element_id
+
+    groups: dict = {}
+    for eid in passing:
+        end = terminal(eid)
+        if end is not None:
+            groups.setdefault(end, []).append(eid)
+    grouped = {eid for members in groups.values() for eid in members}
+    keep: dict = {}          # Gruppe → verbleibender Verbindungspunkt
+    entering: dict = {}
+    for conn in scene.ordered_connections():
+        if not conn.is_annotation and conn.data.target_id in grouped and conn.data.source_id not in grouped:
+            entering.setdefault(terminal(conn.data.target_id), []).append(conn)
+    for end, members in groups.items():
+        if len(entering.get(end, [])) >= 2:
+            # der Punkt direkt vor dem Ziel bleibt (bei mehreren der erste in Dateireihenfolge)
+            keep[end] = next(eid for eid in sorted(members, key=list(items).index)
+                             if next_of[eid].data.target_id == end)
+
+    edges = []
+    removed = grouped - set(keep.values())
+    replaced: dict = {}      # Verbindung, die wegfällt → Verbindung, die an ihre Stelle tritt
+    for conn in scene.ordered_connections():
+        data = conn.data
+        if conn.is_annotation:
             continue
-        trunk_in = scene.connection(item.data.properties.get(TRUNK_IN_KEY, ""))
-        trunk_out = scene.connection(item.data.properties.get(TRUNK_OUT_KEY, ""))
-        if trunk_in is None or trunk_out is None:
-            _place_merge_point(item, positions, grid)
+        if data.source_id in removed:
             continue
-        a, b = trunk_in.source, trunk_out.target
-        if a.element_id not in positions and b.element_id not in positions:
+        ports = (data.source_port, data.target_port)
+        if data.target_id not in removed:
+            edges.append(_Edge(data.source_id, data.target_id, ports, conn.connection_id, data.label))
             continue
-
-        def port_point(node, port):
-            x, y = positions.get(node.element_id, (node.pos().x(), node.pos().y()))
-            local = node.port_local_pos(port)
-            return x + local.x(), y + local.y()
-
-        ax, ay = port_point(a, trunk_in.data.source_port)
-        bx, by = port_point(b, trunk_out.data.target_port)
-        positions[item.element_id] = (_snap((ax + bx) / 2, grid), _snap((ay + by) / 2, grid))
-
-
-def _place_merge_point(item, positions: dict, grid: int) -> None:
-    """Zusammenführungspunkt ohne Stamm (z. B. aus PapDesigner): kurz vor seinen Nachfolger setzen."""
-    outgoing = [c for c in item.connections if c.source is item and not c.is_annotation]
-    if len(outgoing) != 1:
-        return
-    target = outgoing[0].target
-    if target.element_id not in positions:
-        return
-    x, y = positions[target.element_id]
-    local = target.port_local_pos(outgoing[0].data.target_port)
-    dx, dy = PORT_DIRECTIONS.get(outgoing[0].data.target_port, (0.0, -1.0))
-    distance = V_GAP / 2
-    positions[item.element_id] = (_snap(x + local.x() + dx * distance, grid),
-                                  _snap(y + local.y() + dy * distance, grid))
-
-
-def _comment_partner(item):
-    for conn in item.connections:
-        other = conn.target if conn.source is item else conn.source
-        if not other.is_comment:
-            return other
-    return None
+        end = terminal(data.target_id)
+        target = keep.get(end, end)
+        label, last = data.label, conn
+        while last.data.target_id != target and last.data.target_id in grouped:
+            last = next_of[last.data.target_id]
+            label = label or last.data.label
+            replaced[last.connection_id] = conn.connection_id
+        # Die neue Verbindung trägt die ID der ersten: Die Reihenfolge der Ausgänge hängt auch an der ID
+        bridge = ConnectionData(conn.connection_id, data.source_id, target, data.source_port, last.data.target_port,
+                                label)
+        if bridge.source_id == bridge.target_id and bridge.source_port == bridge.target_port:
+            # eine Linie von einem Anschluss zu demselben hätte keine Länge
+            bridge.target_port = next(p for p in items[target].ports if p != bridge.source_port)
+        scene.keep_order(conn, bridge.id)
+        plan.bridges.append(bridge)
+        edges.append(_Edge(bridge.source_id, bridge.target_id, (bridge.source_port, bridge.target_port),
+                           bridge.id, label, bridge))
+    plan.removed_corners = sorted(removed)
+    for eid, item in items.items():
+        if item.is_junction and eid not in removed:
+            for key in (TRUNK_IN_KEY, TRUNK_OUT_KEY):
+                old = item.data.properties.get(key)
+                if old in replaced:
+                    plan.trunks.append((eid, key, old, replaced[old]))
+    return edges
 
 
-def _comment_extents(items: dict) -> dict:
-    """Platz, den angehängte Kommentare links, rechts und unter ihrem Baustein brauchen."""
-    extents: dict[str, tuple[float, float, float]] = {}
+def _top_of(items: dict, positions: dict, element_id: str) -> tuple[float, float]:
+    """Mitte der Oberkante eines Elements an seiner neuen Stelle."""
+    item = items[element_id]
+    x, y = positions.get(element_id, (item.pos().x(), item.pos().y()))
+    return x, y - item.height / 2
+
+
+def _place_merges(items: dict, positions: dict, edges: list, grid: int) -> None:
+    """Zusammenführungen kommen in die Zeile über ihrem Ziel, von unten nach oben."""
+    junctions = {eid for eid, item in items.items() if item.is_junction and not item.data.properties.get(LOOSE_END_KEY)}
+    junctions &= {edge.source for edge in edges} | {edge.target for edge in edges}
+    targets: dict = {}
+    for edge in edges:
+        if edge.source in junctions:
+            targets.setdefault(edge.source, edge.target)
+    waiting = {eid for eid in junctions if eid in targets}
+    taken = set()
+    step = max(float(grid), 20.0)
+    while waiting:
+        ready = [eid for eid in waiting if targets[eid] not in waiting]
+        if not ready:
+            break  # ein Ring aus Verbindungspunkten: Die übrigen bleiben an ihrem Platz
+        for eid in ready:
+            waiting.discard(eid)
+            target = targets[eid]
+            if target not in positions and not items[target].is_junction:
+                continue
+            x, top = _top_of(items, positions, target)
+            y = _snap(top - MERGE_GAP, grid)
+            while top - y < step / 2 or (x, y) in taken:
+                y -= step
+            taken.add((x, y))
+            positions[eid] = (_snap(x, grid), y)
+
+
+def _side_toward(x: float, other_x: float) -> str:
+    return PORT_RIGHT if other_x >= x else PORT_LEFT
+
+
+def _plan_ports(items: dict, positions: dict, edges: list, plan: LayoutPlan) -> None:
+    """Wählt Anschlüsse passend zur neuen Lage: gerade Wege nach unten, Seitenzweige nach rechts, Rücksprünge links."""
+    current = {edge.connection_id: edge.ports for edge in edges}
+
+    def exit_order(group: list, ports_of) -> list:
+        return [e.id for e in sorted((Edge(edge.connection_id, edge.source, edge.target, edge.label, ports_of(edge)[0],
+                                           ports_of(edge)[1]) for edge in group), key=edge_order)]
+
+    def center(element_id: str) -> tuple[float, float]:
+        item = items[element_id]
+        return positions.get(element_id, (item.pos().x(), item.pos().y()))
+
+    outgoing: dict = {}
+    for edge in edges:
+        if edge.source != edge.target:
+            outgoing.setdefault(edge.source, []).append(edge)
+    used_out: dict = {}
+    for source_id, group in outgoing.items():
+        source = items[source_id]
+        sx, sy = center(source_id)
+        bottom = sy + source.height / 2
+        taken: set = set()
+        used_out[source_id] = taken
+        branching = source.element_type is ElementType.DECISION or len(group) > 1
+        group = sorted(group, key=lambda e: abs(center(e.target)[0] - sx))
+        for edge in group:
+            tx, ty = center(edge.target)
+            forward = ty - items[edge.target].height / 2 >= bottom - 1
+            if forward and abs(tx - sx) < 1 and PORT_BOTTOM not in taken:
+                port = PORT_BOTTOM
+            elif abs(ty - sy) < 1:
+                port = _side_toward(sx, tx)
+            elif forward and not branching:
+                port = PORT_BOTTOM
+            elif forward:
+                port = _side_toward(sx, tx)
+            elif branching:
+                port = _side_toward(sx, tx) if abs(tx - sx) >= 1 else PORT_LEFT
+            else:
+                port = PORT_BOTTOM
+            if port in taken:
+                port = next((p for p in (PORT_RIGHT, PORT_LEFT, PORT_BOTTOM) if p not in taken), port)
+            taken.add(port)
+            edge.ports = (port if port in source.ports else edge.ports[0], edge.ports[1])
+        # Die Reihenfolge der Ausgänge gehört zum Ablauf: Würde sie sich ändern, bleiben die Anschlüsse
+        if exit_order(group, lambda e: e.ports) != exit_order(group, lambda e: current[e.connection_id]):
+            for edge in group:
+                edge.ports = current[edge.connection_id]
+            used_out[source_id] = {edge.ports[0] for edge in group}
+
+    for edge in edges:
+        if edge.source == edge.target:
+            continue
+        target = items[edge.target]
+        sx, sy = center(edge.source)
+        tx, ty = center(edge.target)
+        bottom = sy + items[edge.source].height / 2
+        forward = ty - target.height / 2 >= bottom - 1
+        free_sides = [p for p in (PORT_LEFT, PORT_RIGHT) if p not in used_out.get(edge.target, ())]
+        if abs(ty - sy) < 1:
+            port = _side_toward(tx, sx)
+        elif forward and abs(tx - sx) < 1:
+            port = PORT_TOP if edge.ports[0] == PORT_BOTTOM else edge.ports[0]
+        elif forward and edge.ports[0] == PORT_BOTTOM:
+            port = _side_toward(tx, sx)
+        elif forward:
+            port = PORT_TOP
+        else:
+            port = _side_toward(tx, sx) if abs(tx - sx) >= 1 else PORT_LEFT
+        if port not in target.ports or (port in (PORT_LEFT, PORT_RIGHT) and port not in free_sides):
+            port = PORT_TOP if forward and PORT_TOP in target.ports else (free_sides or [edge.ports[1]])[0]
+        edge.ports = (edge.ports[0], port if port in target.ports else edge.ports[1])
+
+    for edge in edges:
+        if edge.data is not None:
+            edge.data.source_port, edge.data.target_port = edge.ports
+        else:
+            old = current[edge.connection_id]
+            if old != edge.ports:
+                plan.ports[edge.connection_id] = (old, edge.ports)
+
+
+def _rect_gap(a, b) -> float:
+    """Abstand der Rechtecke zweier Bausteine (0, wenn sie sich berühren)."""
+    ax, ay, bx, by = a.pos().x(), a.pos().y(), b.pos().x(), b.pos().y()
+    return max(abs(ax - bx) - (a.width + b.width) / 2, abs(ay - by) - (a.height + b.height) / 2, 0.0)
+
+
+def _comment_partners(items: dict) -> dict:
+    """Baustein je Kommentar: der per Kommentarlinie verbundene, sonst der nächstgelegene."""
+    blocks = [item for item in items.values() if not item.is_comment and not item.is_junction]
+    partners = {}
     for item in items.values():
         if not item.is_comment:
             continue
-        partner = _comment_partner(item)
+        partner = next((other for conn in item.connections
+                        for other in (conn.target if conn.source is item else conn.source,)
+                        if not other.is_comment), None)
+        if partner is None and blocks:
+            nearest = min(blocks, key=lambda block: _rect_gap(item, block))
+            partner = nearest if _rect_gap(item, nearest) <= COMMENT_REACH else None
+        if partner is not None:
+            partners[item.element_id] = partner
+    return partners
+
+
+def _comment_offset(item, partner) -> tuple[float, float]:
+    """Lage des Kommentars zu seinem Baustein; überdeckt er ihn, rückt er auf seiner Seite daneben."""
+    dx, dy = item.pos().x() - partner.pos().x(), item.pos().y() - partner.pos().y()
+    beside = (item.width + partner.width) / 2 + COMMENT_SPACE
+    if abs(dx) < beside and abs(dy) < (item.height + partner.height) / 2:
+        dx = beside if dx >= 0 else -beside
+    return dx, dy
+
+
+def _comment_extents(items: dict, partners: dict) -> dict:
+    """Platz, den angehängte Kommentare links, rechts und unter ihrem Baustein brauchen."""
+    extents: dict[str, tuple[float, float, float]] = {}
+    for item in items.values():
+        partner = partners.get(item.element_id)
         if partner is None:
             continue
-        dx, dy = item.pos().x() - partner.pos().x(), item.pos().y() - partner.pos().y()
+        dx, dy = _comment_offset(item, partner)
         left, right, bottom = extents.get(partner.element_id, (0.0, 0.0, 0.0))
         extents[partner.element_id] = (max(left, item.width / 2 - dx), max(right, dx + item.width / 2),
                                        max(bottom, partner.height / 2 + dy + item.height / 2))
     return extents
 
 
-def _place_comments(scene, items: dict, positions: dict) -> None:
+def _place_comments(items: dict, positions: dict, partners: dict) -> None:
     """Kommentare behalten ihren Abstand zum zugeordneten Baustein."""
     for item in items.values():
-        if not item.is_comment:
-            continue
-        partner = _comment_partner(item)
+        partner = partners.get(item.element_id)
         if partner is None or partner.element_id not in positions:
             continue
         nx, ny = positions[partner.element_id]
-        dx, dy = nx - partner.pos().x(), ny - partner.pos().y()
-        positions[item.element_id] = (item.pos().x() + dx, item.pos().y() + dy)
+        dx, dy = _comment_offset(item, partner)
+        positions[item.element_id] = (nx + dx, ny + dy)
 
 
 def apply_layout(scene, plan: LayoutPlan, text: str | None = None) -> bool:
@@ -380,7 +604,8 @@ def apply_layout(scene, plan: LayoutPlan, text: str | None = None) -> bool:
 
     ``text``: Beschriftung des Rückgängig-Schritts (schon übersetzt); ohne Angabe „Automatisch anordnen“.
     """
-    from app.commands import MoveItemsCommand, SetRoutingCommand
+    from app.commands import (AddElementsCommand, DeleteCommand, MoveItemsCommand, SetElementPropertyCommand,
+                              SetPortsCommand, SetRoutingCommand)
 
     if plan.is_empty():
         return False
@@ -393,11 +618,19 @@ def apply_layout(scene, plan: LayoutPlan, text: str | None = None) -> bool:
         conn = scene.connection(connection_id)
         if conn is not None and conn.has_manual_routing():
             stack.push(SetRoutingCommand(scene, connection_id, conn.data.routing, {"mode": "auto"}))
+    if plan.removed_corners:
+        stack.push(DeleteCommand(scene, plan.removed_corners, [], text=text))
+        stack.push(AddElementsCommand(scene, [], plan.bridges, text=text, select=False))
+        for element_id, key, old, new in plan.trunks:
+            stack.push(SetElementPropertyCommand(scene, element_id, key, old, new, text=text))
+    if plan.ports:
+        stack.push(SetPortsCommand(scene, plan.ports, text=text))
     if plan.moves:
         stack.push(MoveItemsCommand(scene, plan.moves, text=text))
     stack.endMacro()
-    # nach dem Verschieben alle Linien sauber neu führen
-    with scene.batch_routing():
-        for conn in scene.connections():
-            scene._schedule_route(conn, force=True)
+    # Nach dem Verschieben alle Linien sauber neu führen; im zweiten Durchgang sehen sie einander an ihrem neuen Platz
+    for _round in range(2):
+        with scene.batch_routing():
+            for conn in scene.ordered_connections():
+                scene._schedule_route(conn, force=True)
     return True

@@ -35,6 +35,7 @@ class PaletteEntry(QWidget):
         self.label = display_name_for(self.element_type)
         self._hovered = False
         self._pressed_pos: QPoint | None = None
+        self.key_hint = ""
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.setFixedHeight(44)
@@ -82,6 +83,15 @@ class PaletteEntry(QWidget):
         p.setPen(QColor(theme.text if self.isEnabled() else theme.text_disabled))
         text_rect = rect.adjusted(12 + PREVIEW_WIDTH + 14, 0, -4, 0)
         p.drawText(text_rect, int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft), self.label)
+        if self.key_hint:
+            # Taste, die diesen Baustein einfügt
+            width = max(16.0, p.fontMetrics().horizontalAdvance(self.key_hint) + 8.0)
+            chip = QRectF(rect.right() - width - 4, rect.center().y() - 9, width, 18)
+            p.setPen(QPen(QColor(theme.border_strong), 1))
+            p.setBrush(QColor(theme.panel_raised))
+            p.drawRoundedRect(chip, 4, 4)
+            p.setPen(QColor(theme.text_muted))
+            p.drawText(chip, int(Qt.AlignmentFlag.AlignCenter), self.key_hint)
         p.end()
 
     def enterEvent(self, event) -> None:
@@ -157,7 +167,7 @@ class ToolPalette(QWidget):
         layout.addStretch(1)
         hint = QLabel("\n".join((tr("Ziehen oder klicken zum Einfügen."),
                                  tr("Verbinden: vom Anschlusspunkt auf Baustein oder Pfeil ziehen."),
-                                 tr("Rot = möglicherweise falsche Verbindung."))))
+                                 tr("Rot = Fehler, gelb = auffällig. Das Zeichen auf dem Pfeil nennt den Grund."))))
         hint.setObjectName("Muted")
         hint.setWordWrap(True)
         hint.setContentsMargins(12, 8, 8, 4)
@@ -184,6 +194,12 @@ class ToolPalette(QWidget):
         entry.activated.connect(self.element_activated.emit)
         self.entries.append(entry)
         return entry
+
+    def set_key_hints(self, hints: dict) -> None:
+        """Zeigt je Bausteintyp die Taste, die ihn einfügt."""
+        for entry in self.entries:
+            entry.key_hint = hints.get(entry.element_type, "")
+            entry.update()
 
     def set_entries_enabled(self, enabled: bool) -> None:
         for entry in self.entries:

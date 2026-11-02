@@ -40,6 +40,28 @@ class AddConnectionCommand(QUndoCommand):
             self._scene.remove_connection_item(self._conn)
 
 
+class SetPortsCommand(QUndoCommand):
+    """Ändert die Anschlüsse von Verbindungen: {ID: ((alt_quelle, alt_ziel), (neu_quelle, neu_ziel))}."""
+
+    def __init__(self, scene, ports: dict, text: str | None = None, parent=None):
+        super().__init__(text if text is not None else tr("Linienführung ändern"), parent)
+        self._scene = scene
+        self._ports = dict(ports)
+
+    def _apply(self, index: int) -> None:
+        for connection_id, ports in self._ports.items():
+            conn = self._scene.connection(connection_id)
+            if conn is not None:
+                conn.data.source_port, conn.data.target_port = ports[index]
+                conn.update_route()
+
+    def redo(self) -> None:
+        self._apply(1)
+
+    def undo(self) -> None:
+        self._apply(0)
+
+
 class SetRoutingCommand(QUndoCommand):
     """Ändert die (manuelle) Linienführung einer Verbindung."""
 

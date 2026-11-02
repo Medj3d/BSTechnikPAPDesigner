@@ -18,7 +18,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 
 from app.items.base_item import FlowItem
-from app.model.element_types import JUNCTION_SIZE, TRUNK_IN_KEY, TRUNK_OUT_KEY, ElementType
+from app.model.element_types import JUNCTION_SIZE, LOOSE_END_KEY, TRUNK_IN_KEY, TRUNK_OUT_KEY, ElementType
 
 DOT_RADIUS = 4.0
 HIT_RADIUS = 7.0
@@ -34,6 +34,11 @@ class JunctionItem(FlowItem):
     @property
     def trunk_out(self) -> str | None:
         return self.data.properties.get(TRUNK_OUT_KEY)
+
+    @property
+    def is_loose_end(self) -> bool:
+        """Loses Ende eines ins Leere gezogenen Pfeils?"""
+        return bool(self.data.properties.get(LOOSE_END_KEY))
 
     def _rebuild(self, notify: bool = True) -> None:
         size = float(JUNCTION_SIZE)
@@ -78,9 +83,14 @@ class JunctionItem(FlowItem):
                                          or self._hovered)
         if highlighted:
             color = QColor(theme.selection)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(color)
         radius = DOT_RADIUS + (1.0 if highlighted else 0.0)
+        if self.is_loose_end:
+            # offener Ring: Hier ist der Pfeil noch nicht angeschlossen
+            painter.setPen(QPen(QColor(theme.selection if highlighted else theme.connection_invalid), 1.6))
+            painter.setBrush(QColor(theme.canvas_bg))
+        else:
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
         painter.drawEllipse(QPointF(0.0, 0.0), radius, radius)
         if not exporting and (self.isSelected() or self._ports_highlighted):
             pen = QPen(QColor(theme.selection), 1.2)

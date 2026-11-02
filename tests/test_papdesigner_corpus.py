@@ -13,6 +13,7 @@ from app.analysis.structure import structure_diagram
 from app.codegen.generators import generate as generate_code
 from app.diagnostics.checks import INFO, run_checks
 from app.document import DiagramDocument
+from app.layout.auto_layout import apply_layout, plan_auto_layout
 from app.model.element_types import ElementType as T
 from app.simulation import engine
 from app.simulation.engine import NEEDS_DECISION, NEEDS_INPUT, Simulator
@@ -93,6 +94,20 @@ def test_papdesigner_plan_runs_as_meant(tmp_path, seed):
                 assert document.flow_start(item.data.text) is not None, item.data.text
     outputs = simulate(document, project.inputs).outputs
     assert normalized(outputs) == project.expected_outputs
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_automatic_layout_never_changes_what_the_plan_does(tmp_path, seed):
+    project, _path, document = open_project(tmp_path, seed)
+    for page in document.pages:
+        apply_layout(page.scene, plan_auto_layout(page.scene))
+        assert not [c for c in page.scene.connections() if c.warning], page.display_name
+    assert normalized(simulate(document, project.inputs).outputs) == project.expected_outputs
+    saved = tmp_path / "angeordnet.pap"
+    document.save(str(saved))
+    reopened = DiagramDocument.open_file(str(saved))
+    assert reopened.load_warnings == []
+    assert normalized(simulate(reopened, project.inputs).outputs) == project.expected_outputs
 
 
 @pytest.mark.parametrize("seed", SEEDS)

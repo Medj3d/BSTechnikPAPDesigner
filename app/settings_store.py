@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 
 from PySide6.QtCore import QByteArray, QSettings
@@ -57,6 +58,26 @@ class SettingsStore:
 
     def set_backup_on_save(self, enabled: bool) -> None:
         self._settings.setValue("backup_on_save", bool(enabled))
+
+    # ---------------------------------------------------------- Schalter und Tastenkürzel
+    def preference(self, name: str) -> bool | None:
+        """Gespeicherter Wert eines Schalters (siehe ``preferences``); ``None``, wenn er nie geändert wurde."""
+        value = self._settings.value(f"preferences/{name}", None)
+        return None if value is None else str(value).strip().lower() in ("true", "1")
+
+    def set_preference(self, name: str, enabled: bool) -> None:
+        self._settings.setValue(f"preferences/{name}", bool(enabled))
+
+    def shortcuts(self) -> dict:
+        """Vom Standard abweichende Tastenbelegung: {Funktion: [Taste, Taste]}."""
+        try:
+            value = json.loads(str(self._settings.value("shortcuts/custom", "{}")))
+        except ValueError:
+            return {}
+        return value if isinstance(value, dict) else {}
+
+    def set_shortcuts(self, custom: dict) -> None:
+        self._settings.setValue("shortcuts/custom", json.dumps(custom))
 
     # ---------------------------------------------------------- Projekte
     def default_author(self) -> str:

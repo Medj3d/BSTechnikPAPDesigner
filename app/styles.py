@@ -57,6 +57,7 @@ class Theme:
     connection: str
     connection_hover: str
     connection_invalid: str
+    connection_caution: str
     label_bg: str
     label_text: str
     port_fill: str
@@ -94,6 +95,7 @@ DARK = Theme(
     connection="#8E959F",
     connection_hover="#BAC1CA",
     connection_invalid="#D46A6A",
+    connection_caution="#D9A441",
     label_bg="#1B1D21",
     label_text="#C8CDD4",
     port_fill="#1B1D21",
@@ -134,6 +136,7 @@ LIGHT = Theme(
     connection="#4A5059",
     connection_hover="#2B3036",
     connection_invalid="#C0392B",
+    connection_caution="#B7791F",
     label_bg="#FFFFFF",
     label_text="#2B3036",
     port_fill="#FFFFFF",
@@ -178,6 +181,7 @@ LIGHT_UI = Theme(
     connection="#565D68",
     connection_hover="#262B32",
     connection_invalid="#D03A3C",
+    connection_caution="#B7791F",
     label_bg="#F9FAFB",
     label_text="#2A2F36",
     port_fill="#FFFFFF",
@@ -475,6 +479,11 @@ QPushButton:disabled {{
 }}
 QCheckBox, QRadioButton {{
     spacing: 8px;
+}}
+QFrame#SearchResults {{
+    background: {t.panel_raised};
+    border: 1px solid {t.border_strong};
+    border-radius: 6px;
 }}
 QGroupBox {{
     border: 1px solid {t.border};

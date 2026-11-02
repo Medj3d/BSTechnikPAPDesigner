@@ -318,4 +318,4 @@ def test_about_and_splash_name_version_and_month(code):
     month = i18n.release_date_text()
     assert month.strip() and config.APP_RELEASE_DATE.split()[-1] in month
     if code not in ("de", i18n.PSEUDO_LANGUAGE):
-        assert month != config.APP_RELEASE_DATE
+        assert i18n.release_date_text("Oktober 2026") != "Oktober 2026"  # „November“ hieße auch englisch so

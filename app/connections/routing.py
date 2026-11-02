@@ -15,8 +15,12 @@ Vorgehen:
    Durchqueren von Bausteinen. Der beste Kandidat gewinnt. Die Reihenfolge
    der Kandidaten ist fest, dadurch ist das Ergebnis deterministisch.
 
-Eine manuell verschobene Mittelachse (``manual``) schränkt die Kandidaten auf
-genau diese Achse ein.
+Von Hand verschobene Linien (``manual``) legen fest, wo jedes innere
+Linienstück liegt (``{"mode": "manual", "axes": [["y", 120.0], ["x", 340.0], …]}``).
+Anfang und Ende hängen weiter an den Anschlüssen; die Linie bleibt dadurch
+immer rechtwinklig, auch wenn ein Baustein verschoben wird. Das ändert nur das
+Aussehen, nicht den Ablauf. Ältere Dateien kennen nur eine verschobene
+Mittelachse (``"axis"`` und ``"value"``).
 """
 
 from __future__ import annotations
@@ -26,14 +30,21 @@ from dataclasses import dataclass
 Point = tuple[float, float]
 
 STUB = 20.0
-MARGIN = 20.0
-CLEARANCE = 12.0
+MARGIN = 40.0
+CLEARANCE = 24.0
+LINE_CLEARANCE = 14.0
 BEND_PENALTY = 24.0
 CROSS_PENALTY = 2000.0
 ENDPOINT_CROSS_PENALTY = 5000.0
 NEAR_PENALTY = 80.0
+LINE_OVERLAP_PENALTY = 400.0
+LINE_NEAR_PENALTY = 30.0
+LINE_CROSS_PENALTY = 60.0
 SHORT_STUB_PENALTY = 12.0
 MAX_OBSTACLE_AXES = 16
+# Beim Verschieben: kürzester Stich am Anschluss, und wie lang ein Stück zum Teilen sein muss
+MIN_STUB = 12.0
+SPLIT_LENGTH = 2 * MIN_STUB
 
 DIRECTIONS = {
     "top": (0.0, -1.0),
@@ -123,12 +134,34 @@ def base_cost(points: list[Point]) -> float:
     return path_length(points) + BEND_PENALTY * max(0, len(points) - 2)
 
 
+def line_penalty(a: Point, b: Point, lines: list) -> float:
+    """Strafe dafür, dass das Stück a-b auf, neben oder quer über anderen Linien läuft."""
+    penalty = 0.0
+    vertical = abs(a[0] - b[0]) < 1e-6
+    lo, hi = (min(a[1], b[1]), max(a[1], b[1])) if vertical else (min(a[0], b[0]), max(a[0], b[0]))
+    position = a[0] if vertical else a[1]
+    for c, d in lines:
+        other_vertical = abs(c[0] - d[0]) < 1e-6
+        other_lo, other_hi = (min(c[1], d[1]), max(c[1], d[1])) if other_vertical else (min(c[0], d[0]), max(c[0], d[0]))
+        other_position = c[0] if other_vertical else c[1]
+        if vertical == other_vertical:
+            distance = abs(position - other_position)
+            shared = min(hi, other_hi) - max(lo, other_lo)
+            if distance < LINE_CLEARANCE and shared > 1.0:
+                penalty += (LINE_OVERLAP_PENALTY if distance < 1.0 else LINE_NEAR_PENALTY) * min(1.0, shared / 60.0)
+        elif lo + 1 < other_position < hi - 1 and other_lo + 1 < position < other_hi - 1:
+            penalty += LINE_CROSS_PENALTY
+    return penalty
+
+
 def score_path(points: list[Point], source_rect: Rect | None, target_rect: Rect | None,
                obstacles: list[Rect], start_dir: str | None = None, end_dir: str | None = None,
-               near_obstacles: list[Rect] | None = None) -> float:
+               near_obstacles: list[Rect] | None = None, lines: list | None = None) -> float:
     """Bewertet einen Linienzug (kleiner = besser)."""
     score = base_cost(points)
     segments = list(zip(points[:-1], points[1:]))
+    if lines:
+        score += sum(line_penalty(a, b, lines) for a, b in segments)
     last = len(segments) - 1
     if near_obstacles is None:
         near_obstacles = [r.inflated(CLEARANCE) for r in obstacles]
@@ -192,14 +225,179 @@ def _unique(values: list[float]) -> list[float]:
     return seen
 
 
+def is_vertical_port(port: str) -> bool:
+    return port in ("top", "bottom")
+
+
+def points_from_axes(start: Point, start_dir: str, end: Point, end_dir: str, axes: list) -> list[Point] | None:
+    """Linienzug aus den Lagen der inneren Stücke; ``None``, wenn sie nicht zu den Anschlüssen passen.
+
+    ``axes`` beschreibt jedes Stück außer dem ersten und letzten: ``["x", wert]`` ist ein senkrechtes Stück bei
+    ``x = wert``, ``["y", wert]`` ein waagerechtes. Die Stücke wechseln sich ab.
+    """
+    vertical = is_vertical_port(start_dir)
+    points = [start]
+    x, y = start
+    for axis, value in axes:
+        if axis != ("y" if vertical else "x"):
+            return None
+        if vertical:
+            y = value
+        else:
+            x = value
+        points.append((x, y))
+        vertical = not vertical
+    last_vertical = not vertical
+    if last_vertical != is_vertical_port(end_dir):
+        return None
+    points.append((end[0], y) if last_vertical else (x, end[1]))
+    points.append(end)
+    return simplify(points)
+
+
+def axes_from_points(points: list[Point]) -> list:
+    """Lagen der inneren Stücke eines rechtwinkligen Linienzugs (Gegenstück zu ``points_from_axes``)."""
+    return [["x", float(a[0])] if abs(a[0] - b[0]) < 1e-6 else ["y", float(a[1])]
+            for a, b in zip(points[1:-2], points[2:-1])]
+
+
+def _leaves_blocks_cleanly(points: list[Point], source_rect: Rect | None, target_rect: Rect | None,
+                           start_dir: str, end_dir: str | None) -> bool:
+    """Läuft der Linienzug in Richtung der Anschlüsse und nicht durch die eigenen Bausteine?"""
+    if _direction(points[0], points[1]) != DIRECTIONS[start_dir]:
+        return False
+    if end_dir is not None:
+        ex, ey = DIRECTIONS[end_dir]
+        if _direction(points[-2], points[-1]) != (-ex, -ey):
+            return False
+    return not any(rect is not None and segment_crosses_rect(a, b, rect)
+                   for a, b in zip(points[:-1], points[1:]) for rect in (source_rect, target_rect))
+
+
+def manual_points(start: Point, start_dir: str, end: Point, end_dir: str | None, manual: dict | None) -> list | None:
+    """Der von Hand festgelegte Linienzug; ``None``, wenn es keinen gibt oder er nicht zu den Anschlüssen passt."""
+    if not manual or manual.get("mode") != "manual" or end_dir is None or "axes" not in manual:
+        return None
+    try:
+        axes = [(str(axis), float(value)) for axis, value in manual["axes"]]
+    except (TypeError, ValueError):
+        return None
+    points = points_from_axes(start, start_dir, end, end_dir, axes)
+    return points if points is not None and len(points) >= 2 and _is_orthogonal(points) else None
+
+
+def _segment_length(points: list[Point], index: int) -> float:
+    a, b = points[index], points[index + 1]
+    return abs(b[0] - a[0]) + abs(b[1] - a[1])
+
+
+def can_move_segment(points: list[Point], index: int) -> bool:
+    """Lässt sich das Stück verschieben? Das erste und letzte muss dafür lang genug zum Teilen sein."""
+    last = len(points) - 2
+    if len(points) < 2 or not 0 <= index <= last:
+        return False
+    return 0 < index < last or _segment_length(points, index) >= SPLIT_LENGTH
+
+
+def _is_vertical(a: Point, b: Point) -> bool:
+    return abs(a[0] - b[0]) < 1e-6
+
+
+def _clamped(anchor: float, current: float, value: float) -> float:
+    """Hält ``value`` auf der Seite des Anschlusses ``anchor``, auf der ``current`` liegt."""
+    if current > anchor + 1e-6:
+        return max(value, anchor + MIN_STUB)
+    if current < anchor - 1e-6:
+        return min(value, anchor - MIN_STUB)
+    return value
+
+
+def _placed(points: list[Point], index: int, vertical: bool, value: float) -> list[Point]:
+    """Setzt das innere Stück ``index`` auf ``value``; neben einem Anschluss bleibt ein Stich von ``MIN_STUB``."""
+    result = list(points)
+    axis = 0 if vertical else 1
+    if index == 1:
+        value = _clamped(result[0][axis], result[1][axis], value)
+    if index + 2 == len(result) - 1:
+        value = _clamped(result[-1][axis], result[-2][axis], value)
+    for position in (index, index + 1):
+        x, y = result[position]
+        result[position] = (value, y) if vertical else (x, value)
+    return result
+
+
+def move_segment(points: list[Point], index: int, value: float) -> list[Point]:
+    """Linienzug, in dem das Stück ``index`` auf ``value`` liegt (``x`` eines senkrechten, ``y`` eines waagerechten).
+
+    Das erste und letzte Stück hängen am Anschluss: Sie bleiben dort mit einem kurzen Stich, dahinter entsteht eine
+    Stufe. Das Ergebnis kann doppelte Punkte enthalten (``simplify`` räumt sie weg).
+    """
+    last = len(points) - 2
+    a, b = points[index], points[index + 1]
+    vertical = _is_vertical(a, b)
+    if 0 < index < last:
+        return _placed(points, index, vertical, value)
+    dx, dy = _direction(a, b)
+    near_a = (a[0] + dx * MIN_STUB, a[1] + dy * MIN_STUB)
+    near_b = (b[0] - dx * MIN_STUB, b[1] - dy * MIN_STUB)
+
+    def moved(p: Point) -> Point:
+        return (value, p[1]) if vertical else (p[0], value)
+
+    if last == 0:
+        return [a, near_a, moved(near_a), moved(near_b), near_b, b]
+    if index == 0:
+        return [a, near_a, moved(near_a), moved(b), *points[2:]]
+    return [*points[:index], moved(a), moved(near_b), near_b, b]
+
+
+def move_corner(points: list[Point], corner: int, x: float, y: float) -> list[Point]:
+    """Linienzug mit der Ecke ``corner`` bei (x, y); Stücke an den Anschlüssen bleiben, wo sie sind."""
+    result = list(points)
+    last = len(points) - 2
+    for index in (corner - 1, corner):
+        if 0 < index < last:
+            vertical = _is_vertical(points[index], points[index + 1])
+            result = _placed(result, index, vertical, x if vertical else y)
+    return result
+
+
+def insert_bend(points: list[Point], index: int, at: Point, step: float) -> list[Point]:
+    """Fügt in das Stück ``index`` bei ``at`` eine Stufe der Höhe ``step`` ein (nur das Aussehen ändert sich)."""
+    a, b = points[index], points[index + 1]
+    vertical = _is_vertical(a, b)
+    axis = 1 if vertical else 0
+    low, high = min(a[axis], b[axis]) + MIN_STUB, max(a[axis], b[axis]) - MIN_STUB
+    place = (low + high) / 2 if low > high else max(low, min(high, at[axis]))
+
+    def on_line(value: float) -> Point:
+        return (a[0], value) if vertical else (value, a[1])
+
+    def shifted(p: Point) -> Point:
+        return (p[0] + step, p[1]) if vertical else (p[0], p[1] + step)
+
+    middle = on_line(place)
+    last = len(points) - 2
+    if index == last == 0:  # einziges Stück: Ausbuchtung um die Stelle herum
+        half = max(1.0, min(abs(step), (high - low) / 2 if high > low else 1.0))
+        place = max(low + half, min(high - half, place)) if high - low > 2 * half else (low + high) / 2
+        first, second = sorted((place - half, place + half), reverse=b[axis] < a[axis])
+        return [a, on_line(first), shifted(on_line(first)), shifted(on_line(second)), on_line(second), b]
+    if index == last:  # am Ziel: der vordere Teil weicht aus
+        return [*points[:index], shifted(a), shifted(middle), middle, b]
+    return [*points[:index + 1], middle, shifted(middle), shifted(b), *points[index + 2:]]
+
+
 def route(start: Point, start_dir: str, end: Point, end_dir: str | None,
           source_rect: Rect | None = None, target_rect: Rect | None = None,
-          obstacles: list[Rect] | None = None, manual: dict | None = None) -> list[Point]:
+          obstacles: list[Rect] | None = None, manual: dict | None = None,
+          lines: list | None = None) -> list[Point]:
     """Berechnet einen rechtwinkligen Linienzug von ``start`` nach ``end``.
 
     ``start_dir``/``end_dir`` sind Anschlussnamen (top/bottom/left/right) und
     geben an, in welche Richtung die Linie den jeweiligen Baustein verlässt.
     ``end_dir`` darf ``None`` sein (freies Ende, z. B. während des Ziehens).
+    ``lines``: Stücke anderer Verbindungen, zu denen die Linie Abstand halten soll.
     """
     obstacles = obstacles or []
     sdx, sdy = DIRECTIONS[start_dir]
@@ -209,6 +407,12 @@ def route(start: Point, start_dir: str, end: Point, end_dir: str | None,
         t1 = (end[0] + edx * STUB, end[1] + edy * STUB)
     else:
         t1 = end
+
+    # Von Hand verschobene Linien gelten, solange sie nicht durch ihre eigenen Bausteine führen; sonst wird
+    # automatisch geführt (und die Handarbeit gilt wieder, sobald sie wieder passt).
+    drawn = manual_points(start, start_dir, end, end_dir, manual)
+    if drawn is not None and _leaves_blocks_cleanly(drawn, source_rect, target_rect, start_dir, end_dir):
+        return drawn
 
     manual_axis = manual.get("axis") if manual and manual.get("mode") == "manual" else None
     if manual_axis in ("x", "y"):
@@ -220,10 +424,9 @@ def route(start: Point, start_dir: str, end: Point, end_dir: str | None,
             middle = [(value, s1[1]), (value, t1[1])] if manual_axis == "x" else [(s1[0], value), (t1[0], value)]
             points = simplify([start, s1, *middle, t1] + ([end] if end_dir is not None else []))
             if len(points) >= 2 and _is_orthogonal(points):
-                score = score_path(points, source_rect, target_rect, obstacles, start_dir, end_dir)
                 # Die manuelle Achse gilt, solange sie die eigenen Endbausteine
                 # nicht durchschneidet; sonst wird automatisch geführt.
-                if score < ENDPOINT_CROSS_PENALTY:
+                if _leaves_blocks_cleanly(points, source_rect, target_rect, start_dir, end_dir):
                     return points
 
     candidates: list[list[Point]] = []
@@ -277,7 +480,7 @@ def route(start: Point, start_dir: str, end: Point, end_dir: str | None,
     for cost, _index, points in prepared:
         if cost >= best_score - 1e-6:
             break
-        score = score_path(points, source_rect, target_rect, obstacles, start_dir, end_dir, near_obstacles)
+        score = score_path(points, source_rect, target_rect, obstacles, start_dir, end_dir, near_obstacles, lines)
         if score < best_score - 1e-6:
             best, best_score = points, score
     if best is None:
@@ -293,9 +496,28 @@ def _is_orthogonal(points: list[Point]) -> bool:
 
 
 def interior_segments(points: list[Point]) -> list[int]:
-    """Indizes der Segmente, die der Benutzer verschieben darf (nicht erstes/letztes)."""
+    """Indizes der Segmente, die nicht am Anschluss hängen (weder erstes noch letztes)."""
     count = len(points) - 1
     return list(range(1, count - 1)) if count >= 3 else []
+
+
+def movable_segments(points: list[Point]) -> list[int]:
+    """Indizes aller Segmente, die der Benutzer verschieben darf."""
+    return [index for index in range(len(points) - 1) if can_move_segment(points, index)]
+
+
+def translated(manual: dict, dx: float, dy: float) -> dict:
+    """Von Hand festgelegte Linienführung, um (dx, dy) verschoben."""
+    shifted = dict(manual)
+    if "axes" in shifted:
+        shifted["axes"] = [[axis, float(value) + (dx if axis == "x" else dy)] for axis, value in shifted["axes"]]
+    elif shifted.get("axis") in ("x", "y"):
+        try:
+            value = float(shifted.get("value", 0.0))
+        except (TypeError, ValueError):
+            value = 0.0
+        shifted["value"] = value + (dx if shifted["axis"] == "x" else dy)
+    return shifted
 
 
 def segment_axis(points: list[Point], index: int) -> str | None:

@@ -3,7 +3,8 @@
 Zustände:
 
 * ``ok``       – gültiges Ziel (Akzentfarbe)
-* ``warning``  – Verbindung ist möglicherweise falsch, wird aber erstellt (rot)
+* ``warning``  – Verbindung ist sicher falsch, wird aber erstellt (rot)
+* ``caution``  – Verbindung ist auffällig, wird aber erstellt (gelb)
 * ``blocked``  – Verbindung ist technisch nicht möglich (rot, blass)
 
 Liegt ein Endpunkt auf einem bestehenden Pfeil, wird der künftige
@@ -22,6 +23,7 @@ from app.items.base_item import LAYER_OVERLAY
 
 STATE_OK = "ok"
 STATE_WARNING = "warning"
+STATE_CAUTION = "caution"
 STATE_BLOCKED = "blocked"
 MARKER_RADIUS = 5.0
 
@@ -65,6 +67,8 @@ class TempConnectionItem(QGraphicsItem):
         theme = styles.current_theme()
         if self._state == STATE_OK:
             color = QColor(theme.selection)
+        elif self._state == STATE_CAUTION:
+            color = QColor(theme.connection_caution)
         else:
             color = QColor(theme.connection_invalid)
             if self._state == STATE_BLOCKED:

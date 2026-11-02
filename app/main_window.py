@@ -16,13 +16,14 @@ import shiboken6
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QUndoGroup
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QLabel,
+                               QSizePolicy,
                                QMainWindow, QMenu, QMessageBox, QPushButton, QStackedWidget,
                                QTabBar, QTabWidget, QToolBar, QToolButton, QVBoxLayout, QWidget)
 
-from app import (alignment, clipboard, config, examples, export, file_association, i18n, icons, restart,
+from app import (alignment, clipboard, config, examples, export, file_association, i18n, icons, preferences, restart,
                  single_instance, styles, subprograms)
 from app import theme as theme_module
-from app.actions import ALIGN_ACTIONS, ActionRegistry, insert_action_name
+from app.actions import ALIGN_ACTIONS, ActionRegistry, clean_text, insert_action_name, sequence_text
 from app.autosave import AutosaveManager
 from app.canvas import DiagramView
 from app.codegen.dialog import CodeDialog
@@ -37,6 +38,7 @@ from app.connections.label import ConnectionLabel
 from app.dialogs.about import AboutDialog
 from app.dialogs.export_options import ExportOptionsDialog
 from app.dialogs.project_properties import ProjectPropertiesDialog
+from app.dialogs.settings import SettingsDialog
 from app.dialogs.shortcuts import ShortcutsDialog
 from app.dialogs.subprogram_name import SubprogramNameDialog
 from app.inline_editor import add_special_characters
@@ -45,6 +47,7 @@ from app.fileformat.project import ProjectFileError
 from app.items.base_item import FlowItem
 from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType, display_name_for
 from app.page_bar import PageBar
+from app.search_bar import SearchBar, SearchEntry
 from app.palette import ToolPalette
 from app.i18n import N_, tr
 from app.settings_store import SettingsStore
@@ -132,6 +135,7 @@ class MainWindow(QMainWindow):
         self.undo_group = QUndoGroup(self)
         self.paste_tracker = clipboard.PasteTracker()
         self.export_options: dict[str, export.ExportOptions] = {}
+        self._load_preferences()
         self.actions = ActionRegistry(self)
         self.autosave = AutosaveManager(autosave_directory, parent=self) if enable_autosave else None
         self.updates = UpdateController(self)
@@ -287,6 +291,7 @@ class MainWindow(QMainWindow):
         arrange_menu.addAction(a["send_back"])
         arrange_menu.addSeparator()
         arrange_menu.addAction(a["toggle_loop_part"])
+        arrange_menu.addAction(a["add_bend"])
         arrange_menu.addAction(a["reset_routing"])
         arrange_menu.addSeparator()
         arrange_menu.addAction(a["auto_layout"])
@@ -377,7 +382,6 @@ class MainWindow(QMainWindow):
                 toolbar.addAction(a[name])
         self.zoom_button = QToolButton()
         self.zoom_button.setText("100 %")
-        self.zoom_button.setToolTip(tr("Zoom auf 100 % setzen (Strg+0)"))
         self.zoom_button.setMinimumWidth(58)
         self.zoom_button.clicked.connect(lambda: self._with_view(lambda v: v.zoom_reset()))
         toolbar.addWidget(self.zoom_button)
@@ -391,6 +395,11 @@ class MainWindow(QMainWindow):
                     toolbar.addAction(a[align])
             else:
                 toolbar.addAction(a[name])
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+        self.search_bar = SearchBar(self.search_entries, self)
+        toolbar.addWidget(self.search_bar)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
         self.toolbar = toolbar
         toggle = toolbar.toggleViewAction()
@@ -423,13 +432,16 @@ class MainWindow(QMainWindow):
         self.diagnostics_dock = self._make_dock(tr("Hinweise"), "DiagnosticsDock", self.diagnostics_panel)
         self.tabifyDockWidget(self.diagnostics_dock, self.simulation_dock)
         self.diagnostics_dock.raise_()
-        for dock, text, shortcut in ((self.simulation_dock, tr("&Schreibtischtest"), "F9"),
-                                     (self.diagnostics_dock, tr("&Hinweise"), "Ctrl+Shift+H")):
+        for name, dock, text, shortcut in (
+                ("toggle_simulation", self.simulation_dock, tr("&Schreibtischtest"), "F9"),
+                ("toggle_diagnostics", self.diagnostics_dock, tr("&Hinweise"), "Ctrl+Shift+H")):
             toggle = dock.toggleViewAction()
             toggle.setText(text)
-            toggle.setShortcut(QKeySequence(shortcut))
+            self.actions.adopt(name, toggle, [shortcut])
             self.extras_menu.addAction(toggle)
             self.view_menu.addAction(toggle)
+        self.extras_menu.addSeparator()
+        self.extras_menu.addActions([self.actions["search"], self.actions["settings"]])
         self.simulation_dock.visibilityChanged.connect(self._on_simulation_visibility)
         # visibilityChanged meldet auch, ob der Reiter vorne liegt (tabifizierte Docks)
         self._diagnostics_on_top = False
@@ -528,7 +540,6 @@ class MainWindow(QMainWindow):
         self.issues_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.issues_button.setIconSize(QSize(14, 14))
         self.issues_button.setAutoRaise(True)
-        self.issues_button.setToolTip(tr("Hinweisliste ein-/ausblenden (Strg+Umschalt+H)"))
         self.issues_button.clicked.connect(self._toggle_diagnostics)
         status.addPermanentWidget(self.issues_button)
         for label in (self.count_label, self.selection_label, self.position_label, self.grid_label,
@@ -586,6 +597,7 @@ class MainWindow(QMainWindow):
         a["send_back"].triggered.connect(lambda: self._with_scene(lambda s: s.send_to_back()))
         a["toggle_loop_part"].triggered.connect(self.toggle_loop_part)
         a["reset_routing"].triggered.connect(self.reset_routing)
+        a["add_bend"].triggered.connect(self.add_bend)
         a["new_subprogram"].triggered.connect(lambda: self.new_subprogram())
         a["open_subprogram"].triggered.connect(self.open_selected_subprogram)
         a["next_page"].triggered.connect(lambda: self._step_page(1))
@@ -602,9 +614,18 @@ class MainWindow(QMainWindow):
         a["theme_dark"].triggered.connect(lambda: self.set_theme("dark"))
         a["theme_light"].triggered.connect(lambda: self.set_theme("light"))
 
-        a["shortcuts"].triggered.connect(lambda: ShortcutsDialog(self).exec())
+        a["shortcuts"].triggered.connect(lambda: ShortcutsDialog(self, self.actions).exec())
         a["register_filetype"].triggered.connect(self.register_file_type)
         a["about"].triggered.connect(lambda: AboutDialog(self).exec())
+        a["settings"].triggered.connect(lambda: self.show_settings())
+        a["search"].triggered.connect(self.search_bar.open)
+        for preference in preferences.PREFERENCES:
+            a[preferences.action_name(preference.name)].triggered.connect(
+                lambda checked=False, name=preference.name: self._on_preference(name, checked))
+        panel = self.simulation_panel
+        for name, button in (("simulation_back", panel.back_button), ("simulation_step", panel.step_button),
+                             ("simulation_run", panel.run_button), ("simulation_play", panel.play_button)):
+            a[name].triggered.connect(lambda _=False, b=button: self._press_simulation_button(b))
         a["check_updates"].triggered.connect(lambda: self.updates.check(manual=True))
         a["check_updates_on_start"].triggered.connect(self._on_check_updates_on_start)
         self._sync_update_actions()
@@ -621,6 +642,77 @@ class MainWindow(QMainWindow):
         self.addAction(self._exit_presentation)
         # Tastenkürzel wirken auch, wenn die Menüleiste ausgeblendet ist (Präsentationsansicht)
         self.addActions(list(a.all().values()))
+        self.actions.apply_custom_shortcuts(self.settings_store.shortcuts())
+        self._on_shortcuts_changed()
+
+    # ============================================================ Einstellungen
+    def _press_simulation_button(self, button) -> None:
+        if self.simulation_dock.isVisible():
+            button.click()
+
+    def _load_preferences(self) -> None:
+        for preference in preferences.PREFERENCES:
+            stored = self.settings_store.preference(preference.name)
+            if stored is not None:
+                preferences.set_enabled(preference.name, stored)
+
+    def _on_preference(self, name: str, enabled: bool) -> None:
+        preferences.set_enabled(name, enabled)
+        self.settings_store.set_preference(name, enabled)
+        for view in self.views():
+            for page in view.document.pages:
+                page.scene.preferences_changed()
+
+    def show_settings(self, show_shortcuts: bool = False) -> None:
+        dialog = SettingsDialog(self.actions, self, show_shortcuts)
+        dialog.shortcuts_changed.connect(self._on_shortcuts_changed)
+        dialog.exec()
+
+    def _on_shortcuts_changed(self) -> None:
+        self.settings_store.set_shortcuts(self.actions.custom_shortcuts())
+        hints = {}
+        for element_type in PALETTE_ORDER + FLOW_TERMINALS:
+            keys = self.actions[insert_action_name(element_type)].shortcuts()
+            hints[element_type] = sequence_text(keys[0]) if keys else ""
+        self.palette.set_key_hints(hints)
+        panel = self.simulation_panel
+        for name, button in (("simulation_back", panel.back_button), ("simulation_step", panel.step_button),
+                             ("simulation_run", panel.run_button), ("simulation_play", panel.play_button)):
+            button.setToolTip(self.actions[name].toolTip())
+        self.zoom_button.setToolTip(self.actions["zoom_reset"].toolTip())
+        keys = self.actions["toggle_diagnostics"].shortcuts()
+        tip = tr("Hinweisliste ein-/ausblenden")
+        self.issues_button.setToolTip(f"{tip} ({sequence_text(keys[0])})" if keys else tip)
+        search_keys = self.actions["search"].shortcuts()
+        self.search_bar.setPlaceholderText(
+            tr("Suchen … ({key})", key=sequence_text(search_keys[0])) if search_keys else tr("Suchen …"))
+
+    def search_entries(self) -> list:
+        """Alles, was die Suchleiste finden kann: Funktionen, Einstellungen und Bausteine aller Seiten."""
+        entries = []
+        for name, action in self.actions.all().items():
+            if not action.isEnabled():
+                continue
+            title = clean_text(action.text())
+            keys = action.shortcuts()
+            detail = sequence_text(keys[0]) if keys else ""
+            if action.isCheckable():
+                state = tr("ein") if action.isChecked() else tr("aus")
+                detail = f"{state}  {detail}".strip()
+            entries.append(SearchEntry(title, detail, action.trigger, action.statusTip()))
+        document = self.current_document()
+        if document is not None:
+            for index, page in enumerate(document.pages):
+                for item in page.scene.elements():
+                    text = " ".join(item.data.text.split())
+                    if text:
+                        detail = f"{display_name_for(item.element_type)} · {page.display_name}"
+                        entries.append(SearchEntry(text, detail, lambda p=index, i=item.element_id: self._go_to(p, i)))
+        return entries
+
+    def _go_to(self, page: int, element_id: str) -> None:
+        self.show_page(page)
+        self._reveal([element_id])
 
     # ============================================================ Zugriff
     def current_view(self) -> DiagramView | None:
@@ -773,6 +865,8 @@ class MainWindow(QMainWindow):
         document = DiagramDocument()
         # wie „Default author“ im PapDesigner: der zuletzt eingetragene Autor gilt auch für neue Projekte
         document.meta.author = self.settings_store.default_author()
+        if preferences.enabled(preferences.START_END):
+            document.add_start_end()
         self.add_document(document)
 
     def open_file_dialog(self) -> None:
@@ -821,7 +915,7 @@ class MainWindow(QMainWindow):
         current = self.current_document()
         replace_index = -1
         if current is not None and current.file_path is None and not current.is_modified \
-                and current.is_empty() and len(current.pages) == 1:
+                and current.is_blank():
             replace_index = self.tabs.currentIndex()
         view = self.add_document(document)
         if replace_index >= 0:
@@ -864,7 +958,7 @@ class MainWindow(QMainWindow):
             page.fit_on_show = True
         current = self.current_document()
         replace = current is not None and current.file_path is None and not current.is_modified \
-            and current.is_empty() and len(current.pages) == 1
+            and current.is_blank()
         replace_index = self.tabs.currentIndex()
         view = self.add_document(document)
         if replace:
@@ -1313,9 +1407,13 @@ class MainWindow(QMainWindow):
 
     def copy(self) -> None:
         scene = self.current_scene()
-        if scene is not None and clipboard.copy_selection(scene):
+        if scene is None or clipboard.selection_payload(scene) is None:
+            return
+        if clipboard.copy_selection(scene):
             self.paste_tracker.reset()
             self.statusBar().showMessage(tr("In die Zwischenablage kopiert."), 2500)
+        else:
+            self._error(clean_text(self.actions["copy"].text()), CLIPBOARD_BUSY())
 
     def _insert_special(self, text: str) -> None:
         scene = self.current_scene()
@@ -1344,8 +1442,12 @@ class MainWindow(QMainWindow):
         if scene is None:
             return
         payload = clipboard.selection_payload(scene)
-        if payload is not None and clipboard.cut_selection(scene):
+        if payload is None:
+            return
+        if clipboard.cut_selection(scene):
             self.paste_tracker.prime_after_cut(payload)
+        else:
+            self._error(clean_text(self.actions["cut"].text()), CLIPBOARD_BUSY())
 
     def paste(self, at: QPointF | None = None) -> None:
         view = self.current_view()
@@ -1427,6 +1529,14 @@ class MainWindow(QMainWindow):
         scene = self.current_scene()
         if scene is not None and scene.single_selected is not None:
             scene.toggle_loop_part(scene.single_selected)
+
+    def add_bend(self) -> None:
+        scene = self.current_scene()
+        connections = scene.selected_connections() if scene is not None else []
+        if len(connections) == 1:
+            points = connections[0].points()
+            middle = points[len(points) // 2 - 1], points[len(points) // 2]
+            scene.add_bend(connections[0], QPointF((middle[0][0] + middle[1][0]) / 2, (middle[0][1] + middle[1][1]) / 2))
 
     def reset_routing(self) -> None:
         scene = self.current_scene()
@@ -1514,6 +1624,8 @@ class MainWindow(QMainWindow):
             label.setShortcut(QKeySequence("F2"))
             label.setEnabled(not item.is_annotation)
             label.triggered.connect(lambda: scene.begin_label_edit(item))
+            bend = menu.addAction(tr("Knick hier einfügen"))
+            bend.triggered.connect(lambda _=False, p=QPointF(scene_pos): scene.add_bend(item, p))
             reset = menu.addAction(tr("Linienführung zurücksetzen"))
             reset.setEnabled(item.has_manual_routing())
             reset.triggered.connect(lambda: scene.reset_routing(item))
@@ -2033,6 +2145,7 @@ class MainWindow(QMainWindow):
         single = scene.single_selected if has_doc else None
         a["toggle_loop_part"].setEnabled(single is not None and single.element_type is ElementType.LOOP)
         a["reset_routing"].setEnabled(any(c.has_manual_routing() for c in connections))
+        a["add_bend"].setEnabled(len(connections) == 1)
         a["new_subprogram"].setEnabled(has_doc)
         a["open_subprogram"].setEnabled(single is not None and single.element_type is ElementType.SUBPROGRAM)
         pages = len(document.pages) if has_doc else 0

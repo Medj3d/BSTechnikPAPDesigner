@@ -16,7 +16,8 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QGuiApplication, QUndoStack
 from PySide6.QtWidgets import QGraphicsScene
 
-from app import config, labels, styles
+from app import config, labels, preferences, styles
+from app.analysis.graph import FlowGraph
 from app.commands import (AddConnectionCommand, AddElementsCommand, DeleteCommand,
                           EditLabelCommand, EditTextCommand, MoveItemsCommand,
                           SetElementPropertyCommand, SetRoutingCommand, ZOrderCommand)
@@ -25,7 +26,7 @@ from app.connections import endpoints
 from app.connections.connection import ConnectionItem, rect_from_qrect
 from app.connections.endpoints import ConnectionEndpoint
 from app.connections.label import ConnectionLabel, label_font
-from app.connections.temp_connection import (STATE_BLOCKED, STATE_OK, STATE_WARNING, AnchorMarker,
+from app.connections.temp_connection import (STATE_BLOCKED, STATE_CAUTION, STATE_OK, STATE_WARNING, AnchorMarker,
                                              TempConnectionItem)
 from app.i18n import tr
 from app.inline_editor import InlineTextEditor
@@ -36,8 +37,8 @@ from app.labels import yes_label
 from app.model import rules
 from app.model.diagram import ConnectionData, DiagramSettings, ElementData, new_id
 from app.model.element_types import (LOOP_BEGIN, LOOP_END, LOOP_FOOT_BEGIN_TEXT, LOOP_FOOT_END_TEXT,
-                                     LOOP_HEAD_TEXT, LOOP_PART_KEY, PORT_BOTTOM, PORT_LEFT,
-                                     PORT_RIGHT, PORT_TOP, TRUNK_IN_KEY, TRUNK_OUT_KEY, ElementType,
+                                     LOOP_HEAD_TEXT, LOOP_PART_KEY, LOOSE_END_KEY, PORT_BOTTOM, PORT_DIRECTIONS,
+                                     PORT_LEFT, PORT_RIGHT, PORT_TOP, TRUNK_IN_KEY, TRUNK_OUT_KEY, ElementType,
                                      default_properties_for, default_text_for, display_name_for,
                                      is_default_text, spec_for)
 
@@ -54,6 +55,8 @@ LABEL_EDIT_WIDTH = 220.0
 EDGE_HIT_PX = 8.0
 EDGE_HIT_MIN = 5.0
 EDGE_HIT_MAX = 24.0
+# Kürzere Wege mit der Maus (Bildschirmpixel) gelten beim Ziehen eines Pfeils als Klick
+CLICK_DISTANCE_PX = 12.0
 
 
 def snap_to(value: float, grid: float) -> float:
@@ -90,6 +93,8 @@ class DiagramScene(QGraphicsScene):
         # Strg beim Ziehen: kopieren statt verschieben (wie im PapDesigner)
         self._drag_copy = False
         self._connect_drag: dict | None = None
+        # Pfeil wurde ins Leere gezogen: Das Schnellmenü fragt gerade nach dem neuen Baustein
+        self._quick_drag: dict | None = None
         self._temp_connection: TempConnectionItem | None = None
         self._ghost: GhostItem | None = None
         self._drop_connection: ConnectionItem | None = None
@@ -165,7 +170,7 @@ class DiagramScene(QGraphicsScene):
             if conn not in end.connections:
                 end.connections.append(conn)
         self._schedule_route(conn)
-        self._request_validation()
+        self.request_validation()
         self.content_changed.emit()
 
     def remove_connection_item(self, conn: ConnectionItem) -> None:
@@ -187,7 +192,7 @@ class DiagramScene(QGraphicsScene):
             if conn in end.connections:
                 end.connections.remove(conn)
         conn.set_warning(None)
-        self._request_validation()
+        self.request_validation()
         self.content_changed.emit()
 
     def clear_diagram(self) -> None:
@@ -255,7 +260,7 @@ class DiagramScene(QGraphicsScene):
         return result
 
     # ======================================================== Warnungen
-    def _request_validation(self) -> None:
+    def request_validation(self) -> None:
         self._validation_dirty = True
         if self._batch_depth == 0:
             self._revalidate()
@@ -266,15 +271,27 @@ class DiagramScene(QGraphicsScene):
                                     data.target_id, conn.target.element_type, data.target_port)
 
     def _revalidate(self) -> None:
-        """Fachliche Prüfung aller Verbindungen: Problematische werden rot markiert.
+        """Fachliche Prüfung aller Verbindungen: Problematische werden rot oder gelb markiert.
 
         Die Prüfung verhindert nichts – sie markiert nur (siehe ``rules``).
         """
         self._validation_dirty = False
         conns = self.ordered_connections()
-        warnings = rules.evaluate_connections([self._connection_info(conn) for conn in conns])
+        findings = rules.evaluate_connections([self._connection_info(conn) for conn in conns])
+        if preferences.enabled(preferences.EXTENDED_CHECKS):
+            for connection_id, finding in rules.extended_findings(FlowGraph.from_scene(self)).items():
+                findings.setdefault(connection_id, finding)
         for conn in conns:
-            conn.set_warning(warnings.get(conn.connection_id))
+            finding = findings.get(conn.connection_id)
+            if conn.has_loose_end:
+                finding = rules.Finding(tr("Dieser Pfeil ist noch nicht angeschlossen."))
+            conn.set_warning(*((finding.message, finding.level) if finding is not None else (None,)))
+
+    def preferences_changed(self) -> None:
+        """Schalter geändert: Markierungen neu prüfen und alle Linien neu zeichnen."""
+        self._revalidate()
+        for conn in self.connections():
+            conn.set_points(conn.points())
 
     def connection_warnings(self) -> dict[str, str]:
         return {conn.connection_id: conn.warning for conn in self._connections.values() if conn.warning}
@@ -395,6 +412,24 @@ class DiagramScene(QGraphicsScene):
                 obstacles.append(rect_from_qrect(item.scene_rect().adjusted(-4, -4, 4, 4)))
         return obstacles
 
+    def routing_lines(self, conn: ConnectionItem) -> list:
+        """Stücke anderer Verbindungen, zu denen ``conn`` Abstand halten soll.
+
+        Linien, die am selben Anschluss beginnen oder enden, dürfen zusammenlaufen.
+        """
+        lines = []
+        for other in self._connections.values():
+            if other is conn or other.is_annotation:
+                continue
+            if (other.source is conn.source and other.data.source_port == conn.data.source_port) \
+                    or (other.target is conn.target and other.data.target_port == conn.data.target_port) \
+                    or other.source is conn.target or other.target is conn.source:
+                continue
+            points = other.points()
+            lines += [(a, b) for a, b in zip(points[:-1], points[1:])
+                      if abs(a[0] - b[0]) < 1e-6 or abs(a[1] - b[1]) < 1e-6]
+        return lines
+
     # ================================================================ Raster
     @property
     def grid_size(self) -> int:
@@ -458,12 +493,16 @@ class DiagramScene(QGraphicsScene):
             # Beim Schließen eines Projekts können Items bereits zerstört sein
             if item is not None and shiboken6.isValid(item):
                 item.update()
+        if len(selected) == 1 and isinstance(selected[0], ConnectionItem) and selected[0].warning:
+            self.status_message.emit(tr("Hinweis: {message}", message=selected[0].warning))
         self.selection_state_changed.emit()
 
     def handle_escape(self) -> None:
         """Esc: laufende Aktion abbrechen, sonst Auswahl aufheben."""
         if self._connect_drag is not None:
             self._cancel_connection_drag()
+        elif self._quick_drag is not None:
+            self.finish_quick_menu(None)
         elif self._editor is not None:
             self.cancel_edit()
         elif self.pointer_interaction_active():
@@ -535,6 +574,7 @@ class DiagramScene(QGraphicsScene):
     def prepare_for_command(self) -> None:
         """Offene Texteingabe übernehmen und laufendes Ziehen abschließen."""
         self.commit_edit()
+        self.finish_quick_menu(None)
         if self.pointer_interaction_active() or self._connect_drag is not None:
             self.end_pointer_interaction(cancel=False)
 
@@ -697,13 +737,27 @@ class DiagramScene(QGraphicsScene):
           den bestehenden Ablauf eingefügt, Nachfolger rücken auf,
         * sonst: darunter platziert und verbunden.
 
-        Ohne Auswahl wird in der Mitte des sichtbaren Bereichs an einer freien
-        Stelle eingefügt.
+        Neben einem Ende-Element entsteht nie ein Pfeil aus dem Ende heraus:
+        Der Baustein kommt vor das Ende, wenn genau ein Pfeil hineinführt –
+        ebenso ohne Auswahl, wenn der Plan genau ein solches Ende hat. Sonst
+        wird in der Mitte des sichtbaren Bereichs an einer freien Stelle
+        eingefügt. Ein neues Start-Element wird nie angehängt.
         """
         self.prepare_for_command()
         element_type = ElementType(element_type)
         spec = spec_for(element_type)
         anchor = self.single_selected
+        if not spec.can_be_target:
+            anchor = None
+        elif element_type in INSERTABLE_TYPES and (anchor is None or not anchor.spec.can_be_source):
+            before_end = self._connection_before_end(anchor)
+            if before_end is not None:
+                source = before_end.source
+                y = source.pos().y() + source.height / 2 + VERTICAL_GAP + spec.default_height / 2
+                return self.insert_element(element_type, QPointF(before_end.target.pos().x(), y),
+                                           into_connection=before_end, flow_axis="y", loop_kind=loop_kind)
+        if anchor is not None and not anchor.spec.can_be_source:
+            anchor = None
         if anchor is not None and not anchor.is_comment and element_type is not ElementType.COMMENT:
             below_y = anchor.pos().y() + anchor.height / 2 + VERTICAL_GAP + spec.default_height / 2
             if anchor.element_type is ElementType.DECISION:
@@ -722,15 +776,26 @@ class DiagramScene(QGraphicsScene):
                                            loop_kind=loop_kind)
             outgoing = [c for c in anchor.connections if c.source is anchor and not c.is_annotation]
             limit = anchor.spec.max_outgoing
-            if outgoing and limit is not None and len(outgoing) >= limit and element_type in INSERTABLE_TYPES:
+            full = bool(outgoing) and limit is not None and len(outgoing) >= limit
+            if full and element_type in INSERTABLE_TYPES:
                 return self.insert_element(element_type, QPointF(anchor.pos().x(), below_y),
                                            into_connection=outgoing[0], flow_axis="y", loop_kind=loop_kind)
             pos = self._free_position(QPointF(anchor.pos().x(), below_y), spec.default_width, spec.default_height,
                                       direction=(0, 1))
-            return self.insert_element(element_type, pos, connect_from=anchor, loop_kind=loop_kind)
+            # ein zweiter Ausgang wäre sofort falsch: dann steht das neue Ende nur daneben
+            return self.insert_element(element_type, pos, connect_from=None if full else anchor, loop_kind=loop_kind)
         pos = self._free_position(self.force_snap_point(fallback_center), spec.default_width,
                                   spec.default_height, direction=(1, 1))
         return self.insert_element(element_type, pos, loop_kind=loop_kind)
+
+    def _connection_before_end(self, anchor: FlowItem | None) -> ConnectionItem | None:
+        """Der einzige Pfeil, der ins Ende führt: in ``anchor`` bzw. (ohne Auswahl) ins einzige Ende des Plans."""
+        ends = [anchor] if anchor is not None else [item for item in self.elements()
+                                                    if item.element_type is ElementType.END]
+        if len(ends) != 1 or ends[0].element_type is not ElementType.END:
+            return None
+        incoming = [c for c in ends[0].connections if c.target is ends[0] and not c.is_annotation]
+        return incoming[0] if len(incoming) == 1 else None
 
     def _free_position(self, pos: QPointF, width: float, height: float, direction=(0, 1)) -> QPointF:
         """Sucht ab ``pos`` schrittweise eine Stelle mit genügend Abstand zu anderen Bausteinen."""
@@ -753,6 +818,7 @@ class DiagramScene(QGraphicsScene):
             return
         count = len(element_ids) + len(connection_ids)
         text = tr("Löschen") if count == 1 else tr("{count} Objekte löschen", count=count)
+        element_ids += self._loose_ends_of(element_ids, connection_ids)
         self._pending_heal_updates = []
         extra_junctions, heals = self._plan_junction_healing(set(element_ids), set(connection_ids))
         updates, self._pending_heal_updates = self._pending_heal_updates, []
@@ -768,6 +834,20 @@ class DiagramScene(QGraphicsScene):
             self.undo_stack.endMacro()
         else:
             self.undo_stack.push(command)
+
+    def _loose_ends_of(self, element_ids: list[str], connection_ids: list[str]) -> list[str]:
+        """Lose Enden, die mit den zu löschenden Verbindungen wegfallen."""
+        doomed = [self.connection(cid) for cid in connection_ids]
+        for eid in element_ids:
+            item = self.element(eid)
+            if item is not None:
+                doomed += item.connections
+        found = []
+        for conn in doomed:
+            for end in (conn.source, conn.target):
+                if end.data.properties.get(LOOSE_END_KEY) and end.element_id not in element_ids + found:
+                    found.append(end.element_id)
+        return found
 
     def _plan_junction_healing(self, element_ids: set, connection_ids: set) -> tuple[list[str], list]:
         """Fügt aufgetrennte Pfeile wieder zusammen, wenn ein Verbindungsknoten wegfällt.
@@ -997,9 +1077,12 @@ class DiagramScene(QGraphicsScene):
                 rules.ConnectionEnd(target.item.element_id, target.item.element_type, target_port or target.port))
         return None
 
-    def _preview_warning(self, source: ConnectionEndpoint, target: ConnectionEndpoint,
-                         source_port: str, target_port: str) -> str | None:
-        """Fachliche Warnung für eine geplante Verbindung (inkl. künftiger Knoten)."""
+    def _preview_warning(self, source: ConnectionEndpoint, target: ConnectionEndpoint, source_port: str,
+                         target_port: str, replaces: ConnectionItem | None = None) -> rules.Finding | None:
+        """Fachlicher Befund für eine geplante Verbindung (inkl. künftiger Knoten).
+
+        ``replaces``: Die Verbindung, die dabei wegfällt (Umhängen eines Pfeils).
+        """
         # Künftige Stammteile stehen an der Stelle des aufgetrennten Pfeils
         virtual: dict[str, list] = {}
 
@@ -1020,7 +1103,8 @@ class DiagramScene(QGraphicsScene):
         target_id, target_type = node(target, "__knoten_ziel__")
         infos = []
         for conn in self.ordered_connections():
-            infos.extend(virtual.get(conn.connection_id) or [self._connection_info(conn)])
+            if conn is not replaces:
+                infos.extend(virtual.get(conn.connection_id) or [self._connection_info(conn)])
         infos.append(rules.ConnectionInfo("__neu__", source_id, source_type, source_port,
                                           target_id, target_type, target_port))
         return rules.evaluate_connections(infos).get("__neu__")
@@ -1042,6 +1126,10 @@ class DiagramScene(QGraphicsScene):
         trunk_updates.extend(self._trunk_updates(host, part_in.id, part_out.id))
         return junction.id
 
+    def keep_order(self, host: ConnectionItem, *connection_ids: str) -> None:
+        """Neue Verbindungen an der Stelle von ``host``: Markierungen bleiben, wo sie waren."""
+        self._inherit_order(host, *connection_ids)
+
     def _inherit_order(self, host: ConnectionItem, *connection_ids: str) -> None:
         if host.order is not None:
             for connection_id in connection_ids:
@@ -1061,13 +1149,15 @@ class DiagramScene(QGraphicsScene):
             self.undo_stack.push(SetElementPropertyCommand(self, element_id, key, old, new,
                                                            text=tr("Verbindungspunkt aktualisieren")))
 
-    def connect_endpoints(self, source: ConnectionEndpoint, target: ConnectionEndpoint) -> str | None:
+    def connect_endpoints(self, source: ConnectionEndpoint, target: ConnectionEndpoint,
+                          replaces: ConnectionItem | None = None) -> str | None:
         """Erstellt eine Verbindung zwischen zwei beliebigen Zielen (ein Undo-Schritt).
 
         Liegt ein Ende auf einem bestehenden Pfeil, wird dieser dort mit einem
         Verbindungsknoten aufgetrennt. Anschließend wird die fachliche
-        Prüfung ausgeführt; eine problematische Verbindung wird nur rot
-        markiert, aber nicht verhindert.
+        Prüfung ausgeführt; eine problematische Verbindung wird nur rot oder
+        gelb markiert, aber nicht verhindert. Mit ``replaces`` tritt die neue
+        Verbindung an die Stelle einer bestehenden (Pfeil umhängen).
         """
         source_port, target_port = self._resolve_ports(source, target)
         error = self._blocking_error(source, target, source_port, target_port)
@@ -1075,6 +1165,8 @@ class DiagramScene(QGraphicsScene):
             self.status_message.emit(error)
             return None
         self.prepare_for_command()
+        if replaces is not None:
+            self.undo_stack.beginMacro(tr("Pfeil umhängen"))
         if source.is_edge or target.is_edge:
             elements, connections, replaced, trunk_updates = [], [], [], []
             source_id = self._split_edge(source, elements, connections, replaced, trunk_updates) \
@@ -1082,7 +1174,11 @@ class DiagramScene(QGraphicsScene):
             target_id = self._split_edge(target, elements, connections, replaced, trunk_updates) \
                 if target.is_edge else target.item.element_id
             label = "" if source.is_edge else self._suggest_label(source.item)
+            if replaces is not None:
+                label = replaces.data.label
             data = ConnectionData(new_id(), source_id, target_id, source_port, target_port, label)
+            if replaces is not None:
+                self._inherit_order(replaces, data.id)
             connections.append(data)
             self.undo_stack.beginMacro(tr("An Pfeil anschließen"))
             self.undo_stack.push(DeleteCommand(self, [], replaced, text=tr("Pfeil auftrennen")))
@@ -1093,15 +1189,48 @@ class DiagramScene(QGraphicsScene):
         else:
             annotation = rules.is_annotation(source.item.element_type, target.item.element_type)
             label = "" if annotation else self._suggest_label(source.item)
+            if replaces is not None:
+                label = replaces.data.label
             data = ConnectionData(new_id(), source.item.element_id, target.item.element_id,
                                   source_port, target_port, label)
+            if replaces is not None:
+                self._inherit_order(replaces, data.id)
             self.undo_stack.push(AddConnectionCommand(
                 self, data, text=tr("Kommentar zuordnen") if annotation else tr("Verbindung erstellen")))
+        if replaces is not None:
+            self._remove_replaced(replaces, data.id)
+            self.undo_stack.endMacro()
         conn = self.connection(data.id)
-        if conn is not None and conn.warning:
+        if conn is not None and conn.warning and not conn.has_loose_end:
             self.status_message.emit(tr("Hinweis: {warning} Die Verbindung wurde trotzdem erstellt "
-                                        "und ist rot markiert.", warning=conn.warning))
+                                        "und ist markiert.", warning=conn.warning))
         return data.id
+
+    def _remove_replaced(self, conn: ConnectionItem, new_id_: str) -> None:
+        """Entfernt den umgehängten Pfeil: Sein loses Ende fällt weg, ein aufgetrennter Pfeil wächst wieder zusammen."""
+        self._push_trunk_updates(self._trunk_updates(conn, new_id_, new_id_))
+        replacement = self.connection(new_id_)
+        element_ids = [eid for eid in self._loose_ends_of([], [conn.connection_id])
+                       if replacement is None or eid not in (replacement.data.source_id, replacement.data.target_id)]
+        self._pending_heal_updates = []
+        extra, heals = self._plan_junction_healing(set(element_ids), {conn.connection_id})
+        updates, self._pending_heal_updates = self._pending_heal_updates, []
+        self.undo_stack.push(DeleteCommand(self, element_ids + extra, [conn.connection_id], text=tr("Pfeil umhängen")))
+        if heals:
+            self.undo_stack.push(AddElementsCommand(self, [], heals, text=tr("Pfeil wieder verbinden"), select=False))
+        self._push_trunk_updates(updates)
+
+    def add_bend(self, conn: ConnectionItem, pos: QPointF) -> None:
+        """Rechtsklick: an dieser Stelle der Linie eine Stufe einfügen, die sich dann weiterziehen lässt."""
+        points = conn.points()
+        hit = endpoints.nearest_segment(points, pos)
+        if hit is None:
+            return
+        step = float(max(self.grid_size, 20))
+        bent = routing.simplify(routing.insert_bend(points, hit[1], (pos.x(), pos.y()), step))
+        self.prepare_for_command()
+        old = conn.data.routing
+        self.commit_routing_change(conn, old, {"mode": "manual", "axes": routing.axes_from_points(bent)})
 
     def create_connection(self, source: FlowItem, source_port: str, target: FlowItem,
                           target_port: str) -> str | None:
@@ -1200,6 +1329,8 @@ class DiagramScene(QGraphicsScene):
         """Ziel unter dem Mauszeiger: Block/Knoten haben Vorrang vor Pfeilen."""
         exclude_item = source.item if not source.is_edge else None
         item = self._element_at(pos, exclude=exclude_item)
+        if item is not None and item.data.properties.get(LOOSE_END_KEY):
+            return None  # ein loses Ende ist kein Ziel, auch nicht das gerade gezogene
         if item is not None:
             if item.is_junction:
                 return ConnectionEndpoint(item=item, port=item.ports[0])
@@ -1207,6 +1338,8 @@ class DiagramScene(QGraphicsScene):
             port = item.port_at(pos) or self._best_target_port(start, source, item, pos)
             return ConnectionEndpoint(item=item, port=port)
         exclude = [source.edge] if source.is_edge else []
+        if self._connect_drag is not None and self._connect_drag.get("replaces") is not None:
+            exclude.append(self._connect_drag["replaces"])
         hit = self._edge_at(pos, exclude)
         if hit is None:
             return None
@@ -1255,10 +1388,25 @@ class DiagramScene(QGraphicsScene):
         self._begin_endpoint_drag(end, pos)
         return True
 
-    def _begin_endpoint_drag(self, source: ConnectionEndpoint, pos: QPointF) -> None:
+    def _begin_reattach(self, conn: ConnectionItem, end: str, pos: QPointF) -> None:
+        """Zieht ein Ende (``"source"`` oder ``"target"``) einer bestehenden Verbindung an eine andere Stelle."""
+        if end == "source":
+            fixed = ConnectionEndpoint(item=conn.target, port=conn.data.target_port)
+        else:
+            fixed = ConnectionEndpoint(item=conn.source, port=conn.data.source_port)
+        self._begin_endpoint_drag(fixed, pos, conn, end)
+
+    def _begin_endpoint_drag(self, source: ConnectionEndpoint, pos: QPointF, replaces: ConnectionItem | None = None,
+                             moving: str = "target") -> None:
+        self.finish_quick_menu(None)
         self._hide_edge_marker()
+        # ``source`` ist das feste Ende. Beim Umhängen des Pfeilanfangs (``moving == "source"``) läuft der Pfeil vom
+        # Mauszeiger zu diesem festen Ende.
         self._connect_drag = {"source": source, "target": None, "source_port": source.port,
-                              "target_port": None, "error": None, "warning": None}
+                              "target_port": None, "error": None, "warning": None, "press": QPointF(pos), "pos": pos,
+                              "replaces": replaces, "moving": moving}
+        if replaces is not None:
+            replaces.setOpacity(0.3)
         self._temp_connection = TempConnectionItem()
         self.addItem(self._temp_connection)
         self._set_endpoint_highlight(source, True, source.port)
@@ -1266,26 +1414,31 @@ class DiagramScene(QGraphicsScene):
 
     def _update_connection_drag(self, pos: QPointF) -> None:
         drag = self._connect_drag
+        drag["pos"] = pos
         source: ConnectionEndpoint = drag["source"]
         target = self._endpoint_at(pos, source)
         previous: ConnectionEndpoint | None = drag["target"]
         if previous is not None and not previous.same_target(target):
             self._set_endpoint_highlight(previous, False)
 
+        reverse = drag["moving"] == "source"
         error = warning = None
         markers = [source.point] if source.is_edge else []
-        start = source.scene_pos()
         if target is not None:
-            source_port, target_port = self._resolve_ports(source, target)
-            error = self._blocking_error(source, target, source_port, target_port)
+            first, second = (target, source) if reverse else (source, target)
+            first_port, second_port = self._resolve_ports(first, second)
+            source_port, target_port = (second_port, first_port) if reverse else (first_port, second_port)
+            error = self._blocking_error(first, second, first_port, second_port)
             if error is None:
-                warning = self._preview_warning(source, target, source_port, target_port)
+                warning = self._preview_warning(first, second, first_port, second_port, drag["replaces"])
             self._set_endpoint_highlight(target, True, target_port)
             end = target.scene_pos()
             if target.is_edge:
                 markers.append(target.point)
         else:
-            if source.is_edge:
+            if reverse:
+                source_port = source.port
+            elif source.is_edge:
                 source_port = endpoints.branch_port(source.direction, source.point, pos)
             elif source.item.is_junction:
                 source_port = self._effective_source_port(source.item, source.port, None, None, pos)
@@ -1305,16 +1458,27 @@ class DiagramScene(QGraphicsScene):
         target_rect = None
         if target is not None and not target.is_edge and not target.item.is_junction:
             target_rect = rect_from_qrect(target.item.scene_rect())
-        points = routing.route((start.x(), start.y()), source_port, (end.x(), end.y()), target_port,
-                               source_rect, target_rect)
-        state = STATE_BLOCKED if error else (STATE_WARNING if warning else STATE_OK)
+        if reverse and target is not None:
+            points = routing.route((end.x(), end.y()), target_port, (start.x(), start.y()), source_port,
+                                   target_rect, source_rect)
+        else:
+            points = routing.route((start.x(), start.y()), source_port, (end.x(), end.y()), target_port,
+                                   source_rect, target_rect)
+            if reverse:
+                points.reverse()
+        if error:
+            state = STATE_BLOCKED
+        elif warning is None:
+            state = STATE_OK
+        else:
+            state = STATE_CAUTION if warning.level == rules.CAUTION else STATE_WARNING
         if self._temp_connection is not None:
             self._temp_connection.set_points(points, state, markers)
         if error:
             self.status_message.emit(tr("Nicht möglich: {error}", error=error))
         elif warning:
             self.status_message.emit(tr("Hinweis: {warning} Die Verbindung kann trotzdem erstellt werden.",
-                                        warning=warning))
+                                        warning=warning.message))
         elif target is not None and target.is_edge:
             self.status_message.emit(tr("Loslassen, um die Verbindung an diesem Pfeil anzuschließen."))
         else:
@@ -1322,19 +1486,107 @@ class DiagramScene(QGraphicsScene):
 
     def _finish_connection_drag(self) -> None:
         drag = self._connect_drag
-        self._cleanup_connection_drag()
-        if drag is None or drag["target"] is None:
+        if drag is None:
             return
+        if drag["target"] is None:
+            self._released_in_empty(drag)
+            return
+        self._cleanup_connection_drag()
         if drag["error"]:
             self.status_message.emit(tr("Nicht möglich: {error}", error=drag["error"]))
             return
+        fixed: ConnectionEndpoint = drag["source"]
+        moved: ConnectionEndpoint = drag["target"]
+        if not fixed.is_edge:
+            fixed = ConnectionEndpoint(item=fixed.item, port=drag["source_port"])
+        if not moved.is_edge:
+            moved = ConnectionEndpoint(item=moved.item, port=drag["target_port"])
+        replaces: ConnectionItem | None = drag["replaces"]
+        if drag["moving"] == "source":
+            source, target = moved, fixed
+        else:
+            source, target = fixed, moved
+        if replaces is not None and not source.is_edge and not target.is_edge \
+                and source.item is replaces.source and source.port == replaces.data.source_port \
+                and target.item is replaces.target and target.port == replaces.data.target_port:
+            return  # dieselbe Stelle: nichts zu tun
+        element_id = self.connect_endpoints(source, target, replaces)
+        conn = self.connection(element_id) if element_id is not None and replaces is not None else None
+        if conn is not None:  # ein aufgetrennter Pfeil kann dabei wieder zusammengewachsen sein
+            self.select_items([conn])
+
+    def _released_in_empty(self, drag: dict) -> None:
+        """Ein Pfeilende wurde im Leeren losgelassen."""
+        conn: ConnectionItem | None = drag["replaces"]
+        pos: QPointF = drag["pos"]
+        distance = (pos - drag["press"]).manhattanLength() * self._view_scale()
+        if distance < CLICK_DISTANCE_PX:
+            self._cleanup_connection_drag()
+            if conn is not None and conn.scene() is self:
+                self.select_items([conn])
+            return
+        loose_wanted = preferences.enabled(preferences.LOOSE_ENDS)
+        if conn is not None:
+            self._cleanup_connection_drag()
+            moving = conn.source if drag["moving"] == "source" else conn.target
+            if moving.data.properties.get(LOOSE_END_KEY):
+                point = self.clamp_point(self.snap_point(pos))
+                self.apply_moves({moving.element_id: ((moving.pos().x(), moving.pos().y()), (point.x(), point.y()))},
+                                 tr("Verschieben"))
+            elif loose_wanted:
+                self._leave_loose(drag["source"], drag["source_port"], pos, conn, drag["moving"])
+            return
+        if loose_wanted:
+            self._cleanup_connection_drag()
+            self._leave_loose(drag["source"], drag["source_port"], pos)
+        elif preferences.enabled(preferences.QUICK_MENU) and self.views():
+            # Die gestrichelte Linie bleibt stehen, bis das Schnellmenü beantwortet ist
+            self._connect_drag = None
+            self._quick_drag = drag
+            self.views()[0].show_quick_menu(pos)
+        else:
+            self._cleanup_connection_drag()
+
+    def finish_quick_menu(self, element_type: ElementType | None) -> None:
+        """Antwort des Schnellmenüs: den Baustein am Pfeilende anlegen, ohne Auswahl die gestrichelte Linie entfernen."""
+        drag, self._quick_drag = self._quick_drag, None
+        if drag is None:
+            return
+        self._connect_drag = drag
+        self._cleanup_connection_drag()
+        if element_type is None:
+            return
+        element_type = ElementType(element_type)
+        spec = spec_for(element_type)
         source: ConnectionEndpoint = drag["source"]
-        target: ConnectionEndpoint = drag["target"]
+        pos: QPointF = drag["pos"]
+        port = drag["source_port"]
+        dx, dy = PORT_DIRECTIONS[port]
+        entry = next((p for p, direction in PORT_DIRECTIONS.items() if direction == (-dx, -dy)), PORT_TOP)
+        center = QPointF(pos.x() + dx * spec.default_width / 2, pos.y() + dy * spec.default_height / 2)
+        name = display_name_for(element_type)
+        self.undo_stack.beginMacro(tr("„{name}“ einfügen", name=name))
+        element_id = self.insert_element(element_type, center)
+        item = self.element(element_id)
         if not source.is_edge:
-            source = ConnectionEndpoint(item=source.item, port=drag["source_port"])
-        if not target.is_edge:
-            target = ConnectionEndpoint(item=target.item, port=drag["target_port"])
-        self.connect_endpoints(source, target)
+            source = ConnectionEndpoint(item=source.item, port=port)
+        self.connect_endpoints(source, ConnectionEndpoint(item=item, port=entry if entry in item.ports else item.ports[0]))
+        self.undo_stack.endMacro()
+        self.select_items([item])
+
+    def _leave_loose(self, fixed: ConnectionEndpoint, port: str, pos: QPointF, replaces: ConnectionItem | None = None,
+                     moving: str = "target") -> None:
+        """Lässt ein Pfeilende bei ``pos`` im Leeren stehen: Es hängt an einem offenen Verbindungspunkt."""
+        point = self.clamp_point(self.snap_point(pos))
+        junction = new_element_data(ElementType.JUNCTION, point.x(), point.y(), properties={LOOSE_END_KEY: True})
+        if not fixed.is_edge:
+            fixed = ConnectionEndpoint(item=fixed.item, port=port)
+        self.prepare_for_command()
+        self.undo_stack.beginMacro(tr("Pfeil mit losem Ende"))
+        self.undo_stack.push(AddElementsCommand(self, [junction], [], text=tr("Pfeil mit losem Ende"), select=False))
+        end = ConnectionEndpoint(item=self.element(junction.id), port=PORT_TOP)
+        self.connect_endpoints(*((end, fixed) if moving == "source" else (fixed, end)), replaces)
+        self.undo_stack.endMacro()
 
     def _cancel_connection_drag(self) -> None:
         self._cleanup_connection_drag()
@@ -1346,6 +1598,8 @@ class DiagramScene(QGraphicsScene):
         if drag is not None:
             self._set_endpoint_highlight(drag["source"], False)
             self._set_endpoint_highlight(drag["target"], False)
+            if drag["replaces"] is not None:
+                drag["replaces"].setOpacity(1.0)
         if self._temp_connection is not None:
             if self._temp_connection.scene() is self:
                 self.removeItem(self._temp_connection)
@@ -1571,6 +1825,7 @@ class DiagramScene(QGraphicsScene):
         data.width, data.height = float(spec.default_width), float(spec.default_height)
         connections, paths = [], {}
         for conn in item.connections:
+            self._inherit_order(conn, conn.connection_id)  # die Markierung bleibt an derselben Verbindung
             copy = conn.data.copy()
             copy.path = None
             ports = (copy.source_port, copy.target_port)
@@ -1640,6 +1895,9 @@ class DiagramScene(QGraphicsScene):
         if event.button() == Qt.MouseButton.LeftButton and self._editor is None:
             ctrl = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
             shift = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
+            if not ctrl and self._begin_end_drag(pos):
+                event.accept()
+                return
             hit = self._port_hit(pos)
             if hit is not None and not ctrl:
                 self._begin_connection_drag(hit[0], hit[1], pos)
@@ -1654,6 +1912,20 @@ class DiagramScene(QGraphicsScene):
                     return
         super().mousePressEvent(event)
         self._track_item_drag(event)
+
+    def _begin_end_drag(self, pos: QPointF) -> bool:
+        """Beginnt das Umhängen, wenn ``pos`` auf einem Griff am Pfeilende oder einem losen Ende liegt."""
+        for conn in self.selected_connections():
+            end = conn.end_at(pos)
+            if end is not None:
+                self._begin_reattach(conn, end, pos)
+                return True
+        item = self._element_at(pos)
+        if item is not None and item.data.properties.get(LOOSE_END_KEY) and item.connections:
+            conn = item.connections[0]
+            self._begin_reattach(conn, "target" if conn.target is item else "source", pos)
+            return True
+        return False
 
     def mouseDoubleClickEvent(self, event) -> None:
         # Auch der zweite Klick eines Doppelklicks kann ein Ziehen einleiten;
