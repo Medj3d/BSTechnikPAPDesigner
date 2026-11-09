@@ -4,6 +4,8 @@ Der Programmname, die Dateiendung und alle Standardwerte werden ausschließlich
 hier definiert, damit sie später an genau einer Stelle geändert werden können.
 """
 
+import sys as _sys
+
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
@@ -88,11 +90,26 @@ AUTO_SAVE_DEFAULT = True
 # Updates: GitHub-Projekt ("Besitzer/Name"), dessen neueste Veröffentlichung das
 # fertige Programm beim Start prüft. Leer = keine Update-Prüfung.
 UPDATE_REPOSITORY = "Medj3d/BSTechnikPAPDesigner"
-UPDATE_MANIFEST_NAME = "version.json"
-UPDATE_PACKAGE_NAME = "BSTechnikPAPDesigner.zip"
-EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe"
+
+# Jedes Betriebssystem hat eigene Dateien in der Veröffentlichung: So lädt ein Windows-Programm nie das
+# Linux-Paket und umgekehrt. Ältere Windows-Versionen lesen weiter „version.json“.
+_SYSTEM = "windows" if _sys.platform.startswith("win") else ("macos" if _sys.platform == "darwin" else "linux")
+WINDOWS_MANIFEST_NAME = "version.json"
+WINDOWS_PACKAGE_NAME = "BSTechnikPAPDesigner.zip"
+LINUX_MANIFEST_NAME = "version-linux.json"
+LINUX_PACKAGE_NAME = "BSTechnikPAPDesigner-x86_64.AppImage"
+UPDATE_MANIFEST_NAME = {"windows": WINDOWS_MANIFEST_NAME, "linux": LINUX_MANIFEST_NAME,
+                        "macos": "version-macos.json"}[_SYSTEM]
+UPDATE_PACKAGE_NAME = {"windows": WINDOWS_PACKAGE_NAME, "linux": LINUX_PACKAGE_NAME,
+                       "macos": "BSTechnikPAPDesigner-macOS.zip"}[_SYSTEM]
+EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe" if _SYSTEM == "windows" else "BSTechnikPAPDesigner"
 # Setup-Datei zum Weitergeben (installiert das Programm; entsteht mit release.bat)
 SETUP_FILE_NAME = "BSTechnikPAPDesigner-Setup.exe"
+# Was man auf diesem System zum Installieren herunterlädt: unter Windows das Setup, unter Linux das AppImage
+DOWNLOAD_FILE_NAME = LINUX_PACKAGE_NAME if _SYSTEM == "linux" else SETUP_FILE_NAME
+# Name der Desktop-Verknüpfung und des Dateityps unter Linux (siehe app/file_association.py)
+LINUX_DESKTOP_ID = "bstechnik-papdesigner"
+LINUX_MIME_TYPE = "application/x-bstechnik-pap"
 # Mit diesem Aufruf installiert die neue Programmdatei ein Update (siehe app/updater.py)
 UPDATE_APPLY_FLAG = "--apply-update"
 # Programmstart: erst warten, bis der Prozess mit dieser Nummer beendet ist (z. B. beim Neustart nach einem

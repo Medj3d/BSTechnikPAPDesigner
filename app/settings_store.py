@@ -1,4 +1,9 @@
-"""Anwendungseinstellungen (zuletzt geöffnete Dateien, Fensterzustand, Ordner)."""
+"""Anwendungseinstellungen (zuletzt geöffnete Dateien, Fensterzustand, Ordner).
+
+Gespeichert über ``QSettings`` an der für das System üblichen Stelle: unter Windows in der Registry
+(``HKCU\\Software\\BS Technik\\PAPDesigner``), unter Linux in ``~/.config/BS Technik/PAPDesigner.conf``
+(``$XDG_CONFIG_HOME``), unter macOS in ``~/Library/Preferences``.
+"""
 
 from __future__ import annotations
 
@@ -112,8 +117,9 @@ class SettingsStore:
         value = self._settings.value("last_directory", "")
         if isinstance(value, str) and value and os.path.isdir(value):
             return value
-        documents = os.path.join(os.path.expanduser("~"), "Documents")
-        return documents if os.path.isdir(documents) else os.path.expanduser("~")
+        from app import platforms
+
+        return platforms.documents_directory()
 
     def set_last_directory(self, path: str) -> None:
         directory = path if os.path.isdir(path) else os.path.dirname(path)

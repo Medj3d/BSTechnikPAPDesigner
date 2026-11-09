@@ -9,7 +9,7 @@ import threading
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox, QProgressDialog
 
-from app import config, policy, updater
+from app import config, platforms, policy, updater
 from app.i18n import tr
 
 log = logging.getLogger(__name__)
@@ -56,6 +56,7 @@ class UpdateController(QObject):
         if app_dir is not None and self._dialog is None:
             updater.cleanup_staging(app_dir)
             updater.cleanup_user_programs()
+            updater.cleanup_appimage_download()
 
     # ------------------------------------------------------------- Prüfen
     @staticmethod
@@ -155,7 +156,7 @@ class UpdateController(QObject):
         repo = updater.repository()
         if repo:
             paragraphs.append(tr("Die neue Version gibt es hier:\n{url}",
-                                 url=f"https://github.com/{repo}/releases/latest/download/{config.SETUP_FILE_NAME}"))
+                                 url=f"https://github.com/{repo}/releases/latest/download/{config.DOWNLOAD_FILE_NAME}"))
         QMessageBox.information(self._window, tr("Update verfügbar"), "\n\n".join(paragraphs))
 
     def ask_install(self, info: updater.UpdateInfo) -> bool:
@@ -192,6 +193,7 @@ class UpdateController(QObject):
         app_dir = updater.application_directory()
         # beschreibbarer Programmordner: dort wird ersetzt; sonst kommt die Kopie in den Benutzerordner
         staging_parent = app_dir if mode == "in_place" else updater.user_update_root()
+        appimage = platforms.appimage_path() if mode == "appimage" else None
         self._mode, self._pending_info = mode, info
         # erst alle Projekte sichern bzw. nachfragen – danach wird das Programm beendet
         for view in self._window.views():
@@ -210,8 +212,12 @@ class UpdateController(QObject):
 
         def work():
             try:
-                new_dir = updater.download_package(info, staging_parent, progress=self._progress.emit,
-                                                   cancelled=self._cancel.is_set)
+                if appimage:  # Linux: das neue AppImage kommt neben das laufende
+                    new_dir = updater.download_appimage(info, appimage, progress=self._progress.emit,
+                                                        cancelled=self._cancel.is_set)
+                else:
+                    new_dir = updater.download_package(info, staging_parent, progress=self._progress.emit,
+                                                       cancelled=self._cancel.is_set)
                 self._downloaded.emit(new_dir, None)
             except updater.UpdateCancelled:
                 self._downloaded.emit(None, None)
@@ -244,7 +250,14 @@ class UpdateController(QObject):
         if new_dir is None or app_dir is None:
             return  # abgebrochen
         try:
-            if self._mode == "in_place":
+            if self._mode == "appimage":
+                appimage = platforms.appimage_path()
+                if appimage is None:
+                    raise updater.UpdateError(tr("Die neue Version konnte nicht abgelegt werden."))
+                updater.replace_appimage(new_dir, appimage)
+                # die neue Datei startet, sobald dieses Programm beendet ist
+                self._launch_appimage_after_quit(appimage)
+            elif self._mode == "in_place":
                 updater.start_installer(new_dir, app_dir)
                 # Das Programm beenden; die neue Version wartet darauf und ersetzt dann den Programmordner
             else:
@@ -255,6 +268,12 @@ class UpdateController(QObject):
             QMessageBox.warning(self._window, tr("Update nicht möglich"), exc.message)
             return
         QTimer.singleShot(0, self._window.close)
+
+    def _launch_appimage_after_quit(self, appimage: str) -> None:
+        """Linux: Startet das ersetzte AppImage, sobald dieses Programm beendet ist."""
+        application = QApplication.instance()
+        if application is not None:
+            application.aboutToQuit.connect(lambda: updater.launch_appimage(appimage, wait_pid=os.getpid()))
 
     def _launch_after_quit(self, folder: str) -> None:
         """Startet das Programm aus ``folder``, sobald dieses Programm beendet ist."""

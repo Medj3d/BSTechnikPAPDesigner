@@ -23,6 +23,11 @@ Ablauf:
      der Rechner den Start aus dem Benutzerordner nicht zu, läuft das
      installierte Programm einfach weiter und es wird nicht erneut versucht.
 
+**Linux (AppImage)**: Die Veröffentlichung enthält ``version-linux.json`` und das AppImage selbst. Das neue
+AppImage wird neben das laufende geladen (``.<Name>.neu``), geprüft und dann mit einem Schritt an dessen Stelle
+gesetzt (``os.replace``) – das laufende Programm arbeitet bis zum Beenden mit der alten, schon eingehängten Datei
+weiter. Danach startet die neue Datei. Ist der Ordner des AppImage nicht beschreibbar, gibt es nur einen Hinweis.
+
 Es werden keine fremden Hilfsprogramme (cmd, PowerShell) benötigt, und eigene
 Dateien des Benutzers im Programmordner bleiben unberührt: Ersetzt wird nur,
 was die neue Version selbst mitbringt.
@@ -48,7 +53,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass
 
-from app import config, policy, resources
+from app import config, platforms, policy, resources
 from app.i18n import tr
 
 log = logging.getLogger(__name__)
@@ -66,6 +71,12 @@ MANIFEST_MAX_BYTES = 64 * 1024
 PACKAGE_MAX_BYTES = 600 * 1024 * 1024
 UNPACKED_MAX_BYTES = 2 * 1024 * 1024 * 1024
 CHUNK_SIZE = 256 * 1024
+# Linux: Das neue AppImage wird zuerst unter diesem Namen neben das laufende gelegt („.<Name>.neu“)
+APPIMAGE_DOWNLOAD_SUFFIX = ".neu"
+ELF_MAGIC = b"\x7fELF"
+# Erlaubte Paketnamen: ZIP des Programmordners (Windows) oder das AppImage selbst (Linux). Ein Paket des falschen
+# Systems scheitert beim Laden ohnehin (Entpacken bzw. ELF-Kennung); die Manifeste sind ohnehin getrennt.
+PACKAGE_FILE_PATTERN = r"[A-Za-z0-9_.-]+\.(?:zip|AppImage)"
 
 
 class UpdateError(Exception):
@@ -139,7 +150,8 @@ def parse_manifest(raw: bytes, repo: str) -> UpdateInfo:
     checksum = str(data.get("sha256", "")).strip().lower()
     tag = str(data.get("tag") or f"v{version}").strip()
     if not parse_version(version) or not re.fullmatch(r"[0-9a-f]{64}", checksum) \
-            or not re.fullmatch(r"[A-Za-z0-9_.-]+\.zip", file_name) or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
+            or not re.fullmatch(PACKAGE_FILE_PATTERN, file_name) \
+            or not re.fullmatch(r"[A-Za-z0-9_.-]+", tag):
         raise UpdateError(tr("Die Angaben zur neuesten Version sind unvollständig."))
     try:
         size = max(0, int(data.get("size") or 0))
@@ -248,10 +260,14 @@ def update_mode() -> str:
     * ``"user_copy"`` – die neue Version kommt in den Benutzerordner und wird von dort gestartet
     * ``"blocked"``   – weder noch (kein Zugriff, oder Programme aus dem Benutzerordner sind gesperrt)
     * ``"source"``    – das Programm läuft aus dem Quelltext
+    * ``"appimage"``  – Linux: die AppImage-Datei wird durch die neue ersetzt (ihr Ordner ist beschreibbar)
     """
     app_dir = application_directory()
     if app_dir is None:
         return "source"
+    if platforms.is_linux():
+        appimage = platforms.appimage_path()
+        return "appimage" if appimage and can_write(os.path.dirname(appimage)) else "blocked"
     if not running_from_user_copy() and can_write(app_dir):
         return "in_place"
     if user_updates_blocked() or not user_update_root_usable():
@@ -427,31 +443,9 @@ def download_package(info: UpdateInfo, app_dir: str, progress=None, cancelled=No
     staging = os.path.join(app_dir, STAGING_DIRECTORY)
     _remove(staging)
     archive = os.path.join(staging, "paket.zip")
-    digest = hashlib.sha256()
     try:
         os.makedirs(staging)
-        with opener(info.package_url, 30.0) as response, open(archive, "wb") as handle:
-            try:
-                total = int(response.headers.get("Content-Length") or info.size or 0)
-            except (TypeError, ValueError):
-                total = info.size
-            done = 0
-            while True:
-                if cancelled is not None and cancelled():
-                    raise UpdateCancelled()
-                chunk = response.read(CHUNK_SIZE)
-                if not chunk:
-                    break
-                done += len(chunk)
-                if done > PACKAGE_MAX_BYTES:
-                    raise UpdateError(tr("Das Update-Paket ist unerwartet groß."))
-                digest.update(chunk)
-                handle.write(chunk)
-                if progress is not None:
-                    progress(done, total)
-        if digest.hexdigest() != info.sha256:
-            raise UpdateError(tr("Das Update-Paket ist beschädigt (Prüfsumme stimmt nicht). "
-                                 "Es wurde nichts verändert."))
+        _download_to(info, archive, progress, cancelled, opener)
         unpacked = os.path.join(staging, "neu")
         extract_package(archive, unpacked)
         os.remove(archive)
@@ -462,6 +456,96 @@ def download_package(info: UpdateInfo, app_dir: str, progress=None, cancelled=No
     except Exception as exc:
         _remove(staging)
         raise UpdateError(tr("Das Update konnte nicht heruntergeladen werden."), str(exc)) from exc
+
+
+def _download_to(info: UpdateInfo, path: str, progress=None, cancelled=None, opener=_open) -> None:
+    """Lädt das Paket nach ``path`` und prüft die Prüfsumme. Wirft ``UpdateError`` oder ``UpdateCancelled``."""
+    digest = hashlib.sha256()
+    with opener(info.package_url, 30.0) as response, open(path, "wb") as handle:
+        try:
+            total = int(response.headers.get("Content-Length") or info.size or 0)
+        except (TypeError, ValueError):
+            total = info.size
+        done = 0
+        while True:
+            if cancelled is not None and cancelled():
+                raise UpdateCancelled()
+            chunk = response.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            done += len(chunk)
+            if done > PACKAGE_MAX_BYTES:
+                raise UpdateError(tr("Das Update-Paket ist unerwartet groß."))
+            digest.update(chunk)
+            handle.write(chunk)
+            if progress is not None:
+                progress(done, total)
+    if digest.hexdigest() != info.sha256:
+        raise UpdateError(tr("Das Update-Paket ist beschädigt (Prüfsumme stimmt nicht). "
+                             "Es wurde nichts verändert."))
+
+
+# ------------------------------------------------------------ Linux: AppImage
+def appimage_download_path(appimage: str) -> str:
+    """Wohin das neue AppImage zuerst geladen wird: versteckt neben das laufende („.<Name>.neu“)."""
+    folder, name = os.path.split(os.path.abspath(appimage))
+    return os.path.join(folder, "." + name + APPIMAGE_DOWNLOAD_SUFFIX)
+
+
+def download_appimage(info: UpdateInfo, appimage: str, progress=None, cancelled=None, opener=_open) -> str:
+    """Lädt und prüft das neue AppImage neben das laufende. Gibt den Pfad der neuen Datei zurück.
+
+    Wirft ``UpdateError`` oder ``UpdateCancelled``; dann bleibt nichts liegen.
+    """
+    target = appimage_download_path(appimage)
+    _remove(target)
+    try:
+        _download_to(info, target, progress, cancelled, opener)
+        with open(target, "rb") as handle:
+            if handle.read(len(ELF_MAGIC)) != ELF_MAGIC:
+                raise UpdateError(tr("Das Update-Paket enthält das Programm nicht."))
+        os.chmod(target, 0o755)
+        return target
+    except (UpdateError, UpdateCancelled):
+        _remove(target)
+        raise
+    except Exception as exc:
+        _remove(target)
+        raise UpdateError(tr("Das Update konnte nicht heruntergeladen werden."), str(exc)) from exc
+
+
+def replace_appimage(new_file: str, appimage: str) -> None:
+    """Setzt das neue AppImage in einem Schritt an die Stelle des alten (gleicher Name, gleiche Rechte).
+
+    Das laufende Programm arbeitet mit der alten, bereits eingehängten Datei weiter. Wirft ``UpdateError``;
+    dann bleibt die alte Datei unverändert.
+    """
+    try:
+        mode = os.stat(appimage).st_mode & 0o7777
+        os.chmod(new_file, mode | 0o111)
+        os.replace(new_file, appimage)
+    except OSError as exc:
+        _remove(new_file)
+        raise UpdateError(tr("Die neue Version konnte nicht abgelegt werden."), str(exc)) from exc
+
+
+def cleanup_appimage_download() -> None:
+    """Entfernt ein liegengebliebenes, halb geladenes AppImage (z. B. nach einem Absturz beim Laden)."""
+    appimage = platforms.appimage_path()
+    if appimage:
+        _remove(appimage_download_path(appimage))
+
+
+def launch_appimage(appimage: str, wait_pid: int | None = None) -> None:
+    """Startet das (neue) AppImage; es wartet auf das Ende von ``wait_pid`` (siehe ``launch_program``)."""
+    command = [appimage]
+    if wait_pid:
+        command += [config.WAIT_FOR_FLAG, str(wait_pid)]
+    try:
+        subprocess.Popen(command, cwd=os.path.dirname(appimage), close_fds=True, start_new_session=True,
+                         env=platforms.host_environment())
+    except OSError:
+        log.exception("Programm konnte nach dem Update nicht gestartet werden")
 
 
 # -------------------------------------------------------------- Installieren

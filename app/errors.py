@@ -22,8 +22,10 @@ _in_handler = False
 
 
 def log_directory() -> str:
-    base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.expanduser("~")
-    return os.path.join(base, config.ORGANIZATION_NAME.replace(" ", ""), config.SETTINGS_APP_NAME, "logs")
+    """Windows: ``%LOCALAPPDATA%/BSTechnik/PAPDesigner/logs``, Linux: ``~/.local/share/BSTechnik/PAPDesigner/logs``."""
+    from app import platforms
+
+    return os.path.join(platforms.user_data_directory(), "logs")
 
 
 def setup_logging() -> str | None:

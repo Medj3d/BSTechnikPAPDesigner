@@ -1,0 +1,77 @@
+# Linux-Version: baut bei jeder Veröffentlichung das AppImage und hängt es samt version-linux.json an.
+#
+# Die Veröffentlichung selbst entsteht unter Windows mit release.bat (tools/make_release.py). Sobald sie
+# veröffentlicht ist, läuft dieser Workflow: Tests unter Linux, AppImage bauen, kurz starten, hochladen.
+# Gebaut wird auf Ubuntu 22.04, damit das AppImage auch auf älteren Distributionen läuft.
+# Von Hand: Actions → „Linux-AppImage“ → „Run workflow“ mit der Version (z. B. v1.12.0).
+name: Linux-AppImage
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version, an die das AppImage gehängt wird (z. B. v1.12.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  appimage:
+    runs-on: ubuntu-22.04
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Systembibliotheken für Qt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xkb1 \
+            libxcb-xinerama0 libxcb-randr0 libxcb-shape0 libxkbcommon-x11-0 libxkbcommon0 \
+            libegl1 libgl1 libfontconfig1 libdbus-1-3 desktop-file-utils shared-mime-info
+
+      - name: Abhängigkeiten
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q
+
+      - name: AppImage bauen
+        env:
+          SKIP_PIP: "1"
+          PYTHON: python
+        run: bash tools/build_appimage.sh
+
+      - name: AppImage kurz starten
+        env:
+          QT_QPA_PLATFORM: offscreen
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: |
+          set +e
+          timeout 30 ./dist/BSTechnikPAPDesigner-x86_64.AppImage --neues-fenster
+          code=$?
+          # 124: nach 30 Sekunden noch am Laufen – so soll es sein
+          if [ "$code" -ne 124 ]; then echo "Das AppImage hat sich vorzeitig beendet (Code $code)"; exit 1; fi
+
+      - name: version-linux.json erzeugen
+        run: python tools/make_release.py --ohne-upload
+
+      - name: An die Veröffentlichung hängen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # erst das AppImage, dann die Angaben dazu: So zeigt version-linux.json nie auf eine fehlende Datei
+          gh release upload "$TAG" dist/BSTechnikPAPDesigner-x86_64.AppImage --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$TAG" dist/version-linux.json --clobber --repo "$GITHUB_REPOSITORY"

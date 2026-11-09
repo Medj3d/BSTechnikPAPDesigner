@@ -67,7 +67,7 @@ Alle Grafiken (Bausteine, Icons, Programmsymbol) werden programmatisch mit
 
 ## Voraussetzungen und Start
 
-* Windows 10/11
+* Windows 10/11 oder Linux (fertiges Programm als AppImage, siehe [Linux-Version](#linux-version-appimage))
 * Python **3.10 oder neuer** (getestet mit Python 3.14 und PySide6 6.11)
 
 ```bat
@@ -521,6 +521,91 @@ Zuordnung: `.pap`-Dateien öffnen sich danach mit diesem Programm.
 * **Ohne Installer:** im Programm **Hilfe → Dateityp registrieren …** wählen.
   Die Zuordnung wird nur für den aktuellen Windows-Benutzer eingetragen
   (`HKEY_CURRENT_USER\Software\Classes`, keine Administratorrechte nötig).
+
+---
+
+## Linux-Version (AppImage)
+
+Die Linux-Version kann dasselbe wie die Windows-Version und kommt als eine
+einzige Datei: `BSTechnikPAPDesigner-x86_64.AppImage`. Sie läuft auf fast allen
+64-Bit-Distributionen (Ubuntu ab 22.04, Debian 12, Fedora, openSUSE, Linux Mint …),
+ohne dass etwas installiert werden muss. Die neueste Fassung steht immer unter
+
+    https://github.com/Medj3d/BSTechnikPAPDesigner/releases/latest/download/BSTechnikPAPDesigner-x86_64.AppImage
+
+### Installieren
+
+1. Die Datei herunterladen und an einen festen Ort legen, z. B. `~/Programme/`
+   (danach nicht mehr verschieben – sonst einfach einmal von der neuen Stelle starten).
+2. Ausführbar machen: Rechtsklick → Eigenschaften → „Als Programm ausführen“, oder
+
+   ```bash
+   chmod +x ~/Programme/BSTechnikPAPDesigner-x86_64.AppImage
+   ```
+
+3. Per Doppelklick starten. Beim ersten Start richtet das Programm von selbst
+   einen Eintrag im Startmenü und den Dateityp `.pap` ein (Doppelklick auf eine
+   `.pap`-Datei öffnet sie dann im Programm). Das geschieht nur im eigenen
+   Benutzerordner, ohne Administratorrechte; erneuern lässt es sich mit
+   **Hilfe → Dateityp registrieren …**.
+
+**Startet das AppImage nicht** (Meldung „dlopen(): error loading libfuse.so.2“
+oder „AppImages require FUSE to run“), fehlt die Bibliothek `libfuse2`:
+
+* Ubuntu 22.04 / Debian: `sudo apt install libfuse2`
+* Ubuntu 24.04 und neuer: `sudo apt install libfuse2t64`
+* Fedora: `sudo dnf install fuse-libs`
+
+Ohne Administratorrechte geht es auch so (langsamerer Start):
+`./BSTechnikPAPDesigner-x86_64.AppImage --appimage-extract-and-run`.
+
+Die übrigen Bibliotheken, die Qt für die Anzeige braucht (z. B. `libxcb-cursor0`),
+bringt das AppImage selbst mit.
+
+### Wo die Linux-Version ihre Daten ablegt
+
+| Was | Wo |
+|---|---|
+| Einstellungen | `~/.config/BS Technik/PAPDesigner.conf` |
+| Fehlerprotokoll, Sicherungskopien | `~/.local/share/BSTechnik/PAPDesigner/` (`logs`, `autosave`) |
+| Startmenü-Eintrag und Dateityp | `~/.local/share/applications/bstechnik-papdesigner.desktop`, `~/.local/share/mime/packages/bstechnik-papdesigner.xml`, Standardprogramm in `~/.config/mimeapps.list` |
+
+### Updates unter Linux
+
+Das AppImage prüft beim Start wie die Windows-Version auf eine neue Version
+(in `version-linux.json` der neuesten Veröffentlichung – Windows-Programme
+lesen weiter nur `version.json`). Nach Zustimmung lädt es das neue AppImage
+neben das alte, prüft die Prüfsumme, ersetzt die Datei in einem Schritt und
+startet neu. Liegt das AppImage in einem schreibgeschützten Ordner, gibt es nur
+einen Hinweis mit dem Link zur neuen Datei.
+
+**Schulbetrieb:** Updates schaltet der Administrator für alle Benutzer mit der
+Datei `/etc/bstechnik-pap/policy.ini` ab (gleicher Inhalt wie unter Windows,
+`[Updates]` / `Disabled=1`); eine `policy.ini` neben der AppImage-Datei wirkt
+ebenso.
+
+### Bauen und veröffentlichen
+
+Die Linux-Version entsteht von selbst: Sobald unter Windows mit `release.bat`
+eine neue Version veröffentlicht ist, baut der GitHub-Workflow
+[`.github/workflows/linux-appimage.yml`](.github/workflows/linux-appimage.yml)
+auf Ubuntu 22.04 das AppImage, lässt alle Tests laufen, startet es probehalber
+und hängt `BSTechnikPAPDesigner-x86_64.AppImage` und `version-linux.json` an
+dieselbe Veröffentlichung (dauert rund 10 Minuten). Von Hand lässt er sich
+unter **Actions → Linux-AppImage → Run workflow** mit der Version starten.
+
+Lokal auf einem Linux-Rechner (am besten einem älteren System wie Ubuntu 22.04,
+damit das AppImage auch dort läuft):
+
+```bash
+sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxkbcommon-x11-0
+python3 -m pip install -r requirements-dev.txt
+bash tools/build_appimage.sh                    # → dist/BSTechnikPAPDesigner-x86_64.AppImage
+python3 tools/make_release.py --ohne-upload     # → dist/version-linux.json
+```
+
+Ohne `--ohne-upload` hängt `make_release.py` beides an die bestehende
+Veröffentlichung `v<Version>`.
 
 ---
 

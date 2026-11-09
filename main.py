@@ -45,6 +45,9 @@ def _create_application(arguments: list[str] | tuple[str, ...] = ()):
     app.setApplicationVersion(config.APP_VERSION)
     app.setOrganizationName(config.ORGANIZATION_NAME)
     app.setOrganizationDomain(config.ORGANIZATION_DOMAIN)
+    if sys.platform.startswith("linux"):
+        # Wayland/Taskleiste: Fenster gehören zum Startmenü-Eintrag (Symbol, Gruppierung)
+        app.setDesktopFileName(config.LINUX_DESKTOP_ID)
 
     from app import i18n
     from app.settings_store import SettingsStore
@@ -217,6 +220,10 @@ def main() -> int:
         instance_server.set_handler(lambda received: _open_in_window(window, received))
 
     if resources.is_frozen():
+        # Linux (AppImage): Startmenü-Eintrag und Dateityp „.pap“ einrichten, falls sie fehlen oder veraltet sind
+        from app import file_association
+
+        QTimer.singleShot(2000, file_association.ensure_installed)
         # Reste eines früheren Updates entfernen und nach einer neuen Version sehen (wenn das erlaubt
         # und gewünscht ist – siehe app/policy.py und Hilfe → „Beim Start nach Updates suchen“)
         QTimer.singleShot(3000, window.updates.cleanup_leftovers)

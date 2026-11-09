@@ -12,7 +12,7 @@ import os
 import subprocess
 import sys
 
-from app import config, resources
+from app import config, platforms, resources
 
 log = logging.getLogger(__name__)
 
@@ -20,8 +20,9 @@ MAIN_SCRIPT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,
 
 
 def command(files: list[str] | tuple[str, ...] = (), pid: int | None = None, language: str | None = None) -> list[str]:
-    """Die Befehlszeile für den Neustart: dieselbe Programmdatei bzw. ``main.py``, wartet auf ``pid``."""
-    program = [sys.executable] if resources.is_frozen() else [sys.executable, MAIN_SCRIPT]
+    """Die Befehlszeile für den Neustart: dieselbe Programmdatei (beim AppImage die AppImage-Datei) bzw.
+    ``main.py``, wartet auf ``pid``."""
+    program = [platforms.launch_executable()] if resources.is_frozen() else [sys.executable, MAIN_SCRIPT]
     arguments = [config.WAIT_FOR_FLAG, str(pid if pid is not None else os.getpid())]
     if language:
         arguments += [config.LANGUAGE_FLAG, language]
@@ -32,7 +33,7 @@ def launch_after_quit(application, files: list[str] | tuple[str, ...] = ()) -> N
     """Startet das Programm neu, sobald dieses beendet ist."""
     def start() -> None:
         try:
-            subprocess.Popen(command(files), close_fds=True)
+            subprocess.Popen(command(files), close_fds=True, env=platforms.host_environment())
         except OSError:
             log.exception("Das Programm konnte nicht neu gestartet werden")
 

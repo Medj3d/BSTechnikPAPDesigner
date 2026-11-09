@@ -7,8 +7,9 @@ Programm selbst – als Reiter im selben Fenster.
 Ablauf (``acquire``):
 
 1. Der neue Programmstart fragt über eine lokale Pipe (``QLocalServer``, nur für den eigenen Benutzer und die
-   eigene Windows-Sitzung): Läuft schon ein Programm? Dann schickt er die Dateien (als absolute Pfade), wartet auf
-   die Bestätigung und beendet sich. Das laufende Programm öffnet die Dateien und holt sein Fenster nach vorn.
+   eigene Windows-Sitzung; unter Linux ein Socket im Temp-Ordner): Läuft schon ein Programm? Dann schickt er
+   die Dateien (als absolute Pfade), wartet auf die Bestätigung und beendet sich. Das laufende Programm öffnet
+   die Dateien und holt sein Fenster nach vorn.
 2. Läuft keins, wird dieses Programm das erste und lauscht auf weitere Starts. Dateien, die schon während des
    Starts (Ladebildschirm) eintreffen, werden gemerkt und geöffnet, sobald das Fenster bereit ist.
 3. Wer das „erste“ Programm ist, entscheidet eine Sperre (benannter Windows-Mutex, sonst eine Sperrdatei): Sie
@@ -282,6 +283,10 @@ class InstanceServer(QObject):
         server = QLocalServer(self)
         server.setSocketOptions(QLocalServer.SocketOption.UserAccessOption)  # nur der eigene Benutzer
         server.newConnection.connect(self._on_new_connection)
+        if self._guard is not None and not sys.platform.startswith("win"):
+            # Unter Linux/macOS ist die Pipe eine Datei, die nach einem Absturz liegen bleibt und ``listen``
+            # scheitern ließe. Wer die Sperre hält, ist sicher allein – eine liegengebliebene Datei ist verwaist.
+            QLocalServer.removeServer(self._name)
         if not server.listen(self._name):
             server.deleteLater()
             return False

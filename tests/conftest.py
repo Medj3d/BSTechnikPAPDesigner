@@ -36,8 +36,16 @@ config.AUTO_SAVE_DEFAULT = False
 @pytest.fixture(autouse=True)
 def _isolated_local_appdata(monkeypatch, tmp_path_factory):
     """Protokoll, Sicherungen und Update-Ordner liegen in jedem Test in einem eigenen Temp-Ordner –
-    nie im echten ``%LOCALAPPDATA%`` des Benutzers."""
-    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path_factory.mktemp("localappdata")))
+    nie im echten ``%LOCALAPPDATA%`` (Linux: ``~/.local/share``) des Benutzers."""
+    from app import platforms
+
+    local = tmp_path_factory.mktemp("localappdata")
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+    # Linux/macOS: Datenordner und Desktop-Verknüpfungen ebenfalls in den Temp-Ordner
+    monkeypatch.setenv("XDG_DATA_HOME", str(local / "xdg-data"))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(local / "xdg-config"))
+    monkeypatch.setattr(platforms, "_generic_data_location", lambda: str(local / "xdg-data"))
+    monkeypatch.delenv("APPIMAGE", raising=False)
     monkeypatch.delenv("BSTECHNIK_PAP_STARTED_FROM_UPDATE", raising=False)
     yield
 

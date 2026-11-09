@@ -25,7 +25,10 @@ EXE = config.EXECUTABLE_NAME
 
 
 @pytest.fixture(autouse=True)
-def _application(qapp):
+def _application(qapp, monkeypatch):
+    # Diese Tests beschreiben den Update-Weg über den Programmordner (Windows) – auch, wenn sie unter Linux
+    # laufen. Der Linux-Weg (AppImage ersetzen) steht in tests/test_linux_platform.py.
+    monkeypatch.setattr(updater.platforms, "is_linux", lambda: False)
     yield
 
 
@@ -528,6 +531,7 @@ def load_make_release():
 def test_setup_file_is_built_and_published_with_the_release(tmp_path, monkeypatch):
     import types
     make_release = load_make_release()
+    monkeypatch.setattr(make_release, "LINUX", False)  # Veröffentlichung der Windows-Version
     dist = tmp_path / "dist"
     program_folder(dist / "BSTechnikPAPDesigner", "neu")
     monkeypatch.setattr(make_release, "DIST", str(dist))
@@ -578,6 +582,7 @@ def test_installer_script_installs_without_admin_rights_and_takes_its_version_fr
 
 def test_release_files_are_built_and_understood(tmp_path, monkeypatch):
     make_release = load_make_release()
+    monkeypatch.setattr(make_release, "LINUX", False)  # Veröffentlichung der Windows-Version
     dist = tmp_path / "dist"
     program_folder(dist / "BSTechnikPAPDesigner", "neu")
     monkeypatch.setattr(make_release, "DIST", str(dist))

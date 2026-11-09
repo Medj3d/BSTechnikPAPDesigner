@@ -17,6 +17,12 @@ und veröffentlicht alles mit der GitHub-Befehlszeile (``gh``) als Version
 ``v<Versionsnummer>``. Aufruf über ``release.bat`` oder::
 
     python tools\\make_release.py ["Was ist neu"] [--ohne-upload]
+
+**Linux**: Voraussetzung ist ``tools/build_appimage.sh`` (``dist/BSTechnikPAPDesigner-x86_64.AppImage``).
+Erzeugt wird ``version-linux.json`` (Version und Prüfsumme des AppImage); ohne ``--ohne-upload`` werden
+AppImage und Angaben an die schon bestehende Veröffentlichung ``v<Versionsnummer>`` gehängt. Das übernimmt
+normalerweise der GitHub-Workflow ``.github/workflows/linux-appimage.yml``, sobald die Windows-Version
+veröffentlicht ist. Installierte Windows-Programme lesen nur ``version.json`` und bleiben davon unberührt.
 """
 
 from __future__ import annotations
@@ -34,6 +40,7 @@ from app import config, updater  # noqa: E402
 
 DIST = os.path.join(ROOT, "dist")
 PROGRAM = os.path.join(DIST, os.path.splitext(config.EXECUTABLE_NAME)[0])
+LINUX = sys.platform.startswith("linux")
 INSTALLER_SCRIPT = os.path.join(ROOT, "installer", "BSTechnikPAPDesigner.iss")
 NO_UPLOAD_FLAG = "--ohne-upload"
 
@@ -47,17 +54,48 @@ def build_package() -> tuple[str, str]:
     """Packt den Programmordner und schreibt ``version.json``. Gibt beide Pfade zurück."""
     if not os.path.isfile(os.path.join(PROGRAM, config.EXECUTABLE_NAME)):
         raise SystemExit(f"Das Programm wurde noch nicht gebaut ({PROGRAM}). Bitte zuerst build_exe.bat ausführen.")
-    package = os.path.join(DIST, config.UPDATE_PACKAGE_NAME)
+    package = os.path.join(DIST, config.WINDOWS_PACKAGE_NAME)
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
         for folder, _dirs, files in os.walk(PROGRAM):
             for name in files:
                 path = os.path.join(folder, name)
                 archive.write(path, os.path.relpath(path, PROGRAM))
-    manifest = os.path.join(DIST, config.UPDATE_MANIFEST_NAME)
+    manifest = os.path.join(DIST, config.WINDOWS_MANIFEST_NAME)
     data = updater.write_manifest(manifest, package, release_notes())
     print(f"Paket:   {package} ({data['size'] // (1024 * 1024)} MB)")
     print(f"Angaben: {manifest} (Version {data['version']}, {data['released']})")
     return package, manifest
+
+
+def build_linux_manifest() -> tuple[str, str]:
+    """Linux: schreibt ``version-linux.json`` zum fertigen AppImage. Gibt beide Pfade zurück."""
+    package = os.path.join(DIST, config.LINUX_PACKAGE_NAME)
+    if not os.path.isfile(package):
+        raise SystemExit(f"Das AppImage wurde noch nicht gebaut ({package}). Bitte zuerst tools/build_appimage.sh "
+                         "ausführen.")
+    manifest = os.path.join(DIST, config.LINUX_MANIFEST_NAME)
+    data = updater.write_manifest(manifest, package, release_notes())
+    print(f"AppImage: {package} ({data['size'] // (1024 * 1024)} MB)")
+    print(f"Angaben:  {manifest} (Version {data['version']}, {data['released']})")
+    return package, manifest
+
+
+def publish_linux(package: str, manifest: str) -> int:
+    """Linux: hängt AppImage und ``version-linux.json`` an die bestehende Veröffentlichung."""
+    repo = updater.repository()
+    tag = f"v{config.APP_VERSION}"
+    if not repo or shutil.which("gh") is None:
+        print("\nKein GitHub-Projekt eingetragen oder die GitHub-Befehlszeile (gh) fehlt – nicht hochgeladen.")
+        return 1
+    # erst das AppImage, dann die Angaben dazu: So zeigt version-linux.json nie auf eine fehlende Datei
+    for path in (package, manifest):
+        result = subprocess.run(["gh", "release", "upload", tag, path, "--clobber", "--repo", repo], cwd=ROOT)
+        if result.returncode != 0:
+            print(f"\nDas Hochladen ist fehlgeschlagen. Gibt es die Veröffentlichung {tag} schon? Sie entsteht unter")
+            print("Windows mit release.bat; danach hängt der GitHub-Workflow die Linux-Version von selbst an.")
+            return result.returncode
+    print(f"\nLinux-Version angehängt: https://github.com/{repo}/releases/tag/{tag}")
+    return 0
 
 
 def find_inno_setup() -> str | None:
@@ -114,6 +152,12 @@ def publish(package: str, manifest: str, setup: str | None = None) -> int:
 
 
 def main() -> int:
+    if LINUX:
+        package, manifest = build_linux_manifest()
+        if NO_UPLOAD_FLAG in sys.argv[1:]:
+            print("\nNicht hochgeladen (--ohne-upload).")
+            return 0
+        return publish_linux(package, manifest)
     package, manifest = build_package()
     setup = build_setup()
     if NO_UPLOAD_FLAG in sys.argv[1:]:

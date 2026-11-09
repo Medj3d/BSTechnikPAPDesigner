@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayo
                                QMainWindow, QMenu, QMessageBox, QPushButton, QStackedWidget,
                                QTabBar, QTabWidget, QToolBar, QToolButton, QVBoxLayout, QWidget)
 
-from app import (alignment, clipboard, config, examples, export, file_association, i18n, icons, preferences, restart,
+from app import (alignment, clipboard, config, examples, export, file_association, i18n, icons, platforms, preferences, restart,
                  single_instance, styles, subprograms)
 from app import theme as theme_module
 from app.actions import ALIGN_ACTIONS, ActionRegistry, clean_text, insert_action_name, sequence_text
@@ -2065,13 +2065,18 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def register_file_type(self) -> None:
-        answer = QMessageBox.question(
-            self, tr("Dateityp registrieren"),
-            tr("Sollen Dateien mit der Endung „{ext}“ für Ihr Benutzerkonto mit {app} geöffnet werden?\n\n"
-               "Die Zuordnung wird nur für den aktuellen Windows-Benutzer eingetragen. Eine bestehende "
-               "Zuordnung zu einem anderen Programm (z. B. dem PapDesigner) wird dabei ersetzt.",
-               ext=config.FILE_EXTENSION, app=config.APP_NAME),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if platforms.is_windows():
+            question = tr("Sollen Dateien mit der Endung „{ext}“ für Ihr Benutzerkonto mit {app} geöffnet werden?\n\n"
+                          "Die Zuordnung wird nur für den aktuellen Windows-Benutzer eingetragen. Eine bestehende "
+                          "Zuordnung zu einem anderen Programm (z. B. dem PapDesigner) wird dabei ersetzt.",
+                          ext=config.FILE_EXTENSION, app=config.APP_NAME)
+        else:
+            question = tr("Sollen Dateien mit der Endung „{ext}“ für Ihr Benutzerkonto mit {app} geöffnet werden?\n\n"
+                          "Dazu kommen ein Eintrag im Startmenü und der Dateityp in Ihren Benutzerordner. Eine "
+                          "bestehende Zuordnung zu einem anderen Programm wird dabei ersetzt.",
+                          ext=config.FILE_EXTENSION, app=config.APP_NAME)
+        answer = QMessageBox.question(self, tr("Dateityp registrieren"), question,
+                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if answer != QMessageBox.StandardButton.Yes:
             return
         try:

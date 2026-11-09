@@ -12,6 +12,9 @@ nachfragt, lassen sich die Updates zentral abschalten – auf einem dieser Wege:
       [Updates]
       Disabled=1
 
+* unter Linux: dieselbe ``policy.ini`` in ``/etc/bstechnik-pap/`` (für alle Benutzer des Rechners) oder neben
+  der AppImage-Datei
+
 Abgeschaltet heißt: keine Prüfung beim Start, „Nach Updates suchen“ und der
 Schalter dafür sind gesperrt, und das Programm gibt beim Start auch nicht an
 eine schon früher in den Benutzerordner geladene neuere Version ab.
@@ -69,14 +72,24 @@ def _policy_file(directory: str | None) -> configparser.ConfigParser | None:
 
 
 def program_directory() -> str | None:
-    """Ordner des fertigen Programms (dort liegt ``policy.ini``); ``None`` beim Start aus dem Quelltext."""
+    """Ordner des fertigen Programms (dort liegt ``policy.ini``); ``None`` beim Start aus dem Quelltext.
+
+    Beim AppImage der Ordner, in dem die AppImage-Datei liegt (nicht der beim Start eingehängte Ordner)."""
+    from app import platforms
+
+    appimage = platforms.appimage_path()
+    if appimage:
+        return os.path.dirname(appimage)
     return os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False) else None
 
 
 def policy_directories() -> list[str]:
-    """Ordner, in denen eine ``policy.ini`` gilt: der eigene Programmordner und – bei einer Kopie im
-    Benutzerordner – der Ordner der installierten Version, die an sie abgegeben hat."""
-    folders = [program_directory(), os.environ.get(INSTALLATION_ENV)]
+    """Ordner, in denen eine ``policy.ini`` gilt: der eigene Programmordner, – bei einer Kopie im
+    Benutzerordner – der Ordner der installierten Version, die an sie abgegeben hat, und unter Linux
+    ``/etc/bstechnik-pap`` für den ganzen Rechner."""
+    from app import platforms
+
+    folders = [program_directory(), os.environ.get(INSTALLATION_ENV), *platforms.system_policy_directories()]
     return list(dict.fromkeys(folder for folder in folders if folder))
 
 

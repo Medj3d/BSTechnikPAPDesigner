@@ -1,10 +1,16 @@
-"""Registrierung der Dateiendung ``.pap`` unter Windows.
+"""Registrierung der Dateiendung ``.pap`` (Doppelklick öffnet das Programm).
 
-Die Zuordnung wird ausschließlich für den aktuellen Benutzer
+**Windows**: Die Zuordnung wird ausschließlich für den aktuellen Benutzer
 (``HKEY_CURRENT_USER\\Software\\Classes``) eingetragen und erfordert daher
 keine Administratorrechte. Sie wird nur auf ausdrücklichen Wunsch des
 Benutzers (Menü „Hilfe“) vorgenommen. Für eine Installation über ein
 Setup-Programm siehe ``installer/BSTechnikPAPDesigner.iss``.
+
+**Linux**: ``.desktop``-Datei, Dateityp und Symbole im Benutzerordner – siehe ``app/file_association_linux.py``.
+Das AppImage richtet das beim Start von selbst ein (``ensure_installed``).
+
+Eine spätere macOS-Version bekommt hier einen weiteren Zweig (dort meldet das Programmpaket den Dateityp
+selbst in seiner ``Info.plist`` an).
 """
 
 from __future__ import annotations
@@ -12,14 +18,44 @@ from __future__ import annotations
 import os
 import sys
 
-from app import config, resources
+from app import config, platforms, resources
 from app.i18n import tr
 
 
 def is_supported() -> bool:
-    return sys.platform.startswith("win")
+    return platforms.is_windows() or platforms.is_linux()
 
 
+def register() -> None:
+    """Trägt die Dateizuordnung ein. Wirft ``OSError`` bei Fehlern."""
+    if platforms.is_linux():
+        from app import file_association_linux
+
+        file_association_linux.register()
+        return
+    register_windows()
+
+
+def unregister() -> None:
+    if platforms.is_linux():
+        from app import file_association_linux
+
+        file_association_linux.unregister()
+        return
+    unregister_windows()
+
+
+def ensure_installed() -> bool:
+    """Beim Programmstart: Unter Linux (nur im AppImage) Verknüpfung und Dateityp einrichten, wenn sie fehlen
+    oder veraltet sind. Unter Windows geschieht nichts (dort richtet das Setup die Zuordnung ein)."""
+    if platforms.is_linux():
+        from app import file_association_linux
+
+        return file_association_linux.ensure_installed()
+    return False
+
+
+# ==================================================================== Windows
 def open_command() -> str:
     """Befehlszeile, mit der Windows eine Projektdatei öffnet."""
     if getattr(sys, "frozen", False):
@@ -39,9 +75,9 @@ def icon_location() -> str:
     return f'"{sys.executable}",0' if getattr(sys, "frozen", False) else ""
 
 
-def register() -> None:
-    """Trägt die Dateizuordnung ein. Wirft ``OSError`` bei Fehlern."""
-    if not is_supported():
+def register_windows() -> None:
+    """Trägt die Dateizuordnung in die Registry ein. Wirft ``OSError`` bei Fehlern."""
+    if not platforms.is_windows():
         raise OSError(tr("Die Dateizuordnung ist nur unter Windows verfügbar."))
     import winreg
 
@@ -61,8 +97,8 @@ def register() -> None:
     _notify_shell()
 
 
-def unregister() -> None:
-    if not is_supported():
+def unregister_windows() -> None:
+    if not platforms.is_windows():
         raise OSError(tr("Die Dateizuordnung ist nur unter Windows verfügbar."))
     import winreg
 
