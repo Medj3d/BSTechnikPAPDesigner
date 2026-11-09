@@ -68,7 +68,9 @@ Alle Grafiken (Bausteine, Icons, Programmsymbol) werden programmatisch mit
 ## Voraussetzungen und Start
 
 * Windows 10/11 oder Linux (fertiges Programm als AppImage, siehe [Linux-Version](#linux-version-appimage))
-* Python **3.10 oder neuer** (getestet mit Python 3.14 und PySide6 6.11)
+* Python **3.12 oder neuer** (getestet mit Python 3.15 unter Windows und 3.13 unter Linux, PySide6 6.12).
+  Mit PySide6 6.12 stürzt Python 3.10 ab – unter Ubuntu 22.04 deshalb Python 3.13 nehmen, etwa aus dem
+  deadsnakes-PPA.
 
 ```bat
 cd BSTechnikPAPDesigner
@@ -549,18 +551,23 @@ ohne dass etwas installiert werden muss. Die neueste Fassung steht immer unter
    Benutzerordner, ohne Administratorrechte; erneuern lässt es sich mit
    **Hilfe → Dateityp registrieren …**.
 
-**Startet das AppImage nicht** (Meldung „dlopen(): error loading libfuse.so.2“
-oder „AppImages require FUSE to run“), fehlt die Bibliothek `libfuse2`:
+**libfuse2 wird nicht gebraucht:** Das AppImage nutzt die neue, statisch
+gebaute AppImage-Laufzeit. Ältere Anleitungen im Netz, die `libfuse2`
+verlangen, gelten dafür nicht. Nötig ist nur FUSE selbst, das auf praktisch
+jedem Desktop-System schon installiert ist. **Startet das AppImage trotzdem
+nicht** (Meldung „fusermount: not found“ oder „Cannot mount AppImage“):
 
-* Ubuntu 22.04 / Debian: `sudo apt install libfuse2`
-* Ubuntu 24.04 und neuer: `sudo apt install libfuse2t64`
-* Fedora: `sudo dnf install fuse-libs`
+* Ubuntu / Debian: `sudo apt install fuse3`
+* Fedora: `sudo dnf install fuse3`
 
-Ohne Administratorrechte geht es auch so (langsamerer Start):
+Ohne Administratorrechte geht es auch so (etwas langsamerer Start):
 `./BSTechnikPAPDesigner-x86_64.AppImage --appimage-extract-and-run`.
 
 Die übrigen Bibliotheken, die Qt für die Anzeige braucht (z. B. `libxcb-cursor0`),
-bringt das AppImage selbst mit.
+bringt das AppImage selbst mit, ebenso die Schrift „Selawik“ (Microsoft, SIL Open
+Font License, `assets/fonts`). Sie hat dieselben Maße wie die Windows-Schrift
+Segoe UI. So sind Texte in Bausteinen unter Linux genauso breit wie unter
+Windows, und eine unter Windows gespeicherte Datei sieht unter Linux gleich aus.
 
 ### Wo die Linux-Version ihre Daten ablegt
 
@@ -595,14 +602,20 @@ dieselbe Veröffentlichung (dauert rund 10 Minuten). Von Hand lässt er sich
 unter **Actions → Linux-AppImage → Run workflow** mit der Version starten.
 
 Lokal auf einem Linux-Rechner (am besten einem älteren System wie Ubuntu 22.04,
-damit das AppImage auch dort läuft):
+damit das AppImage auch dort läuft; Python 3.13 aus dem deadsnakes-PPA):
 
 ```bash
-sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxkbcommon-x11-0
-python3 -m pip install -r requirements-dev.txt
-bash tools/build_appimage.sh                    # → dist/BSTechnikPAPDesigner-x86_64.AppImage
-python3 tools/make_release.py --ohne-upload     # → dist/version-linux.json
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt install python3.13 python3.13-venv curl libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+    libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxkbcommon-x11-0
+python3.13 -m venv ~/venv-pap && ~/venv-pap/bin/pip install -r requirements-dev.txt
+PYTHON=~/venv-pap/bin/python bash tools/build_appimage.sh   # → dist/BSTechnikPAPDesigner-x86_64.AppImage
+~/venv-pap/bin/python tools/make_release.py --ohne-upload   # → dist/version-linux.json
 ```
+
+Getestet unter WSL (Ubuntu 22.04 mit WSLg): Start, Öffnen und Speichern,
+Doppelklick auf `.pap`-Dateien über den Startmenü-Eintrag, Kopieren als Bild,
+Einstellungen nach Neustart und das Update (AppImage wird ersetzt und neu gestartet).
 
 Ohne `--ohne-upload` hängt `make_release.py` beides an die bestehende
 Veröffentlichung `v<Version>`.

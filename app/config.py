@@ -102,7 +102,8 @@ UPDATE_MANIFEST_NAME = {"windows": WINDOWS_MANIFEST_NAME, "linux": LINUX_MANIFES
                         "macos": "version-macos.json"}[_SYSTEM]
 UPDATE_PACKAGE_NAME = {"windows": WINDOWS_PACKAGE_NAME, "linux": LINUX_PACKAGE_NAME,
                        "macos": "BSTechnikPAPDesigner-macOS.zip"}[_SYSTEM]
-EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe" if _SYSTEM == "windows" else "BSTechnikPAPDesigner"
+WINDOWS_EXECUTABLE_NAME = "BSTechnikPAPDesigner.exe"
+EXECUTABLE_NAME = WINDOWS_EXECUTABLE_NAME if _SYSTEM == "windows" else "BSTechnikPAPDesigner"
 # Setup-Datei zum Weitergeben (installiert das Programm; entsteht mit release.bat)
 SETUP_FILE_NAME = "BSTechnikPAPDesigner-Setup.exe"
 # Was man auf diesem System zum Installieren herunterlädt: unter Windows das Setup, unter Linux das AppImage
@@ -141,7 +142,8 @@ SIZE_STEP_WIDTH = 40
 SIZE_STEP_HEIGHT = 20
 
 # Schrift innerhalb der Bausteine (Pixelgröße in Szeneneinheiten)
-ITEM_FONT_FAMILIES = ["Segoe UI", "Inter", "Helvetica Neue", "Arial"]
+# „Selawik“ hat die Maße von Segoe UI und wird dort mitgeliefert, wo Segoe UI fehlt (Linux, siehe styles.py)
+ITEM_FONT_FAMILIES = ["Segoe UI", "Selawik", "Inter", "Helvetica Neue", "Arial"]
 ITEM_FONT_PIXEL_SIZE = 13
 LABEL_FONT_PIXEL_SIZE = 12
 

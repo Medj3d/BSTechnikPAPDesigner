@@ -22,8 +22,12 @@ cd "$(dirname "$0")/.."
 PYTHON="${PYTHON:-python3}"
 NAME="BSTechnikPAPDesigner"
 DESKTOP_ID="bstechnik-papdesigner"
-# Feste Version von appimagetool (AppImageKit 13); das AppImage braucht damit auf dem Zielsystem libfuse2
-APPIMAGETOOL_URL="https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage"
+# Feste Versionen von appimagetool und der AppImage-Laufzeit (mit Prüfsumme). Die Laufzeit ist statisch gebaut:
+# Das AppImage braucht auf dem Zielsystem keine libfuse2 mehr, nur FUSE selbst (fusermount, fast überall da).
+APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage"
+APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64"
+RUNTIME_SHA256="2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d"
 BUILD="${BUILD_DIR:-$(mktemp -d -t bstechnik-appimage-XXXXXX)}"
 mkdir -p "$BUILD"
 
@@ -70,20 +74,29 @@ cp assets/app_icon.png "$APPDIR/$DESKTOP_ID.png"
 ln -sf "$DESKTOP_ID.png" "$APPDIR/.DirIcon"
 
 # ------------------------------------------------------------- appimagetool
-TOOL="${APPIMAGETOOL:-$(command -v appimagetool || true)}"
+download() {  # download <URL> <Ziel> <SHA-256>: lädt nur einmal und prüft die Prüfsumme
+    if [ ! -f "$2" ] || ! echo "$3  $2" | sha256sum -c --status; then
+        echo "Lade $1"
+        curl -fsSL -o "$2.part" "$1"
+        echo "$3  $2.part" | sha256sum -c --quiet || { echo "Prüfsumme falsch: $1"; exit 1; }
+        mv "$2.part" "$2"
+    fi
+    chmod 755 "$2"
+}
+
+TOOL="${APPIMAGETOOL:-}"
 if [ -z "$TOOL" ]; then
     TOOL="$BUILD/appimagetool-x86_64.AppImage"
-    if [ ! -x "$TOOL" ]; then
-        echo "Lade appimagetool: $APPIMAGETOOL_URL"
-        curl -fsSL -o "$TOOL" "$APPIMAGETOOL_URL"
-        chmod 755 "$TOOL"
-    fi
+    download "$APPIMAGETOOL_URL" "$TOOL" "$APPIMAGETOOL_SHA256"
 fi
+RUNTIME="$BUILD/runtime-x86_64"
+download "$RUNTIME_URL" "$RUNTIME" "$RUNTIME_SHA256"
 
 mkdir -p dist
 rm -f "dist/$PACKAGE"
 # APPIMAGE_EXTRACT_AND_RUN: appimagetool selbst ohne FUSE starten (z. B. in Containern und CI)
-ARCH=x86_64 VERSION="$VERSION" APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" --no-appstream "$APPDIR" "dist/$PACKAGE"
+ARCH=x86_64 VERSION="$VERSION" APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" --no-appstream --runtime-file "$RUNTIME" \
+    "$APPDIR" "dist/$PACKAGE"
 chmod 755 "dist/$PACKAGE"
 echo
 echo "Fertig: dist/$PACKAGE ($(du -h "dist/$PACKAGE" | cut -f1))"

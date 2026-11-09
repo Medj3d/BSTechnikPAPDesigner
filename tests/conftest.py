@@ -141,3 +141,23 @@ def add(scene, element_type, x, y):
 def connect(scene, source, source_port, target, target_port):
     connection_id = scene.create_connection(source, source_port, target, target_port)
     return scene.connection(connection_id) if connection_id else None
+
+
+# Linux: PySide6 stürzt gelegentlich beim Aufräumen nach dem letzten Test ab (Speicherfreigabe von Qt-Objekten
+# beim Beenden von Python) – obwohl alle Tests fertig sind. Damit das Ergebnis zählt und nicht der Absturz, endet
+# der Testprozess dort nach dem Bericht sofort mit dem echten Ergebnis. Unter Windows bleibt alles, wie es ist.
+_exit_status = None
+
+
+def pytest_sessionfinish(session, exitstatus):
+    global _exit_status
+    _exit_status = int(exitstatus)
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_unconfigure(config):
+    if sys.platform.startswith("win") or _exit_status is None or os.environ.get("PAP_TESTS_NORMAL_EXIT"):
+        return
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(_exit_status)

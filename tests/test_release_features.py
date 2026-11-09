@@ -380,7 +380,7 @@ def test_update_check_reads_the_latest_release(monkeypatch):
     monkeypatch.setattr(config, "UPDATE_REPOSITORY", "schule/pap")
     urls = []
     info = updater.fetch_update_info(opener=lambda url, timeout: urls.append(url) or FakeResponse(manifest()))
-    assert urls == ["https://github.com/schule/pap/releases/latest/download/version.json"]
+    assert urls == [f"https://github.com/schule/pap/releases/latest/download/{config.UPDATE_MANIFEST_NAME}"]
     assert updater.is_newer(info.version, config.APP_VERSION)
 
     def missing(url, timeout):
@@ -572,7 +572,7 @@ def test_installer_script_installs_without_admin_rights_and_takes_its_version_fr
     script = raw.decode("utf-8-sig")
     assert "PrivilegesRequired=lowest" in script  # Benutzerprofil: dort funktionieren die Updates
     assert f"OutputBaseFilename={os.path.splitext(config.SETUP_FILE_NAME)[0]}" in script
-    assert f'#define AppExe "{config.EXECUTABLE_NAME}"' in script
+    assert f'#define AppExe "{config.WINDOWS_EXECUTABLE_NAME}"' in script
     assert config.APP_VERSION not in script and "#ifndef AppVersion" in script  # Version kommt vom Bau
     assert f'#define ProgId "{config.FILE_PROG_ID}"' in script and f"Classes\\{config.FILE_EXTENSION}" in script
     assert os.path.isfile(os.path.join(ROOT, "assets", "file_icon.ico")) and r"_internal\assets\file_icon.ico" in script
@@ -667,7 +667,7 @@ def test_write_protected_program_folder_gets_a_quiet_hint_instead_of_a_question(
     text = shown[0]
     assert "99.0.0" in text and "Mai 2030" in text and config.APP_VERSION in text
     assert "Administrator" in text and "Neu: alles" in text
-    assert f"https://github.com/schule/pap/releases/latest/download/{config.SETUP_FILE_NAME}" in text
+    assert f"https://github.com/schule/pap/releases/latest/download/{config.DOWNLOAD_FILE_NAME}" in text
 
     # nichts Neues: auch hier weder Hinweis noch Fenster
     window.statusBar().clearMessage()
@@ -722,7 +722,8 @@ def place_copy(version: str, complete: bool = True) -> str:
 
 
 def test_user_update_folder_lives_in_the_users_profile(monkeypatch, tmp_path):
-    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))  # Windows
+    monkeypatch.setattr(updater.platforms, "_generic_data_location", lambda: str(tmp_path))  # Linux: ~/.local/share
     assert updater.user_update_root() == str(tmp_path / "BSTechnik" / config.SETTINGS_APP_NAME / "update")
 
 

@@ -132,6 +132,37 @@ def test_host_programs_get_the_original_library_path(as_linux, monkeypatch):
     assert platforms.host_environment({"LD_LIBRARY_PATH": "/x"}) == {"LD_LIBRARY_PATH": "/x"}
 
 
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="Dateirechte gibt es so nur unter Linux/macOS")
+def test_saved_projects_get_normal_file_permissions(tmp_path):
+    from app.fileformat.serializer import save_diagram
+    from app.model.diagram import Diagram
+    old = os.umask(0o022)
+    try:
+        path = tmp_path / "plan.pap"
+        save_diagram(Diagram(), str(path))
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o644  # nicht 0600 wie die Zwischendatei
+        os.chmod(path, 0o664)  # z. B. für eine Gruppe freigegeben: bleibt beim erneuten Speichern
+        save_diagram(Diagram(), str(path))
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o664
+    finally:
+        os.umask(old)
+
+
+def test_text_in_symbols_measures_like_segoe_ui(qapp):
+    """Ohne Segoe UI (Linux) misst der Text mit der mitgelieferten Selawik genau wie unter Windows."""
+    from PySide6.QtGui import QFontDatabase, QFontInfo, QFontMetricsF
+    from app import styles
+    font = styles.item_font()
+    assert all(os.path.isfile(resources.asset_path(os.path.join("fonts", name))) for name in styles.BUNDLED_FONTS)
+    assert QFontInfo(font).family() in ("Segoe UI", "Selawik")
+    if "Segoe UI" not in QFontDatabase.families():
+        assert QFontInfo(font).family() == "Selawik"
+    # gemessen unter Windows mit Segoe UI (13 px, ohne Hinting)
+    assert round(QFontMetricsF(font).horizontalAdvance("summe = summe + x"), 1) == 122.0
+    font.setBold(True)
+    assert round(QFontMetricsF(font).horizontalAdvance("summe = summe + x"), 1) == 128.7
+
+
 # ------------------------------------------------------------------ Vorgaben
 def test_policy_file_in_etc_disables_updates_for_everyone(as_linux, monkeypatch, tmp_path):
     monkeypatch.setattr(policy, "_registry_value", lambda name: None)

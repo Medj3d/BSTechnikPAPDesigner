@@ -206,10 +206,10 @@ def test_applying_a_language_sets_direction_locale_and_fonts(qapp, restore_appli
     i18n.apply_to_application(qapp, "ja")
     assert qapp.layoutDirection() == Qt.LayoutDirection.LeftToRight
     assert QLocale().language() == QLocale.Language.Japanese
-    assert config.ITEM_FONT_FAMILIES[:4] == ["Segoe UI", "Inter", "Helvetica Neue", "Arial"]
-    assert config.ITEM_FONT_FAMILIES[4] == "Yu Gothic UI"
+    assert config.ITEM_FONT_FAMILIES[:5] == ["Segoe UI", "Selawik", "Inter", "Helvetica Neue", "Arial"]
+    assert config.ITEM_FONT_FAMILIES[5] == "Yu Gothic UI"
     i18n.apply_to_application(qapp, "zh")
-    assert config.ITEM_FONT_FAMILIES[4] == "Microsoft YaHei UI" and config.ITEM_FONT_FAMILIES.count("Yu Gothic UI") == 1
+    assert config.ITEM_FONT_FAMILIES[5] == "Microsoft YaHei UI" and config.ITEM_FONT_FAMILIES.count("Yu Gothic UI") == 1
 
 
 # ----------------------------------------------------- Einstellung und Menü

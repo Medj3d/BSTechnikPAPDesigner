@@ -1216,6 +1216,16 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
 
 
 # ---------------------------------------------------------------- Dateien
+def _file_mode(path: str) -> int:
+    """Linux/macOS: Rechte für die gespeicherte Datei – die der bisherigen Datei, sonst wie neu angelegt (umask)."""
+    try:
+        return os.stat(path).st_mode & 0o7777
+    except OSError:
+        umask = os.umask(0)
+        os.umask(umask)
+        return 0o666 & ~umask
+
+
 def save_diagram(diagram: Diagram, path: str) -> None:
     """Speichert atomar. Wirft ``ProjectFileError`` mit verständlicher Meldung."""
     try:
@@ -1234,6 +1244,10 @@ def save_diagram(diagram: Diagram, path: str) -> None:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
+        if os.name != "nt":
+            # Die Zwischendatei hat nur Rechte für den Besitzer (0600) – die Projektdatei soll aber wie jede andere
+            # Datei lesbar sein (z. B. in einem geteilten Ordner): bisherige Rechte behalten bzw. wie üblich (umask)
+            os.chmod(temp_path, _file_mode(path))
         os.replace(temp_path, path)
         temp_path = None
     except PermissionError as exc:

@@ -11,6 +11,8 @@ eines Bausteins ergibt sich aus Form und Beschriftung.
 
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass, field
 
 from PySide6.QtGui import QColor, QFont, QPalette
@@ -18,6 +20,8 @@ from PySide6.QtWidgets import QApplication
 
 from app import config, i18n
 from app.model.element_types import ElementType
+
+log = logging.getLogger(__name__)
 
 
 def mix(color_a: str, color_b: str, amount: float) -> str:
@@ -220,10 +224,39 @@ def set_current_theme(theme: Theme) -> None:
     _current_theme = theme
 
 
+BUNDLED_FONTS = ("Selawik-Regular.ttf", "Selawik-Bold.ttf")
+_bundled_fonts_registered = False
+
+
+def register_bundled_fonts() -> None:
+    """Liefert „Selawik“ mit, wo „Segoe UI“ fehlt (Linux, macOS).
+
+    Selawik ist Microsofts freie Schrift (SIL Open Font License, ``assets/fonts/Selawik-OFL.txt``) mit denselben
+    Maßen wie Segoe UI. Damit messen Texte in Bausteinen unter Linux genauso breit wie unter Windows: Eine unter
+    Windows gespeicherte Datei sieht gleich aus, und kein Baustein wächst beim Öffnen. Unter Windows (Segoe UI
+    vorhanden) wird nichts geladen.
+    """
+    global _bundled_fonts_registered
+    if _bundled_fonts_registered or QApplication.instance() is None:
+        return
+    _bundled_fonts_registered = True
+    from PySide6.QtGui import QFontDatabase
+
+    from app import resources
+
+    if "Segoe UI" in QFontDatabase.families():
+        return
+    for name in BUNDLED_FONTS:
+        path = resources.asset_path(os.path.join("fonts", name))
+        if os.path.isfile(path) and QFontDatabase.addApplicationFont(path) < 0:
+            log.warning("Schrift konnte nicht geladen werden: %s", path)
+
+
 def ui_font(point_size: float = 9.5) -> QFont:
+    register_bundled_fonts()
     font = QFont()
     # Die Schriften für Chinesisch, Japanisch, … stehen dahinter: Qt greift je Zeichen auf sie zurück
-    font.setFamilies(["Segoe UI Variable Text", "Segoe UI", "Inter", "Helvetica Neue", "Arial",
+    font.setFamilies(["Segoe UI Variable Text", "Segoe UI", "Selawik", "Inter", "Helvetica Neue", "Arial",
                       *i18n.font_fallbacks()])
     font.setPointSizeF(point_size)
     return font
@@ -236,6 +269,7 @@ def item_font(pixel_size: int = config.ITEM_FONT_PIXEL_SIZE) -> QFont:
     gemeinsam mit dem Diagramm zoomt. Hinting ist abgeschaltet, damit die
     Textbreite bei jeder Zoomstufe identisch bleibt.
     """
+    register_bundled_fonts()
     font = QFont()
     font.setFamilies(config.ITEM_FONT_FAMILIES)
     font.setPixelSize(pixel_size)
