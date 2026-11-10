@@ -15,7 +15,7 @@ from app.i18n import N_
 SECTION_NEW = N_("Neue Projekte")
 SECTION_ARROWS = N_("Pfeile")
 SECTION_CHECKS = N_("Prüfung")
-SECTION_TOOLS = N_("Zusatzknöpfe in der Werkzeugleiste")
+SECTION_TOOLS = N_("Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)")
 
 START_END = "start_end"
 LOOSE_ENDS = "loose_ends"

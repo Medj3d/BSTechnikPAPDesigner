@@ -382,8 +382,10 @@ class MainWindow(QMainWindow):
         toolbar.setFloatable(False)
         toolbar.setIconSize(QSize(18, 18))
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        # Standard: nur, was man fast immer braucht. Weitere Knöpfe schaltet man in den Einstellungen zu
-        # (Abschnitt „Zusatzknöpfe“); im Menü stehen alle Befehle immer.
+        # Eine Leiste mit dem, was man jeden Tag braucht – in der Reihenfolge der Arbeit:
+        # Datei | Rückgängig | Löschen | Ansicht | Prüfen und Umwandeln | Abgeben | Mehr ▾
+        # Alles Weitere steht unter „Mehr“ – ohne Einstellungen, denn Schulrechner vergessen diese bei jeder
+        # Anmeldung. Wer möchte, heftet Knöpfe in den Einstellungen („Zusatzknöpfe“) zusätzlich an.
         self._toolbar_groups: dict[str, list] = {}
 
         def group(key, names, proxy=True):
@@ -412,8 +414,13 @@ class MainWindow(QMainWindow):
                                        alignment.DISTRIBUTE_H, alignment.DISTRIBUTE_V))
         toolbar.addSeparator()
         toolbar.addAction(a["auto_layout"])
+        self._toolbar_simulation = toolbar.addSeparator()   # hier kommt der Schreibtischtest hin (ist ein Dock)
         toolbar.addAction(a["generate_code"])
-        self._toolbar_simulation = toolbar.addSeparator()   # Schreibtischtest und Zusatzknöpfe folgen später
+        toolbar.addAction(a["structogram"])
+        toolbar.addSeparator()
+        toolbar.addAction(a["export_pdf"])
+        toolbar.addAction(a["print"])
+        self._toolbar_extras = toolbar.addSeparator()       # angeheftete Zusatzknöpfe und „Mehr“
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
@@ -503,14 +510,7 @@ class MainWindow(QMainWindow):
         self.extras_menu.addActions([self.actions["search"], self.actions["settings"]])
         self.code_dock.hide()
         self.task_dock.hide()
-        # Knöpfe hinter „Automatisch anordnen“ und „Code erzeugen“: Schreibtischtest, dann die Zusatzknöpfe
-        simulation = self.actions["toggle_simulation"]
-        simulation.setIcon(icons.icon("play"))
-        simulation.setProperty("icon_name", "play")
-        after = self._toolbar_simulation
-        for name in ("toggle_simulation", "toggle_breakpoint", "toggle_code_view", "toggle_minimap", "toggle_task"):
-            self.toolbar.insertAction(after, self.actions[name])
-        after.setVisible(False)
+        self._finish_toolbar()
         self.simulation_dock.visibilityChanged.connect(self._on_simulation_visibility)
         # visibilityChanged meldet auch, ob der Reiter vorne liegt (tabifizierte Docks)
         self._diagnostics_on_top = False
@@ -679,7 +679,7 @@ class MainWindow(QMainWindow):
 
         a["generate_code"].triggered.connect(self.show_code_dialog)
         a["edit_task"].triggered.connect(self.edit_task)
-        stored = self.settings_store.value("view/minimap", True)
+        stored = self.settings_store.value("view/minimap", False)
         a["toggle_minimap"].setChecked(str(stored).strip().lower() in ("true", "1"))
         a["toggle_minimap"].toggled.connect(self._set_minimap_visible)
         a["toggle_breakpoint"].triggered.connect(self.toggle_breakpoint)
@@ -749,42 +749,58 @@ class MainWindow(QMainWindow):
         sync()
         return proxy
 
+    def _finish_toolbar(self) -> None:
+        """Schreibtischtest, angeheftete Zusatzknöpfe und „Mehr“ – erst jetzt, weil die Docks nun bestehen."""
+        a, toolbar = self.actions, self.toolbar
+        simulation = a["toggle_simulation"]
+        simulation.setIcon(icons.icon("play"))
+        simulation.setProperty("icon_name", "play")
+        toolbar.insertAction(self._toolbar_simulation, simulation)
+        self._toolbar_simulation.setVisible(False)
+        anchor = self._toolbar_extras
+        for key, name in ((preferences.TOOL_CODE_VIEW, "toggle_code_view"),
+                          (preferences.TOOL_MINIMAP, "toggle_minimap"),
+                          (preferences.TOOL_BREAKPOINTS, "toggle_breakpoint"),
+                          (preferences.TOOL_TEACHER, "edit_task")):
+            proxy = self._toolbar_proxy(a[name])
+            toolbar.insertAction(anchor, proxy)
+            self._toolbar_groups[key] = [proxy]
+        # „Mehr“: alle Zusatzfunktionen mit einem Klick – auch wenn die Einstellungen zurückgesetzt wurden
+        menu = QMenu(tr("Mehr"), self)
+        for name in ("toggle_code_view", "toggle_minimap", None, "toggle_task", "edit_task", None,
+                     "toggle_breakpoint", "clear_breakpoints", None, "toggle_grid", "toggle_snap"):
+            menu.addSeparator() if name is None else menu.addAction(a[name])
+        align_menu = menu.addMenu(tr("Ausrichten"))
+        for name in ALIGN_ACTIONS + [alignment.SNAP_TO_GRID]:
+            align_menu.addAction(a[name])
+        menu.addSeparator()
+        menu.addAction(a["copy_image"])
+        menu.addAction(a["presentation"])
+        menu.addSeparator()
+        menu.addAction(a["settings"])
+        self.more_menu = menu
+        self.more_button = QToolButton()
+        self.more_button.setText(tr("Mehr"))
+        self.more_button.setToolTip(tr("Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, "
+                                       "Ausrichten …"))
+        self.more_button.setMenu(menu)
+        self.more_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.more_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        toolbar.insertWidget(anchor, self.more_button)
+        anchor.setVisible(False)
+
     def _apply_tools(self) -> None:
-        """Zeigt die in den Einstellungen zugeschalteten Zusatzknöpfe (und die zugehörigen Flächen)."""
-        on = preferences.enabled
+        """Heftet die in den Einstellungen gewählten Zusatzknöpfe an die Werkzeugleiste (unter „Mehr“ und im Menü
+        stehen sie immer)."""
         for key, entries in self._toolbar_groups.items():
             for entry in entries:
-                entry.setVisible(on(key))
-        a = self.actions
-        for name, key in (("toggle_code_view", preferences.TOOL_CODE_VIEW),
-                          ("toggle_minimap", preferences.TOOL_MINIMAP),
-                          ("toggle_breakpoint", preferences.TOOL_BREAKPOINTS),
-                          ("clear_breakpoints", preferences.TOOL_BREAKPOINTS),
-                          ("edit_task", preferences.TOOL_TEACHER)):
-            a[name].setVisible(on(key))
-        if not on(preferences.TOOL_CODE_VIEW):
-            self.code_dock.hide()
-        self.simulation_panel.breakpoint_button.setVisible(on(preferences.TOOL_BREAKPOINTS))
-        self._set_minimap_visible(a["toggle_minimap"].isChecked(), store=False)
-        self._update_task_action()
-
-    def _update_task_action(self) -> None:
-        """„Aufgabe anzeigen“ gibt es, wenn das Projekt eine Aufgabe hat – oder im Lehrermodus."""
-        if not hasattr(self, "task_dock"):
-            return
-        document = self.current_document()
-        has_task = document is not None and bool(document.meta.task_title or document.meta.task_text)
-        visible = has_task or preferences.enabled(preferences.TOOL_TEACHER)
-        self.actions["toggle_task"].setVisible(visible)
-        if not visible:
-            self.task_dock.hide()
+                entry.setVisible(preferences.enabled(key))
 
     def _set_minimap_visible(self, visible: bool, store: bool = True) -> None:
         if store:
             self.settings_store.set_value("view/minimap", bool(visible))
-        shown = bool(visible) and preferences.enabled(preferences.TOOL_MINIMAP)
         for view in self.views():
-            view.minimap.setVisible(shown)
+            view.minimap.setVisible(bool(visible))
 
     # ------------------------------------------------------------ Code-Ansicht
     def _show_code_element(self, element_id: str) -> None:
@@ -796,6 +812,7 @@ class MainWindow(QMainWindow):
         page, item = found
         view.document.show_page(page)
         page.scene.select_items([item])
+        self.code_panel.show_selection([element_id])   # sofort, nicht erst mit der (verzögerten) Auswahlmeldung
         view.ensureVisible(item.scene_rect(), 80, 80)
 
     def _sync_code_selection(self) -> None:
@@ -860,7 +877,6 @@ class MainWindow(QMainWindow):
         grid = document.settings.grid_size
         document.undo_stack.push(ProjectPropertiesCommand(document, document.meta, new_meta, grid, grid))
         self.task_panel.refresh()
-        self._update_task_action()
         if new_meta.task_title or new_meta.task_text:
             self.task_dock.show()
             self.task_dock.raise_()
@@ -992,8 +1008,7 @@ class MainWindow(QMainWindow):
     def add_document(self, document: DiagramDocument) -> DiagramView:
         view = DiagramView(document)
         view.minimap = Minimap(view)
-        view.minimap.setVisible(self.actions["toggle_minimap"].isChecked()
-                                and preferences.enabled(preferences.TOOL_MINIMAP))
+        view.minimap.setVisible(self.actions["toggle_minimap"].isChecked())
         document.content_changed.connect(lambda d=document: self._refresh_breakpoints(d))
         index = self.tabs.addTab(view, document.display_name)
         close_button = QToolButton()
@@ -1059,7 +1074,6 @@ class MainWindow(QMainWindow):
             self.diagnostics_panel.set_document(document)
             self.code_panel.set_document(document)
             self.task_panel.set_document(document)
-            self._update_task_action()
         self.page_bar.set_document(document)
 
     def _update_document_title(self, document: DiagramDocument) -> None:

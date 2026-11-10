@@ -51,22 +51,25 @@ def enable_tools(window, *keys):
 # ------------------------------------------------------------------ Werkzeugleiste
 def test_toolbar_is_simple_by_default(window):
     visible = [action for action in window.toolbar.actions() if action.isVisible() and not action.isSeparator()]
-    assert window.actions["delete"] in visible and window.actions["auto_layout"] in visible
-    for name in ("toggle_code_view", "toggle_minimap", "toggle_breakpoint", "toggle_task"):
-        assert not window.actions[name].isVisible()
+    for name in ("new", "open", "save", "undo", "redo", "delete", "zoom_in", "zoom_out", "zoom_fit", "auto_layout",
+                 "toggle_simulation", "generate_code", "structogram", "export_pdf", "print"):
+        assert window.actions[name] in visible, name
     for entries in window._toolbar_groups.values():
         assert not any(entry.isVisible() for entry in entries)
+    # alles Weitere unter „Mehr“ – ohne Einstellungen erreichbar
+    more = window.more_menu.actions()
+    for name in ("toggle_code_view", "toggle_minimap", "toggle_task", "edit_task", "toggle_breakpoint",
+                 "toggle_grid", "settings"):
+        assert window.actions[name] in more and window.actions[name].isVisible(), name
 
 
-def test_tools_switch_on_buttons_and_reset(window, qapp):
+def test_pinned_buttons_and_reset(window, qapp):
     enable_tools(window, *preferences.TOOLS)
-    for name in ("toggle_code_view", "toggle_minimap", "toggle_breakpoint", "toggle_task", "edit_task"):
-        assert window.actions[name].isVisible()
     assert all(entry.isVisible() for entries in window._toolbar_groups.values() for entry in entries)
     from app.dialogs.settings import SettingsDialog
     dialog = SettingsDialog(window.actions, window)
     dialog.reset_switches()
-    assert not window.actions["toggle_code_view"].isVisible()
+    assert not any(entry.isVisible() for entries in window._toolbar_groups.values() for entry in entries)
     assert window.settings_store.preference(preferences.TOOL_CODE_VIEW) is False
 
 
@@ -95,7 +98,6 @@ def test_traced_code_equals_normal_code_and_maps_lines(window):
 
 
 def test_code_view_selects_block_and_highlights_lines(window, qapp):
-    enable_tools(window, preferences.TOOL_CODE_VIEW)
     window.open_file(EXAMPLE)
     window.actions["toggle_code_view"].trigger()
     qapp.processEvents()
@@ -113,8 +115,8 @@ def test_code_view_selects_block_and_highlights_lines(window, qapp):
 def test_minimap_shows_and_moves_view(window, qapp):
     window.open_file(EXAMPLE)
     view = window.current_view()
-    assert not view.minimap.isVisible()
-    enable_tools(window, preferences.TOOL_MINIMAP)
+    assert not view.minimap.isVisible()   # standardmäßig aus
+    window.actions["toggle_minimap"].trigger()
     qapp.processEvents()
     assert view.minimap.isVisible()
     view.minimap.repaint()
@@ -128,7 +130,6 @@ def test_minimap_shows_and_moves_view(window, qapp):
 
 # ------------------------------------------------------------------ Haltepunkte
 def test_breakpoint_stops_run(window, qapp):
-    enable_tools(window, preferences.TOOL_BREAKPOINTS)
     window.open_file(EXAMPLE)
     document = window.current_document()
     output = next(item for item in document.scene.elements() if item.element_type.value == "output")

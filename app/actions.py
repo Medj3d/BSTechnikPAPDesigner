@@ -37,7 +37,7 @@ _DEFINITIONS = {
                           "aufheben")),
     "export_png": (N_("Als &PNG-Bild …"), None, [], N_("Diagramm als PNG-Bild exportieren")),
     "export_svg": (N_("Als &SVG-Grafik …"), None, [], N_("Diagramm als SVG-Vektorgrafik exportieren")),
-    "export_pdf": (N_("Als P&DF-Dokument …"), None, ["Ctrl+E"], N_("Diagramm als PDF exportieren")),
+    "export_pdf": (N_("Als P&DF-Dokument …"), "export", ["Ctrl+E"], N_("Diagramm als PDF exportieren")),
     "print": (N_("&Drucken …"), "print", [K.Print], N_("Diagramm drucken")),
     "print_preview": (N_("Druck&vorschau …"), None, [], N_("Druckvorschau anzeigen")),
     "properties": (N_("Projekt&eigenschaften …"), "properties", [],

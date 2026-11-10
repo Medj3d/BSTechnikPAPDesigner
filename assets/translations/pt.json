@@ -988,7 +988,6 @@
  "Aufgabe stellen": "Definir tarefa",
  "Passwort der Lehrkraft:": "Senha do professor:",
  "Das Passwort ist falsch.": "A senha está errada.",
- "Zusatzknöpfe in der Werkzeugleiste": "Botões extras na barra de ferramentas",
  "Ausschneiden, Kopieren, Einfügen": "Recortar, copiar, colar",
  "Knöpfe für die Zwischenablage (sonst Strg+X, Strg+C, Strg+V)": "Botões da área de transferência (senão Ctrl+X, Ctrl+C, Ctrl+V)",
  "Raster und Einrasten": "Grade e encaixe",
@@ -1024,5 +1023,8 @@
  "Bitte einen Titel oder eine Aufgabenstellung eingeben.": "Digite um título ou um enunciado.",
  "Aufgabe bearbeiten …": "Editar tarefa…",
  "Dieses Projekt enthält keine Aufgabe.": "Este projeto não contém tarefa.",
- "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Com “Definir tarefa”, o professor pode escrever um enunciado e uma solução modelo criptografada no arquivo. Quem abrir o arquivo vê a tarefa aqui."
+ "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Com “Definir tarefa”, o professor pode escrever um enunciado e uma solução modelo criptografada no arquivo. Quem abrir o arquivo vê a tarefa aqui.",
+ "Mehr": "Mais",
+ "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "Mais funções: visualização de código, minimapa, tarefa, pontos de parada, grade, alinhar…",
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Botões extras na barra de ferramentas (senão em “Mais”)"
 }

@@ -988,7 +988,6 @@
  "Aufgabe stellen": "課題を設定",
  "Passwort der Lehrkraft:": "教師のパスワード：",
  "Das Passwort ist falsch.": "パスワードが違います。",
- "Zusatzknöpfe in der Werkzeugleiste": "ツールバーの追加ボタン",
  "Ausschneiden, Kopieren, Einfügen": "切り取り・コピー・貼り付け",
  "Knöpfe für die Zwischenablage (sonst Strg+X, Strg+C, Strg+V)": "クリップボードのボタン（なければ Ctrl+X・Ctrl+C・Ctrl+V）",
  "Raster und Einrasten": "グリッドとスナップ",
@@ -1024,5 +1023,8 @@
  "Bitte einen Titel oder eine Aufgabenstellung eingeben.": "タイトルまたは課題文を入力してください。",
  "Aufgabe bearbeiten …": "課題を編集…",
  "Dieses Projekt enthält keine Aufgabe.": "このプロジェクトには課題がありません。",
- "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "教師は「課題を設定」で課題文と暗号化された模範解答をファイルに書き込めます。ファイルを開いた人はここに課題が表示されます。"
+ "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "教師は「課題を設定」で課題文と暗号化された模範解答をファイルに書き込めます。ファイルを開いた人はここに課題が表示されます。",
+ "Mehr": "その他",
+ "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "その他の機能：コードビュー、ミニマップ、課題、ブレークポイント、グリッド、整列…",
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "ツールバーの追加ボタン（なければ「その他」の中）"
 }

@@ -988,7 +988,6 @@
  "Aufgabe stellen": "布置任务",
  "Passwort der Lehrkraft:": "教师密码：",
  "Das Passwort ist falsch.": "密码错误。",
- "Zusatzknöpfe in der Werkzeugleiste": "工具栏中的附加按钮",
  "Ausschneiden, Kopieren, Einfügen": "剪切、复制、粘贴",
  "Knöpfe für die Zwischenablage (sonst Strg+X, Strg+C, Strg+V)": "剪贴板按钮（否则使用 Ctrl+X、Ctrl+C、Ctrl+V）",
  "Raster und Einrasten": "网格和对齐",
@@ -1024,5 +1023,8 @@
  "Bitte einen Titel oder eine Aufgabenstellung eingeben.": "请输入标题或任务说明。",
  "Aufgabe bearbeiten …": "编辑任务…",
  "Dieses Projekt enthält keine Aufgabe.": "此项目不包含任务。",
- "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "教师可以用“布置任务”把任务说明和加密的参考答案写入文件。打开文件的人会在这里看到任务。"
+ "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "教师可以用“布置任务”把任务说明和加密的参考答案写入文件。打开文件的人会在这里看到任务。",
+ "Mehr": "更多",
+ "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "更多功能：代码视图、小地图、任务、断点、网格、对齐…",
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "工具栏中的附加按钮（否则在“更多”中）"
 }

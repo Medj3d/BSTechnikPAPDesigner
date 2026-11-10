@@ -1038,7 +1038,6 @@
  "Aufgabe stellen": "Set Task",
  "Passwort der Lehrkraft:": "Teacher password:",
  "Das Passwort ist falsch.": "The password is wrong.",
- "Zusatzknöpfe in der Werkzeugleiste": "Extra buttons in the toolbar",
  "Ausschneiden, Kopieren, Einfügen": "Cut, copy, paste",
  "Knöpfe für die Zwischenablage (sonst Strg+X, Strg+C, Strg+V)": "Clipboard buttons (otherwise Ctrl+X, Ctrl+C, Ctrl+V)",
  "Raster und Einrasten": "Grid and snapping",
@@ -1074,5 +1073,8 @@
  "Bitte einen Titel oder eine Aufgabenstellung eingeben.": "Please enter a title or a task.",
  "Aufgabe bearbeiten …": "Edit Task…",
  "Dieses Projekt enthält keine Aufgabe.": "This project has no task.",
- "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "With “Set Task”, teachers can write a task and an encrypted model solution into the file. Whoever opens the file sees the task here."
+ "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "With “Set Task”, teachers can write a task and an encrypted model solution into the file. Whoever opens the file sees the task here.",
+ "Mehr": "More",
+ "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "More functions: code view, minimap, task, breakpoints, grid, align…",
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Extra buttons in the toolbar (otherwise under “More”)"
 }

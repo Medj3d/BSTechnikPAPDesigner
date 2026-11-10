@@ -988,7 +988,6 @@
  "Aufgabe stellen": "Plantear tarea",
  "Passwort der Lehrkraft:": "Contraseña del docente:",
  "Das Passwort ist falsch.": "La contraseña es incorrecta.",
- "Zusatzknöpfe in der Werkzeugleiste": "Botones adicionales en la barra de herramientas",
  "Ausschneiden, Kopieren, Einfügen": "Cortar, copiar, pegar",
  "Knöpfe für die Zwischenablage (sonst Strg+X, Strg+C, Strg+V)": "Botones del portapapeles (si no, Control+X, Control+C, Control+V)",
  "Raster und Einrasten": "Cuadrícula y ajuste",
@@ -1024,5 +1023,8 @@
  "Bitte einen Titel oder eine Aufgabenstellung eingeben.": "Introduzca un título o un enunciado.",
  "Aufgabe bearbeiten …": "Editar tarea…",
  "Dieses Projekt enthält keine Aufgabe.": "Este proyecto no contiene ninguna tarea.",
- "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Con «Plantear tarea», el docente puede escribir un enunciado y una solución modelo cifrada en el archivo. Quien abra el archivo verá aquí la tarea."
+ "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Con «Plantear tarea», el docente puede escribir un enunciado y una solución modelo cifrada en el archivo. Quien abra el archivo verá aquí la tarea.",
+ "Mehr": "Más",
+ "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "Más funciones: vista de código, minimapa, tarea, puntos de interrupción, cuadrícula, alinear…",
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Botones adicionales en la barra de herramientas (si no, en «Más»)"
 }

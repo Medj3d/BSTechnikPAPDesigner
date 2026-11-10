@@ -176,20 +176,19 @@ class ToolPalette(QWidget):
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 4, 0, 8)
         layout.setSpacing(0)
-        layout.addWidget(self._section(tr("BAUSTEINE")))
+        # Die Bedienhinweise stehen als Kurzinfo an der Überschrift (und unter Hilfe → Tastenkürzel und Bedienung),
+        # nicht mehr als Text unter den Bausteinen
+        heading = self._section(tr("BAUSTEINE"))
+        heading.setToolTip("\n".join((tr("Ziehen oder klicken zum Einfügen."),
+                                      tr("Verbinden: vom Anschlusspunkt auf Baustein oder Pfeil ziehen."),
+                                      tr("Rot = Fehler, gelb = auffällig. Das Zeichen auf dem Pfeil nennt den Grund."))))
+        layout.addWidget(heading)
         for element_type in PALETTE_ORDER:
             layout.addWidget(self._entry(element_type))
         layout.addWidget(self._section(tr("ABLAUF", ctx="Palette")))
         for element_type in FLOW_TERMINALS:
             layout.addWidget(self._entry(element_type))
         layout.addStretch(1)
-        hint = QLabel("\n".join((tr("Ziehen oder klicken zum Einfügen."),
-                                 tr("Verbinden: vom Anschlusspunkt auf Baustein oder Pfeil ziehen."),
-                                 tr("Rot = Fehler, gelb = auffällig. Das Zeichen auf dem Pfeil nennt den Grund."))))
-        hint.setObjectName("Muted")
-        hint.setWordWrap(True)
-        hint.setContentsMargins(12, 8, 8, 4)
-        layout.addWidget(hint)
 
         scroll = QScrollArea()
         scroll.setWidget(content)

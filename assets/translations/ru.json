@@ -988,7 +988,6 @@
  "Aufgabe stellen": "Задать задание",
  "Passwort der Lehrkraft:": "Пароль учителя:",
  "Das Passwort ist falsch.": "Неверный пароль.",
- "Zusatzknöpfe in der Werkzeugleiste": "Дополнительные кнопки на панели инструментов",
  "Ausschneiden, Kopieren, Einfügen": "Вырезать, копировать, вставить",
  "Knöpfe für die Zwischenablage (sonst Strg+X, Strg+C, Strg+V)": "Кнопки буфера обмена (иначе Ctrl+X, Ctrl+C, Ctrl+V)",
  "Raster und Einrasten": "Сетка и привязка",
@@ -1024,5 +1023,8 @@
  "Bitte einen Titel oder eine Aufgabenstellung eingeben.": "Введите заголовок или текст задания.",
  "Aufgabe bearbeiten …": "Изменить задание…",
  "Dieses Projekt enthält keine Aufgabe.": "В этом проекте нет задания.",
- "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "С помощью «Задать задание» учитель может записать в файл задание и зашифрованное образцовое решение. Кто откроет файл, увидит задание здесь."
+ "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "С помощью «Задать задание» учитель может записать в файл задание и зашифрованное образцовое решение. Кто откроет файл, увидит задание здесь.",
+ "Mehr": "Ещё",
+ "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "Другие функции: просмотр кода, мини-карта, задание, точки останова, сетка, выравнивание…",
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Дополнительные кнопки на панели инструментов (иначе в «Ещё»)"
 }

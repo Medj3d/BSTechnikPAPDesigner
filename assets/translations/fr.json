@@ -988,7 +988,6 @@
  "Aufgabe stellen": "Définir une tâche",
  "Passwort der Lehrkraft:": "Mot de passe de l'enseignant :",
  "Das Passwort ist falsch.": "Le mot de passe est incorrect.",
- "Zusatzknöpfe in der Werkzeugleiste": "Boutons supplémentaires dans la barre d'outils",
  "Ausschneiden, Kopieren, Einfügen": "Couper, copier, coller",
  "Knöpfe für die Zwischenablage (sonst Strg+X, Strg+C, Strg+V)": "Boutons du presse-papiers (sinon Ctrl+X, Ctrl+C, Ctrl+V)",
  "Raster und Einrasten": "Grille et magnétisme",
@@ -1024,5 +1023,8 @@
  "Bitte einen Titel oder eine Aufgabenstellung eingeben.": "Veuillez saisir un titre ou un énoncé.",
  "Aufgabe bearbeiten …": "Modifier la tâche…",
  "Dieses Projekt enthält keine Aufgabe.": "Ce projet ne contient aucune tâche.",
- "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Avec « Définir une tâche », l'enseignant peut écrire un énoncé et une solution type chiffrée dans le fichier. Qui ouvre le fichier voit la tâche ici."
+ "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Avec « Définir une tâche », l'enseignant peut écrire un énoncé et une solution type chiffrée dans le fichier. Qui ouvre le fichier voit la tâche ici.",
+ "Mehr": "Plus",
+ "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "Autres fonctions : vue du code, mini-carte, tâche, points d'arrêt, grille, alignement…",
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Boutons supplémentaires dans la barre d'outils (sinon sous « Plus »)"
 }
