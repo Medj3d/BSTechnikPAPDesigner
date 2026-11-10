@@ -275,13 +275,21 @@ def test_gear_lever_entry_means_no_second_start_menu_entry(tmp_path):
     # Gear Lever bindet das AppImage ein: unser Eintrag verschwindet, der von Gear Lever öffnet die .pap-Dateien
     _gear_lever_entry(data, appimage)
     assert linux.foreign_entry([appimage], data) == ("bs_technik_pap_designer.desktop", True)
-    assert linux.needs_installation([appimage], data)
+    assert linux.needs_installation([appimage], data, conf)
     linux.register([appimage], data, conf, run_tools=False)
     assert not os.path.exists(linux.paths(data)["desktop"])
     assert os.path.isfile(linux.paths(data)["mime"]) and os.path.isfile(linux.paths(data)["mime_icon"])
     mimeapps = open(linux.paths(data, conf)["mimeapps"], encoding="utf-8").read()
     assert f"{config.LINUX_MIME_TYPE}=bs_technik_pap_designer.desktop;" in mimeapps
-    assert not linux.needs_installation([appimage], data)  # beim nächsten Start nichts mehr zu tun
+    assert not linux.needs_installation([appimage], data, conf)  # beim nächsten Start nichts mehr zu tun
+    # Zeigt der Standard noch auf unseren entfernten Eintrag (älterer Stand), wird er beim Start umgestellt …
+    linux.set_default_application(linux.paths(data, conf)["mimeapps"])
+    assert linux.needs_installation([appimage], data, conf)
+    linux.register([appimage], data, conf, run_tools=False)
+    assert linux.default_application(linux.paths(data, conf)["mimeapps"]) == "bs_technik_pap_designer.desktop"
+    # … eine eigene Wahl des Benutzers (anderes Programm) dagegen nie
+    linux.set_default_application(linux.paths(data, conf)["mimeapps"], desktop_file="anderes.desktop")
+    assert not linux.needs_installation([appimage], data, conf)
 
 
 def test_foreign_entry_without_file_type_gets_a_hidden_helper(tmp_path):

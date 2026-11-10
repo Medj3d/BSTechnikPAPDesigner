@@ -322,10 +322,11 @@ def unregister(data_home: str | None = None, config_home: str | None = None, run
         _refresh(where)
 
 
-def needs_installation(program: list[str] | None = None, data_home: str | None = None) -> bool:
+def needs_installation(program: list[str] | None = None, data_home: str | None = None,
+                       config_home: str | None = None) -> bool:
     """Fehlt die Verknüpfung oder zeigt sie auf eine andere Programmdatei bzw. Version?"""
-    where = paths(data_home)
-    entry, _default = _plan(program, data_home)
+    where = paths(data_home, config_home)
+    entry, default = _plan(program, data_home)
     try:
         with open(where["desktop"], "r", encoding="utf-8") as handle:
             current = handle.read()
@@ -333,7 +334,26 @@ def needs_installation(program: list[str] | None = None, data_home: str | None =
         current = None
     except (OSError, UnicodeDecodeError):
         return True
-    return current != entry or not os.path.isfile(where["mime"])
+    # Standardprogramm zeigt noch auf unseren (nicht mehr vorhandenen) Eintrag? Eine andere Wahl des Benutzers
+    # bleibt dagegen unangetastet.
+    stale_default = default != DESKTOP_FILE_NAME and default_application(where["mimeapps"]) == DESKTOP_FILE_NAME
+    return current != entry or not os.path.isfile(where["mime"]) or stale_default
+
+
+def default_application(mimeapps: str) -> str | None:
+    """Der in ``mimeapps.list`` eingetragene Standard für ``.pap``-Dateien (erster Eintrag) – oder ``None``."""
+    section = None
+    try:
+        with open(mimeapps, "r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if line.startswith("["):
+                    section = line
+                elif section == DEFAULTS_SECTION and line.split("=", 1)[0].strip() == config.LINUX_MIME_TYPE:
+                    return line.split("=", 1)[1].split(";")[0].strip() or None
+    except (OSError, UnicodeDecodeError):
+        pass
+    return None
 
 
 def ensure_installed(background: bool = True) -> bool:
