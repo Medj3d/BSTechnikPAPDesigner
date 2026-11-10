@@ -529,11 +529,28 @@ Zuordnung: `.pap`-Dateien öffnen sich danach mit diesem Programm.
 ## Linux-Version (AppImage)
 
 Die Linux-Version kann dasselbe wie die Windows-Version und kommt als eine
-einzige Datei: `BSTechnikPAPDesigner-x86_64.AppImage`. Sie läuft auf fast allen
-64-Bit-Distributionen (Ubuntu ab 22.04, Debian 12, Fedora, openSUSE, Linux Mint …),
-ohne dass etwas installiert werden muss. Die neueste Fassung steht immer unter
+einzige Datei: `BSTechnikPAPDesigner-x86_64.AppImage`. Sie läuft auf allen gängigen
+64-Bit-Distributionen ohne zusätzliche Werkzeuge (kein Gear Lever, kein
+AppImageLauncher nötig – beide funktionieren aber auch). Die neueste Fassung steht immer unter
 
     https://github.com/Medj3d/BSTechnikPAPDesigner/releases/latest/download/BSTechnikPAPDesigner-x86_64.AppImage
+
+Geprüft (November 2026, jeweils frisch installiert, mit Start, Fenster, Startmenü-Eintrag,
+`.pap`-Doppelklick und zweitem Start):
+
+| Distribution | geprüft | gilt auch für |
+|---|---|---|
+| Ubuntu 22.04, 24.04, 26.04 | ✓ | Linux Mint 21/22, Pop!_OS, Zorin OS, elementary OS, Kubuntu … |
+| Debian 13 | ✓ | Debian 12, MX Linux, LMDE |
+| Fedora 45 | ✓ | Fedora 43/44, Nobara |
+| Arch Linux | ✓ | Manjaro, EndeavourOS, CachyOS |
+| openSUSE Tumbleweed, Leap 16.1 | ✓ | |
+
+Voraussetzung ist nur glibc ab 2.35 (alle aktuell unterstützten Distributionen;
+nicht mehr Ubuntu 20.04 oder Linux Mint 20) und eine Bildschirmoberfläche (X11 oder
+Wayland). Fehlen auf einer Minimalinstallation die Grafikbibliotheken (libGL,
+libEGL, libxcb), meldet das Programm das beim Start und nennt den passenden Befehl,
+z. B. `sudo apt install libgl1 libegl1 libxcb1`.
 
 ### Installieren
 
@@ -553,21 +570,21 @@ ohne dass etwas installiert werden muss. Die neueste Fassung steht immer unter
 
 **libfuse2 wird nicht gebraucht:** Das AppImage nutzt die neue, statisch
 gebaute AppImage-Laufzeit. Ältere Anleitungen im Netz, die `libfuse2`
-verlangen, gelten dafür nicht. Nötig ist nur FUSE selbst, das auf praktisch
-jedem Desktop-System schon installiert ist. **Startet das AppImage trotzdem
-nicht** (Meldung „fusermount: not found“ oder „Cannot mount AppImage“):
-
-* Ubuntu / Debian: `sudo apt install fuse3`
-* Fedora: `sudo dnf install fuse3`
-
-Ohne Administratorrechte geht es auch so (etwas langsamerer Start):
-`./BSTechnikPAPDesigner-x86_64.AppImage --appimage-extract-and-run`.
+verlangen, gelten dafür nicht. Ist FUSE vorhanden (fast überall), wird das
+AppImage eingehängt; fehlt es, entpackt es sich beim Start von selbst in einen
+Temp-Ordner (etwas langsamerer Start) – in beiden Fällen ohne Zutun.
 
 Die übrigen Bibliotheken, die Qt für die Anzeige braucht (z. B. `libxcb-cursor0`),
-bringt das AppImage selbst mit, ebenso die Schrift „Selawik“ (Microsoft, SIL Open
-Font License, `assets/fonts`). Sie hat dieselben Maße wie die Windows-Schrift
-Segoe UI. So sind Texte in Bausteinen unter Linux genauso breit wie unter
-Windows, und eine unter Windows gespeicherte Datei sieht unter Linux gleich aus.
+bringt das AppImage selbst mit.
+
+**Eine Schrift auf allen Systemen:** Das Programm bringt die Programmierschrift
+„JetBrains Mono NL“ mit (SIL Open Font License, `assets/fonts`; NL = ohne
+Ligaturen, `<=` bleibt `<=`) und nutzt sie unter Windows und Linux für Bausteine,
+Menüs und Dialoge. Pläne sehen deshalb überall gleich aus: Mit 132 Testdateien
+sind geöffnete Pläne, gespeicherte Dateien (Byte für Byte), „Automatisch
+anordnen“, Schreibtischtest und Prüfung unter Windows und Linux identisch.
+Nur für Arabisch, Chinesisch und Japanisch nimmt das Programm die Schriften des
+Systems (unter Linux z. B. Noto Sans CJK, bei Fedora, Ubuntu und Mint vorhanden).
 
 ### Wo die Linux-Version ihre Daten ablegt
 
