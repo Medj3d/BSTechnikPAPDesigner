@@ -10,3 +10,4 @@
 *.yml text eol=lf
 *.AppImage binary
 *.ttf binary
+installer/linux/AppRun text eol=lf

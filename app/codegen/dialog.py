@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QFileDialog, QH
 
 from app.analysis.structure import structure_diagram
 from app.codegen.generators import LANGUAGES, generate, language_name
+from app import config
 from app.i18n import N_, tr
 
 # Endung und Name des Dateityps (deutscher Quelltext; angezeigt wird er mit ``tr(..., pattern=...)``)
@@ -21,7 +22,7 @@ EXTENSIONS = {"pseudo": (".txt", N_("Textdatei ({pattern})")), "python": (".py",
 
 def monospace_font() -> QFont:
     font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
-    font.setFamilies(["Cascadia Mono", "Consolas", font.family()])
+    font.setFamilies([config.APP_FONT_FAMILY, "Cascadia Mono", "Consolas", font.family()])
     font.setPointSizeF(10.0)
     return font
 

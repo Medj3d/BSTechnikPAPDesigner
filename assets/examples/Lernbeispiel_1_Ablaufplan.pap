@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.12.0">
   <PROJECT FORMAT="1.00" NAME="Lernbeispiel 1 – Ablaufplan" AUTHOR="BS Technik" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51" bst:DESCRIPTION="Kreisfläche: Eingabe, Verarbeitung, Ausgabe." bst:CREATED="2026-10-28T07:52:51+01:00" bst:MODIFIED="2026-10-28T07:52:51+01:00">
     <DIAGRAMS>
       <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 1 – Ablaufplan" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51">
@@ -15,17 +15,17 @@
                 <TEXT><![CDATA[Start]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="240" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2" bst:UID="bd428361a5f941e0a7ac2f3589364c71">
                 <TEXT><![CDATA[Radius r einlesen]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="4" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="4" bst:X="0" bst:Y="200" bst:WIDTH="280" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="3" bst:UID="d8942531f87d49c585fa97f9a33f9b20">
                 <TEXT><![CDATA[fläche = runden(pi * r ^ 2, 2)]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="300" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="4" bst:UID="17e07d1168604ab3b789ddd240904799">
                 <TEXT><![CDATA[„Fläche:“ fläche]]></TEXT>
               </FIGURE>
@@ -35,32 +35,32 @@
                 <TEXT><![CDATA[Ende]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="1" bst:X="-364" bst:Y="0" bst:WIDTH="300" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="1" bst:X="-364" bst:Y="0" bst:WIDTH="280" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="6" bst:UID="96d8a91191fc4d3db786f2a286bd4000">
                 <TEXT><![CDATA[Jeder Ablauf beginnt mit Start
 und endet mit Ende.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="2" bst:X="-364" bst:Y="100" bst:WIDTH="300" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="2" bst:X="-364" bst:Y="100" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="7" bst:UID="2b1718c256c24f24b65379ea3cf64f8b">
                 <TEXT><![CDATA[Eingabe (Parallelogramm):
 Der Wert landet in der Variablen r.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="4" bst:X="-364" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="80">
+            <ENTRY COLUMN="0" ROW="4" bst:X="-364" bst:Y="200" bst:WIDTH="280" bst:HEIGHT="100">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="2d95a5b898f448b388e33932afcb6f13">
                 <TEXT><![CDATA[Verarbeitung (Rechteck): links die
 Variable, rechts die Rechnung –
 hier auf 2 Stellen gerundet.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="5" bst:X="-364" bst:Y="300" bst:WIDTH="300" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="5" bst:X="-364" bst:Y="300" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="9" bst:UID="3f367f4f2bb84339b0197b1aadc6e3c2">
                 <TEXT><![CDATA[Ausgabe: Text in „…“, danach
 die Variable, deren Wert erscheint.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="150" bst:WIDTH="300" bst:HEIGHT="80">
+            <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="150" bst:WIDTH="320" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="624bc86e14524bf6869d30578bc1f236">
                 <TEXT><![CDATA[Ausprobieren: F9 öffnet den Schreibtischtest,
 F5 lässt den Plan laufen. Mit F10 geht es
@@ -69,11 +69,11 @@ Schritt für Schritt, mit Strg+F10 zurück.]]></TEXT>
             </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 4, &quot;attributes&quot;: {&quot;FROM&quot;: 6, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;2ce6de082dcd4d41ade51aa0ce47a69c&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 5, &quot;attributes&quot;: {&quot;FROM&quot;: 7, &quot;TO&quot;: 2, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;78b6a40e02874c0ba97757ff687d5771&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 6, &quot;attributes&quot;: {&quot;FROM&quot;: 8, &quot;TO&quot;: 3, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;88bb422241d844b68dede4f891add94b&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 7, &quot;attributes&quot;: {&quot;FROM&quot;: 9, &quot;TO&quot;: 4, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;76338376310e4f20a13eafb13b8f5296&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}]">
-          <CONNECTION FORMAT="1.00" ID="11" FROM="1" TO="2" TEXT="" bst:UID="f441dc83cadb47dfa942c183e7aa2798" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="12" FROM="2" TO="3" TEXT="" bst:UID="e9c56ee7d31c44b39d48f067b117f1eb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="13" FROM="3" TO="4" TEXT="" bst:UID="d24adb5ebd6b4691ae32c9c810076a16" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="5" TEXT="" bst:UID="a436cfe6d8504fbdb226f5de1065403f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 4, &quot;attributes&quot;: {&quot;FROM&quot;: 6, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;2ce6de082dcd4d41ade51aa0ce47a69c&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-224,0 -60,0&quot;}}, {&quot;index&quot;: 5, &quot;attributes&quot;: {&quot;FROM&quot;: 7, &quot;TO&quot;: 2, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;78b6a40e02874c0ba97757ff687d5771&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-224,100 -110,100&quot;}}, {&quot;index&quot;: 6, &quot;attributes&quot;: {&quot;FROM&quot;: 8, &quot;TO&quot;: 3, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;88bb422241d844b68dede4f891add94b&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-224,200 -140,200&quot;}}, {&quot;index&quot;: 7, &quot;attributes&quot;: {&quot;FROM&quot;: 9, &quot;TO&quot;: 4, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;76338376310e4f20a13eafb13b8f5296&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-224,300 -90,300&quot;}}]">
+          <CONNECTION FORMAT="1.00" ID="11" FROM="1" TO="2" TEXT="" bst:UID="f441dc83cadb47dfa942c183e7aa2798" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
+          <CONNECTION FORMAT="1.00" ID="12" FROM="2" TO="3" TEXT="" bst:UID="e9c56ee7d31c44b39d48f067b117f1eb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,170" />
+          <CONNECTION FORMAT="1.00" ID="13" FROM="3" TO="4" TEXT="" bst:UID="d24adb5ebd6b4691ae32c9c810076a16" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,230 0,270" />
+          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="5" TEXT="" bst:UID="a436cfe6d8504fbdb226f5de1065403f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,380" />
         </CONNECTIONS>
       </DIAGRAM>
     </DIAGRAMS>

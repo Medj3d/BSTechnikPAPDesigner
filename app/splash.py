@@ -80,7 +80,7 @@ def render_splash(device_pixel_ratio: float = 1.0, message: str = "", with_text:
 
     from app.styles import register_bundled_fonts
 
-    register_bundled_fonts()  # Linux: Selawik statt der fehlenden Segoe UI
+    register_bundled_fonts()  # mitgelieferte Schrift, auf allen Systemen gleich
     font = QFont()
     font.setFamilies(config.ITEM_FONT_FAMILIES)
     font.setPixelSize(15)

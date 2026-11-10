@@ -45,7 +45,10 @@ class PaletteEntry(QWidget):
         self.setAccessibleName(self.label)
 
     def sizeHint(self) -> QSize:
-        return QSize(170, 44)
+        """So breit, dass Vorschau, Bezeichnung und Taste nebeneinander passen (gleich breite Schrift)."""
+        metrics = self.fontMetrics()
+        width = 6 + 12 + PREVIEW_WIDTH + 14 + metrics.horizontalAdvance(self.label) + 6             + max(16, metrics.horizontalAdvance("9") + 8) + 4 + 6
+        return QSize(max(170, int(width) + 1), 44)
 
     def paintEvent(self, event) -> None:
         theme = styles.current_theme()
@@ -196,7 +199,9 @@ class ToolPalette(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(scroll)
-        self.setMinimumWidth(168)
+        # breit genug für die längste Bezeichnung (plus Bildlaufleiste)
+        widest = max(entry.sizeHint().width() for entry in self.entries)
+        self.setMinimumWidth(max(168, widest + scroll.verticalScrollBar().sizeHint().width()))
 
     @staticmethod
     def _section(title: str) -> QLabel:

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.12.0">
   <PROJECT FORMAT="1.00" NAME="Lernbeispiel 4 – Unterprogramme" AUTHOR="BS Technik" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51" bst:DESCRIPTION="ggT mit dem euklidischen Algorithmus als Unterprogramm." bst:CREATED="2026-10-28T07:52:51+01:00" bst:MODIFIED="2026-10-28T07:52:51+01:00">
     <DIAGRAMS>
       <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 4 – Unterprogramme" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51">
@@ -20,12 +20,12 @@
                 <TEXT><![CDATA[Begrüßung]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="3" bst:UID="5e092e7d86b74c6d815054b178c62e03">
                 <TEXT><![CDATA[Zahl a einlesen]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="5" bst:X="0" bst:Y="300" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="4" bst:UID="08e6a39cbdb94523bc43cc35850f8a2d">
                 <TEXT><![CDATA[Zahl b einlesen]]></TEXT>
               </FIGURE>
@@ -35,7 +35,7 @@
                 <TEXT><![CDATA[ggT]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="500" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="500" bst:WIDTH="320" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="6" bst:UID="4afc3666cf344777bf123adc4537ca1b">
                 <TEXT><![CDATA[„größter gemeinsamer Teiler:“ a]]></TEXT>
               </FIGURE>
@@ -45,7 +45,7 @@
                 <TEXT><![CDATA[Ende]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="2" bst:X="-390" bst:Y="100" bst:WIDTH="300" bst:HEIGHT="100">
+            <ENTRY COLUMN="0" ROW="2" bst:X="-390" bst:Y="100" bst:WIDTH="280" bst:HEIGHT="160">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="4dd5f9b1b4574eb1a0b6952192744b33">
                 <TEXT><![CDATA[Ein Unterprogramm-Baustein ruft den
 Ablauf auf, dessen Start so heißt.
@@ -53,13 +53,13 @@ Jedes Unterprogramm hat eine eigene
 Seite (Reiter unten).]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="6" bst:X="-390" bst:Y="400" bst:WIDTH="300" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="6" bst:X="-390" bst:Y="400" bst:WIDTH="240" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="9" bst:UID="fe402bbc33c646ef95c88a2522e4e73e">
                 <TEXT><![CDATA[Strg+Doppelklick öffnet das
 Unterprogramm, Alt+← führt zurück.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="2" ROW="4" bst:X="364" bst:Y="250" bst:WIDTH="300" bst:HEIGHT="100">
+            <ENTRY COLUMN="2" ROW="4" bst:X="364" bst:Y="250" bst:WIDTH="320" bst:HEIGHT="120">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="84f3c2178a6246f69ee118ab0dfca271">
                 <TEXT><![CDATA[Mehrfach Benötigtes gehört in ein
 Unterprogramm: markieren, dann
@@ -69,13 +69,13 @@ auslagern (Strg+Alt+U).]]></TEXT>
             </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 6, &quot;attributes&quot;: {&quot;FROM&quot;: 8, &quot;TO&quot;: 2, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;c4d8063e2c844075bd0436c7613602ac&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 7, &quot;attributes&quot;: {&quot;FROM&quot;: 9, &quot;TO&quot;: 5, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;3dde30e0844f4f08b95c4a615ec62c2c&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}]">
-          <CONNECTION FORMAT="1.00" ID="11" FROM="1" TO="2" TEXT="" bst:UID="e3f303c864b848608004c2e3c1a37cf3" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="12" FROM="2" TO="3" TEXT="" bst:UID="171259c7462b47378fafc86f22e51f7a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="13" FROM="3" TO="4" TEXT="" bst:UID="fce88954883e4cd58cc4301246123f37" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="5" TEXT="" bst:UID="f2afcfd637a44d8cbccaf195f410f62b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="15" FROM="5" TO="6" TEXT="" bst:UID="d10a21f798d54a6cb72031f9637e4442" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="16" FROM="6" TO="7" TEXT="" bst:UID="2c9679e56dc5419b9e8dd5de7e4fd3f2" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 6, &quot;attributes&quot;: {&quot;FROM&quot;: 8, &quot;TO&quot;: 2, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;c4d8063e2c844075bd0436c7613602ac&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-250,100 -80,100&quot;}}, {&quot;index&quot;: 7, &quot;attributes&quot;: {&quot;FROM&quot;: 9, &quot;TO&quot;: 5, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;3dde30e0844f4f08b95c4a615ec62c2c&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-270,400 -80,400&quot;}}]">
+          <CONNECTION FORMAT="1.00" ID="11" FROM="1" TO="2" TEXT="" bst:UID="e3f303c864b848608004c2e3c1a37cf3" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
+          <CONNECTION FORMAT="1.00" ID="12" FROM="2" TO="3" TEXT="" bst:UID="171259c7462b47378fafc86f22e51f7a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,170" />
+          <CONNECTION FORMAT="1.00" ID="13" FROM="3" TO="4" TEXT="" bst:UID="fce88954883e4cd58cc4301246123f37" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,230 0,270" />
+          <CONNECTION FORMAT="1.00" ID="14" FROM="4" TO="5" TEXT="" bst:UID="f2afcfd637a44d8cbccaf195f410f62b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,370" />
+          <CONNECTION FORMAT="1.00" ID="15" FROM="5" TO="6" TEXT="" bst:UID="d10a21f798d54a6cb72031f9637e4442" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,430 0,470" />
+          <CONNECTION FORMAT="1.00" ID="16" FROM="6" TO="7" TEXT="" bst:UID="2c9679e56dc5419b9e8dd5de7e4fd3f2" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,530 0,580" />
         </CONNECTIONS>
       </DIAGRAM>
       <DIAGRAM FORMAT="1.00" ID="1" NAME="Begrüßung" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51">
@@ -86,12 +86,12 @@ auslagern (Strg+Alt+U).]]></TEXT>
                 <TEXT><![CDATA[Begrüßung]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="120" bst:HEIGHT="40">
+            <ENTRY COLUMN="0" ROW="1" bst:X="0" bst:Y="0" bst:WIDTH="160" bst:HEIGHT="40">
               <FIGURE SUBTYPE="PapStart" FORMAT="1.00" ID="1" bst:UID="cea13b90485542a9ab5edd0334187ca7">
                 <TEXT><![CDATA[Begrüßung]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="320" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="2" bst:UID="cb55aba77046412e83191f759af46bac">
                 <TEXT><![CDATA[„Willkommen beim ggT-Rechner!“ ausgeben]]></TEXT>
               </FIGURE>
@@ -104,8 +104,8 @@ auslagern (Strg+Alt+U).]]></TEXT>
           </ENTRIES>
         </LAYOUT>
         <CONNECTIONS>
-          <CONNECTION FORMAT="1.00" ID="4" FROM="1" TO="2" TEXT="" bst:UID="bb8e30c1fd0d4ca3a7581dae0a441fc2" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="5" FROM="2" TO="3" TEXT="" bst:UID="060dc65d3fa345c3b51aef0561fb41e7" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+          <CONNECTION FORMAT="1.00" ID="4" FROM="1" TO="2" TEXT="" bst:UID="bb8e30c1fd0d4ca3a7581dae0a441fc2" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
+          <CONNECTION FORMAT="1.00" ID="5" FROM="2" TO="3" TEXT="" bst:UID="060dc65d3fa345c3b51aef0561fb41e7" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,180" />
         </CONNECTIONS>
       </DIAGRAM>
       <DIAGRAM FORMAT="1.00" ID="2" NAME="ggT" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51">
@@ -147,7 +147,7 @@ b = r]]></TEXT>
                 <TEXT><![CDATA[Ende]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="1" bst:X="-390" bst:Y="0" bst:WIDTH="300" bst:HEIGHT="100">
+            <ENTRY COLUMN="0" ROW="1" bst:X="-390" bst:Y="0" bst:WIDTH="320" bst:HEIGHT="120">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="7" bst:UID="b8b0df5713d34960ad34ada13cb965ea">
                 <TEXT><![CDATA[Euklidischer Algorithmus: Am Ende
 steht der ggT in a. Unterprogramme
@@ -155,7 +155,7 @@ arbeiten mit denselben Variablen
 wie das Hauptprogramm.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="80">
+            <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="200" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="ffec5d588e12431faed3bcbf33b092fe">
                 <TEXT><![CDATA[„mod“ ist der Rest der Division;
 „≠“ gibt es unter Bearbeiten →
@@ -164,12 +164,12 @@ Sonderzeichen.]]></TEXT>
             </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 5, &quot;attributes&quot;: {&quot;FROM&quot;: 7, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;1aefd5350b314f119569f2d13a4dd7af&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 6, &quot;attributes&quot;: {&quot;FROM&quot;: 8, &quot;TO&quot;: 3, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;a58f75b179264ce1a1ff5c71d72658fe&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;left&quot;, &quot;bst:TARGET_PORT&quot;: &quot;right&quot;}}]">
-          <CONNECTION FORMAT="1.00" ID="9" FROM="1" TO="2" TEXT="" bst:UID="ec2d20f536ba47aa8e92f40997b2f375" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="10" FROM="2" TO="3" TEXT="" bst:UID="d7f6e43fc1524ad694f7825702b6a450" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="11" FROM="3" TO="4" TEXT="" bst:UID="990986cb67d44951a56db11c3743ec8b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="12" FROM="4" TO="5" TEXT="" bst:UID="bbb647eea30541458af72fe86f1ef8d0" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="13" FROM="5" TO="6" TEXT="" bst:UID="ccfaa091ff7c469da3715e427f29ce86" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 5, &quot;attributes&quot;: {&quot;FROM&quot;: 7, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;1aefd5350b314f119569f2d13a4dd7af&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-230,0 -60,0&quot;}}, {&quot;index&quot;: 6, &quot;attributes&quot;: {&quot;FROM&quot;: 8, &quot;TO&quot;: 3, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;a58f75b179264ce1a1ff5c71d72658fe&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;left&quot;, &quot;bst:TARGET_PORT&quot;: &quot;right&quot;, &quot;bst:PATH&quot;: &quot;224,200 80,200&quot;}}]">
+          <CONNECTION FORMAT="1.00" ID="9" FROM="1" TO="2" TEXT="" bst:UID="ec2d20f536ba47aa8e92f40997b2f375" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
+          <CONNECTION FORMAT="1.00" ID="10" FROM="2" TO="3" TEXT="" bst:UID="d7f6e43fc1524ad694f7825702b6a450" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,170" />
+          <CONNECTION FORMAT="1.00" ID="11" FROM="3" TO="4" TEXT="" bst:UID="990986cb67d44951a56db11c3743ec8b" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,230 0,270" />
+          <CONNECTION FORMAT="1.00" ID="12" FROM="4" TO="5" TEXT="" bst:UID="bbb647eea30541458af72fe86f1ef8d0" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,370" />
+          <CONNECTION FORMAT="1.00" ID="13" FROM="5" TO="6" TEXT="" bst:UID="ccfaa091ff7c469da3715e427f29ce86" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,430 0,480" />
         </CONNECTIONS>
       </DIAGRAM>
     </DIAGRAMS>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.12.0">
   <PROJECT FORMAT="1.00" NAME="Beispiel_Mittelwert" AUTHOR="BS Technik" CREATED="2026.09.24 21:55:01" MODIFIED="2026.09.24 21:55:01" bst:DESCRIPTION="Beispiel: Mittelwert von n eingegebenen Werten mit Schleife und Verzweigung." bst:CREATED="2026-09-24T21:55:01+02:00" bst:MODIFIED="2026-09-24T21:55:01+02:00">
     <DIAGRAMS>
       <DIAGRAM FORMAT="1.00" ID="0" NAME="Beispiel_Mittelwert" CREATED="2026.09.24 21:55:01" MODIFIED="2026.09.24 21:55:01">
@@ -15,7 +15,7 @@
                 <TEXT><![CDATA[Start]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="200" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="2" bst:X="0" bst:Y="100" bst:WIDTH="240" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="2" bst:UID="4ed793f54b1b465180044f4f32c95600">
                 <TEXT><![CDATA[Anzahl n einlesen]]></TEXT>
               </FIGURE>
@@ -25,7 +25,7 @@
                 <TEXT><![CDATA[summe = 0]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="4" bst:X="0" bst:Y="300" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="4" bst:X="0" bst:Y="300" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapLoopStart" FORMAT="1.00" ID="4" ASSOCIATE="5" bst:UID="c63bd7492e15436fa87edcaec98ca8c5">
                 <TEXT><![CDATA[Für i = 1 bis n]]></TEXT>
               </FIGURE>
@@ -35,12 +35,12 @@
                 <TEXT><![CDATA[nächstes i]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="5" bst:X="0" bst:Y="420" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="5" bst:X="0" bst:Y="420" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="6" bst:UID="c99d8177d0c1473d9141f5b958a17f76">
                 <TEXT><![CDATA[Wert x einlesen]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="6" bst:X="0" bst:Y="520" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="6" bst:X="0" bst:Y="520" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="7" bst:UID="7b822b9d6c0f4ec6a6153381be1684c5">
                 <TEXT><![CDATA[summe = summe + x]]></TEXT>
               </FIGURE>
@@ -55,7 +55,7 @@
                 <TEXT><![CDATA[mittelwert = summe / n]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="10" bst:X="0" bst:Y="1020" bst:WIDTH="200" bst:HEIGHT="60">
+            <ENTRY COLUMN="0" ROW="10" bst:X="0" bst:Y="1020" bst:WIDTH="240" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="10" bst:UID="fc5e9202d7714c00bf8a005053f00711">
                 <TEXT><![CDATA[Mittelwert ausgeben]]></TEXT>
               </FIGURE>
@@ -70,7 +70,7 @@
                 <TEXT><![CDATA[Ende]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="1" bst:X="300" bst:Y="0" bst:WIDTH="200" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="1" bst:X="300" bst:Y="0" bst:WIDTH="240" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="d3d20467a8a047ba89187cc2907e2f85">
                 <TEXT><![CDATA[Berechnet den Mittelwert
 von n eingegebenen Werten]]></TEXT>
@@ -88,7 +88,7 @@ von n eingegebenen Werten]]></TEXT>
             </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 12, &quot;attributes&quot;: {&quot;FROM&quot;: 13, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;38df381ee4c04af3b4119ffb0f424afe&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;left&quot;, &quot;bst:TARGET_PORT&quot;: &quot;right&quot;, &quot;bst:PATH&quot;: &quot;200,0 60,0&quot;}}]">
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 12, &quot;attributes&quot;: {&quot;FROM&quot;: 13, &quot;TO&quot;: 1, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;38df381ee4c04af3b4119ffb0f424afe&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;left&quot;, &quot;bst:TARGET_PORT&quot;: &quot;right&quot;, &quot;bst:PATH&quot;: &quot;180,0 60,0&quot;}}]">
           <CONNECTION FORMAT="1.00" ID="16" FROM="4" TO="6" TEXT="" bst:UID="b931c354943c4b7e9f4167afcc112910" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,390" />
           <CONNECTION FORMAT="1.00" ID="17" FROM="6" TO="7" TEXT="" bst:UID="9822b6133c6f4641a43cd1d402f00dfb" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,450 0,490" />
           <CONNECTION FORMAT="1.00" ID="18" FROM="7" TO="5" TEXT="" bst:UID="bd221dc8a4fb477d924198b029332ec9" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,550 0,590" />

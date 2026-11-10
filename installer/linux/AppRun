@@ -1,0 +1,66 @@
+#!/bin/sh
+# Startskript des AppImage: prüft, ob die wenigen Bibliotheken des Systems da sind, die das Programm nicht selbst
+# mitbringt (Grafik: libGL, libEGL, libxcb – auf jedem Linux mit Bildschirmoberfläche vorhanden), und startet dann
+# das gebündelte Programm mit allen Argumenten (z. B. Projektdateien).
+#
+# Fehlt etwas (z. B. auf einer Minimalinstallation), erscheint statt eines stummen Absturzes eine Meldung mit dem
+# passenden Befehl für die eigene Distribution. Mit BSTECHNIK_PAP_SKIP_CHECK=1 wird nicht geprüft.
+
+HERE="$(dirname "$(readlink -f "$0")")"
+PROGRAM="$HERE/usr/lib/BSTechnikPAPDesigner/BSTechnikPAPDesigner"
+REQUIRED="libGL.so.1 libEGL.so.1 libxcb.so.1"
+
+have_library() {
+    for ldconfig in ldconfig /sbin/ldconfig /usr/sbin/ldconfig /usr/bin/ldconfig; do
+        if command -v "$ldconfig" >/dev/null 2>&1; then
+            "$ldconfig" -p 2>/dev/null | grep -q " $1 " && return 0
+            break
+        fi
+    done
+    for folder in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu /usr/lib64 /lib64 /usr/lib /lib; do
+        [ -e "$folder/$1" ] && return 0
+    done
+    return 1
+}
+
+install_hint() {
+    ID=""; ID_LIKE=""
+    [ -r /etc/os-release ] && . /etc/os-release
+    case " $ID $ID_LIKE " in
+        *" arch "*|*" manjaro "*|*" endeavouros "*) echo "sudo pacman -S --needed mesa libglvnd libxcb" ;;
+        *" fedora "*|*" rhel "*|*" centos "*) echo "sudo dnf install mesa-libGL mesa-libEGL libxcb" ;;
+        *" suse "*|*" opensuse "*|*" sles "*) echo "sudo zypper install Mesa-libGL1 Mesa-libEGL1 libxcb1" ;;
+        *" debian "*|*" ubuntu "*) echo "sudo apt install libgl1 libegl1 libxcb1" ;;
+        *) echo "die Pakete für OpenGL/EGL (Mesa) und libxcb über die Paketverwaltung" ;;
+    esac
+}
+
+if [ -z "$BSTECHNIK_PAP_SKIP_CHECK" ]; then
+    MISSING=""
+    for library in $REQUIRED; do
+        have_library "$library" || MISSING="$MISSING $library"
+    done
+    if [ -n "$MISSING" ]; then
+        TITLE="BS Technik PAP Designer"
+        TEXT="Es fehlen Bibliotheken des Systems:$MISSING
+
+Bitte im Terminal installieren:
+$(install_hint)
+
+Danach das Programm erneut starten.
+(Missing system libraries:$MISSING – please install them with the command above.)"
+        echo "$TEXT" >&2
+        if command -v zenity >/dev/null 2>&1; then
+            zenity --error --title="$TITLE" --text="$TEXT" 2>/dev/null
+        elif command -v kdialog >/dev/null 2>&1; then
+            kdialog --title "$TITLE" --error "$TEXT" 2>/dev/null
+        elif command -v notify-send >/dev/null 2>&1; then
+            notify-send "$TITLE" "$TEXT" 2>/dev/null
+        elif command -v xmessage >/dev/null 2>&1; then
+            xmessage -center "$TEXT" 2>/dev/null
+        fi
+        exit 127
+    fi
+fi
+
+exec "$PROGRAM" "$@"

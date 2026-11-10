@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.10.0">
+<FRAME GUID="2FB25471-B62C-4EE6-BD43-F819C095ACF8" FORMAT="0000" APP_VERSION="2.2.0.8" CHECKSUM="UNSIGNED" xmlns:bst="urn:bstechnik:pap-designer" bst:VERSION="3" bst:APP="BS Technik PAP Designer" bst:APP_VERSION="1.12.0">
   <PROJECT FORMAT="1.00" NAME="Lernbeispiel 3 – Schleifen" AUTHOR="BS Technik" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51" bst:DESCRIPTION="Summe 1 + 2 + … + n mit Fuß- und Kopfbedingung." bst:CREATED="2026-10-28T07:52:51+01:00" bst:MODIFIED="2026-10-28T07:52:51+01:00">
     <DIAGRAMS>
       <DIAGRAM FORMAT="1.00" ID="0" NAME="Lernbeispiel 3 – Schleifen" CREATED="2026.10.28 07:52:51" MODIFIED="2026.10.28 07:52:51">
@@ -20,7 +20,7 @@
                 <TEXT><![CDATA[wiederhole]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="3" bst:X="0" bst:Y="200" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapInput" FORMAT="1.00" ID="3" bst:UID="d33e591823124d6a8fb9a2d7f2ad5fb2">
                 <TEXT><![CDATA[Zahl n einlesen]]></TEXT>
               </FIGURE>
@@ -41,7 +41,7 @@ i = 1]]></TEXT>
                 <TEXT><![CDATA[solange i <= n]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="600" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="7" bst:X="0" bst:Y="600" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapActivity" FORMAT="1.00" ID="7" bst:UID="393e6d9053744f0fadfbee9abd287c78">
                 <TEXT><![CDATA[summe = summe + i]]></TEXT>
               </FIGURE>
@@ -56,7 +56,7 @@ i = 1]]></TEXT>
                 <TEXT><![CDATA[Schleifenende]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="1" ROW="11" bst:X="0" bst:Y="900" bst:WIDTH="160" bst:HEIGHT="60">
+            <ENTRY COLUMN="1" ROW="11" bst:X="0" bst:Y="900" bst:WIDTH="200" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapOutput" FORMAT="1.00" ID="10" bst:UID="0848c7be85834ad7b98ed92c6751c617">
                 <TEXT><![CDATA[„Summe:“ summe]]></TEXT>
               </FIGURE>
@@ -66,7 +66,7 @@ i = 1]]></TEXT>
                 <TEXT><![CDATA[Ende]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="3" bst:X="-390" bst:Y="200" bst:WIDTH="300" bst:HEIGHT="100">
+            <ENTRY COLUMN="0" ROW="3" bst:X="-390" bst:Y="200" bst:WIDTH="320" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="12" bst:UID="4f11e4d99dbd4221aaecdaaa66210709">
                 <TEXT><![CDATA[Schleife mit Fußbedingung: Der Inhalt
 läuft mindestens einmal; geprüft wird
@@ -74,21 +74,21 @@ am Ende („bis …“). Hier: so lange
 fragen, bis n positiv ist.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="0" ROW="7" bst:X="-390" bst:Y="600" bst:WIDTH="300" bst:HEIGHT="80">
+            <ENTRY COLUMN="0" ROW="7" bst:X="-390" bst:Y="600" bst:WIDTH="280" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="fe9591af7a19453baa20a1573df5403d">
                 <TEXT><![CDATA[Schleife mit Kopfbedingung: geprüft
 wird vorher („solange …“) – ist sie
 falsch, läuft der Inhalt gar nicht.]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="2" ROW="5" bst:X="364" bst:Y="400" bst:WIDTH="300" bst:HEIGHT="80">
+            <ENTRY COLUMN="2" ROW="5" bst:X="364" bst:Y="400" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="14" bst:UID="2ddfe8ae86334c36be9e332e3c694567">
                 <TEXT><![CDATA[Mehrere Zuweisungen in einem
 Baustein: je Zeile eine
 (Zeilenumbruch mit Strg+Enter).]]></TEXT>
               </FIGURE>
             </ENTRY>
-            <ENTRY COLUMN="2" ROW="9" bst:X="364" bst:Y="750" bst:WIDTH="300" bst:HEIGHT="100">
+            <ENTRY COLUMN="2" ROW="9" bst:X="364" bst:Y="750" bst:WIDTH="320" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="15" bst:UID="fefbf0ccaeba4fc2a41d3dc964f690f4">
                 <TEXT><![CDATA[Einfügen → Schleife mit Kopf- bzw.
 Fußbedingung legt beide Teile an.
@@ -98,17 +98,17 @@ Verzweigung und einem Pfeil zurück.]]></TEXT>
             </ENTRY>
           </ENTRIES>
         </LAYOUT>
-        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 10, &quot;attributes&quot;: {&quot;FROM&quot;: 12, &quot;TO&quot;: 4, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;b1a9a963095e4f8d8a4628df6c77e380&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 11, &quot;attributes&quot;: {&quot;FROM&quot;: 13, &quot;TO&quot;: 6, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;0ec62ee219b342c59d4b1a91e5784685&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;}}, {&quot;index&quot;: 12, &quot;attributes&quot;: {&quot;FROM&quot;: 14, &quot;TO&quot;: 5, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;380a9537c00b434ebae1260add12b590&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;left&quot;, &quot;bst:TARGET_PORT&quot;: &quot;right&quot;}}]">
-          <CONNECTION FORMAT="1.00" ID="16" FROM="1" TO="2" TEXT="" bst:UID="c1cb1c3319b9467c940eaf6efae9129a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="17" FROM="2" TO="3" TEXT="" bst:UID="159c96474f7d4649a10ed082f148b00c" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="18" FROM="3" TO="4" TEXT="" bst:UID="b9769e0fcab4424dbd044265dde1afc5" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="19" FROM="4" TO="5" TEXT="" bst:UID="dc111e8d99bb4b7e95b085472d3f02f4" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="20" FROM="5" TO="6" TEXT="" bst:UID="dd1b35a161304d65a54d2b5deb8fc249" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="21" FROM="6" TO="7" TEXT="" bst:UID="d8d3d73872e04583b5d9217f11a8d431" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="22" FROM="7" TO="8" TEXT="" bst:UID="9e5a63c42f2c4c0aa5a6de3eb4624685" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="23" FROM="8" TO="9" TEXT="" bst:UID="2629b331e2d74f4d95e211891cf0e46f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="24" FROM="9" TO="10" TEXT="" bst:UID="9f0544134d5e49328e079b1cc2ac2383" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
-          <CONNECTION FORMAT="1.00" ID="25" FROM="10" TO="11" TEXT="" bst:UID="cb4283cbeb1c476cbe1c8244094ed949" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" />
+        <CONNECTIONS bst:ANNOTATIONS="[{&quot;index&quot;: 10, &quot;attributes&quot;: {&quot;FROM&quot;: 12, &quot;TO&quot;: 4, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;b1a9a963095e4f8d8a4628df6c77e380&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-230,200 -155,200 -155,300 -80,300&quot;}}, {&quot;index&quot;: 11, &quot;attributes&quot;: {&quot;FROM&quot;: 13, &quot;TO&quot;: 6, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;0ec62ee219b342c59d4b1a91e5784685&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;right&quot;, &quot;bst:TARGET_PORT&quot;: &quot;left&quot;, &quot;bst:PATH&quot;: &quot;-250,600 -165,600 -165,500 -80,500&quot;}}, {&quot;index&quot;: 12, &quot;attributes&quot;: {&quot;FROM&quot;: 14, &quot;TO&quot;: 5, &quot;TEXT&quot;: &quot;&quot;, &quot;bst:UID&quot;: &quot;380a9537c00b434ebae1260add12b590&quot;, &quot;bst:SOURCE_PORT&quot;: &quot;left&quot;, &quot;bst:TARGET_PORT&quot;: &quot;right&quot;, &quot;bst:PATH&quot;: &quot;224,400 80,400&quot;}}]">
+          <CONNECTION FORMAT="1.00" ID="16" FROM="1" TO="2" TEXT="" bst:UID="c1cb1c3319b9467c940eaf6efae9129a" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,20 0,70" />
+          <CONNECTION FORMAT="1.00" ID="17" FROM="2" TO="3" TEXT="" bst:UID="159c96474f7d4649a10ed082f148b00c" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,130 0,170" />
+          <CONNECTION FORMAT="1.00" ID="18" FROM="3" TO="4" TEXT="" bst:UID="b9769e0fcab4424dbd044265dde1afc5" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,230 0,270" />
+          <CONNECTION FORMAT="1.00" ID="19" FROM="4" TO="5" TEXT="" bst:UID="dc111e8d99bb4b7e95b085472d3f02f4" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,330 0,370" />
+          <CONNECTION FORMAT="1.00" ID="20" FROM="5" TO="6" TEXT="" bst:UID="dd1b35a161304d65a54d2b5deb8fc249" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,430 0,470" />
+          <CONNECTION FORMAT="1.00" ID="21" FROM="6" TO="7" TEXT="" bst:UID="d8d3d73872e04583b5d9217f11a8d431" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,530 0,570" />
+          <CONNECTION FORMAT="1.00" ID="22" FROM="7" TO="8" TEXT="" bst:UID="9e5a63c42f2c4c0aa5a6de3eb4624685" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,630 0,670" />
+          <CONNECTION FORMAT="1.00" ID="23" FROM="8" TO="9" TEXT="" bst:UID="2629b331e2d74f4d95e211891cf0e46f" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,730 0,770" />
+          <CONNECTION FORMAT="1.00" ID="24" FROM="9" TO="10" TEXT="" bst:UID="9f0544134d5e49328e079b1cc2ac2383" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,830 0,870" />
+          <CONNECTION FORMAT="1.00" ID="25" FROM="10" TO="11" TEXT="" bst:UID="cb4283cbeb1c476cbe1c8244094ed949" bst:SOURCE_PORT="bottom" bst:TARGET_PORT="top" bst:PATH="0,930 0,980" />
         </CONNECTIONS>
       </DIAGRAM>
     </DIAGRAMS>

@@ -148,19 +148,22 @@ def test_saved_projects_get_normal_file_permissions(tmp_path):
         os.umask(old)
 
 
-def test_text_in_symbols_measures_like_segoe_ui(qapp):
-    """Ohne Segoe UI (Linux) misst der Text mit der mitgelieferten Selawik genau wie unter Windows."""
-    from PySide6.QtGui import QFontDatabase, QFontInfo, QFontMetricsF
+def test_one_bundled_font_everywhere(qapp):
+    """Bausteine und Oberfläche nutzen auf jedem System die mitgelieferte JetBrains Mono NL – gleich breit."""
+    from PySide6.QtGui import QFontInfo, QFontMetricsF
     from app import styles
-    font = styles.item_font()
     assert all(os.path.isfile(resources.asset_path(os.path.join("fonts", name))) for name in styles.BUNDLED_FONTS)
-    assert QFontInfo(font).family() in ("Segoe UI", "Selawik")
-    if "Segoe UI" not in QFontDatabase.families():
-        assert QFontInfo(font).family() == "Selawik"
-    # gemessen unter Windows mit Segoe UI (13 px, ohne Hinting)
-    assert round(QFontMetricsF(font).horizontalAdvance("summe = summe + x"), 1) == 122.0
-    font.setBold(True)
-    assert round(QFontMetricsF(font).horizontalAdvance("summe = summe + x"), 1) == 128.7
+    assert os.path.isfile(resources.asset_path(os.path.join("fonts", "JetBrainsMono-OFL.txt")))
+    for font in (styles.item_font(), styles.ui_font()):
+        assert QFontInfo(font).family() == config.APP_FONT_FAMILY
+    font = styles.item_font()
+    metrics = QFontMetricsF(font)
+    # gleich breite Zeichen: jedes Zeichen gleich breit, auch Umlaute und ≤ ≥ ≠ → (keine Ersatzschrift nötig)
+    widths = {round(metrics.horizontalAdvance(c), 3) for c in "iWm0Oäß≤≥≠→←„“"}
+    assert len(widths) == 1
+    assert abs(metrics.horizontalAdvance("summe = summe + x") - 17 * widths.pop()) < 0.05
+    # ohne Ligaturen: „<=“ bleibt zwei Zeichen breit
+    assert metrics.horizontalAdvance("<=") == 2 * metrics.horizontalAdvance("<")
 
 
 # ------------------------------------------------------------------ Vorgaben

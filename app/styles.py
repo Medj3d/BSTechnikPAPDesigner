@@ -224,17 +224,16 @@ def set_current_theme(theme: Theme) -> None:
     _current_theme = theme
 
 
-BUNDLED_FONTS = ("Selawik-Regular.ttf", "Selawik-Bold.ttf")
+BUNDLED_FONTS = ("JetBrainsMonoNL-Regular.ttf", "JetBrainsMonoNL-Bold.ttf", "JetBrainsMonoNL-Italic.ttf",
+                 "JetBrainsMonoNL-BoldItalic.ttf")
 _bundled_fonts_registered = False
 
 
 def register_bundled_fonts() -> None:
-    """Liefert „Selawik“ mit, wo „Segoe UI“ fehlt (Linux, macOS).
+    """Lädt die mitgelieferte Schrift „JetBrains Mono NL“ (``assets/fonts``, SIL Open Font License).
 
-    Selawik ist Microsofts freie Schrift (SIL Open Font License, ``assets/fonts/Selawik-OFL.txt``) mit denselben
-    Maßen wie Segoe UI. Damit messen Texte in Bausteinen unter Linux genauso breit wie unter Windows: Eine unter
-    Windows gespeicherte Datei sieht gleich aus, und kein Baustein wächst beim Öffnen. Unter Windows (Segoe UI
-    vorhanden) wird nichts geladen.
+    Auf jedem System dieselbe Schriftdatei: Texte messen überall gleich breit, ein Plan sieht unter Windows und
+    Linux gleich aus, und kein Baustein wächst beim Öffnen auf einem anderen System.
     """
     global _bundled_fonts_registered
     if _bundled_fonts_registered or QApplication.instance() is None:
@@ -244,8 +243,6 @@ def register_bundled_fonts() -> None:
 
     from app import resources
 
-    if "Segoe UI" in QFontDatabase.families():
-        return
     for name in BUNDLED_FONTS:
         path = resources.asset_path(os.path.join("fonts", name))
         if os.path.isfile(path) and QFontDatabase.addApplicationFont(path) < 0:
@@ -256,8 +253,7 @@ def ui_font(point_size: float = 9.5) -> QFont:
     register_bundled_fonts()
     font = QFont()
     # Die Schriften für Chinesisch, Japanisch, … stehen dahinter: Qt greift je Zeichen auf sie zurück
-    font.setFamilies(["Segoe UI Variable Text", "Segoe UI", "Selawik", "Inter", "Helvetica Neue", "Arial",
-                      *i18n.font_fallbacks()])
+    font.setFamilies([config.APP_FONT_FAMILY, *i18n.font_fallbacks()])
     font.setPointSizeF(point_size)
     return font
 

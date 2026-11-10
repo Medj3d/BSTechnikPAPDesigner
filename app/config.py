@@ -142,8 +142,10 @@ SIZE_STEP_WIDTH = 40
 SIZE_STEP_HEIGHT = 20
 
 # Schrift innerhalb der Bausteine (Pixelgröße in Szeneneinheiten)
-# „Selawik“ hat die Maße von Segoe UI und wird dort mitgeliefert, wo Segoe UI fehlt (Linux, siehe styles.py)
-ITEM_FONT_FAMILIES = ["Segoe UI", "Selawik", "Inter", "Helvetica Neue", "Arial"]
+# Eine Schrift für alles, auf allen Systemen gleich: „JetBrains Mono NL“ wird mitgeliefert (assets/fonts, SIL Open
+# Font License; NL = ohne Ligaturen, „<=“ bleibt „<=“). So sieht ein Plan unter Windows, Linux und macOS gleich aus.
+APP_FONT_FAMILY = "JetBrains Mono NL"
+ITEM_FONT_FAMILIES = [APP_FONT_FAMILY]
 ITEM_FONT_PIXEL_SIZE = 13
 LABEL_FONT_PIXEL_SIZE = 12
 

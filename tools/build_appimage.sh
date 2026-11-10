@@ -48,12 +48,8 @@ rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/lib"
 cp -a "dist/$NAME" "$APPDIR/usr/lib/$NAME"
 
-cat > "$APPDIR/AppRun" <<'APPRUN'
-#!/bin/sh
-# Startskript des AppImage: startet das gebündelte Programm mit allen Argumenten (z. B. Projektdateien).
-HERE="$(dirname "$(readlink -f "$0")")"
-exec "$HERE/usr/lib/BSTechnikPAPDesigner/BSTechnikPAPDesigner" "$@"
-APPRUN
+# Startskript: prüft die wenigen Systembibliotheken und startet das Programm (installer/linux/AppRun)
+tr -d '\r' < installer/linux/AppRun > "$APPDIR/AppRun"
 chmod 755 "$APPDIR/AppRun"
 
 cat > "$APPDIR/$DESKTOP_ID.desktop" <<DESKTOP

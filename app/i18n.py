@@ -61,11 +61,19 @@ QT_TRANSLATION = {"de": "de", "fr": "fr", "es": "es", "pt": "pt_BR", "ru": "ru",
                   "ja": "ja"}
 # Schriften für Zeichen, die die Standardschrift nicht hat (Reihenfolge = Vorrang; Chinesisch und Japanisch
 # teilen sich viele Zeichen, die je nach Schrift unterschiedlich aussehen)
+# Die mitgelieferte Schrift (JetBrains Mono) hat kein Arabisch, Chinesisch und Japanisch: dafür die Schriften des
+# Systems – zuerst die von Windows, dann die üblichen unter Linux (Noto) und macOS.
+LINUX_CJK = ["Noto Sans CJK SC", "Noto Sans CJK JP", "Source Han Sans SC", "WenQuanYi Micro Hei"]
+FONT_FALLBACKS_DEFAULT = ["Segoe UI", "Microsoft YaHei UI", "Yu Gothic UI", "Meiryo UI", "Malgun Gothic",
+                          "Segoe UI Symbol", "Noto Sans", "Noto Sans Arabic", *LINUX_CJK, "DejaVu Sans"]
 FONT_FALLBACKS = {
-    "zh": ["Microsoft YaHei UI", "Microsoft JhengHei UI", "Yu Gothic UI", "Meiryo UI", "Malgun Gothic"],
-    "ja": ["Yu Gothic UI", "Meiryo UI", "Microsoft YaHei UI", "Microsoft JhengHei UI", "Malgun Gothic"],
+    "zh": ["Microsoft YaHei UI", "Microsoft JhengHei UI", "Yu Gothic UI", "Meiryo UI", "Malgun Gothic",
+           *LINUX_CJK, "PingFang SC"],
+    "ja": ["Yu Gothic UI", "Meiryo UI", "Microsoft YaHei UI", "Microsoft JhengHei UI", "Malgun Gothic",
+           "Noto Sans CJK JP", "Noto Sans CJK SC", "Source Han Sans JP", "Hiragino Sans"],
+    "ar": ["Segoe UI", "Noto Sans Arabic", "Noto Naskh Arabic", "Geeza Pro",
+           *[f for f in FONT_FALLBACKS_DEFAULT if f != "Segoe UI"]],
 }
-FONT_FALLBACKS_DEFAULT = ["Microsoft YaHei UI", "Yu Gothic UI", "Meiryo UI", "Malgun Gothic", "Segoe UI Symbol"]
 
 GERMAN_MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober",
                  "November", "Dezember"]
