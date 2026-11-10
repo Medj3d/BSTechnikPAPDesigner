@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit,
-                               QPlainTextEdit, QSpinBox, QVBoxLayout)
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
+                               QPlainTextEdit, QSpinBox, QToolButton, QVBoxLayout)
 
 from app import config
 from app.fileformat.project import CURRENT_FORMAT_VERSION
@@ -46,6 +47,15 @@ class ProjectPropertiesDialog(QDialog):
         self.grid_spin.setSingleStep(5)
         self.grid_spin.setSuffix(" px")
         self.grid_spin.setValue(int(grid_size))
+        # Die kleinen Pfeile des Zahlenfelds sind kaum zu erkennen: stattdessen zwei deutliche Knöpfe
+        self.grid_spin.setObjectName("PlainSpin")  # blendet die Pfeile aus (siehe styles.py)
+        self.grid_minus = self._step_button("−", self.grid_spin.stepDown)
+        self.grid_plus = self._step_button("+", self.grid_spin.stepUp)
+        grid_row = QHBoxLayout()
+        grid_row.setSpacing(6)
+        grid_row.addWidget(self.grid_spin, 1)
+        grid_row.addWidget(self.grid_minus)
+        grid_row.addWidget(self.grid_plus)
 
         created = QLineEdit(format_timestamp(meta.created))
         created.setReadOnly(True)
@@ -63,7 +73,7 @@ class ProjectPropertiesDialog(QDialog):
         form.addRow(tr("Projektname"), self.name_edit)
         form.addRow(tr("Autor"), self.author_edit)
         form.addRow(tr("Beschreibung"), self.description_edit)
-        form.addRow(tr("Rastergröße"), self.grid_spin)
+        form.addRow(tr("Rastergröße"), grid_row)
         form.addRow(tr("Erstellt"), created)
         form.addRow(tr("Geändert"), modified)
         form.addRow(tr("Dateiformat-Version"), version)
@@ -81,6 +91,16 @@ class ProjectPropertiesDialog(QDialog):
         layout.addWidget(title)
         layout.addLayout(form)
         layout.addWidget(buttons)
+
+    @staticmethod
+    def _step_button(text: str, slot) -> QToolButton:
+        button = QToolButton()
+        button.setObjectName("StepButton")
+        button.setText(text)
+        button.setAutoRepeat(True)
+        button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        button.clicked.connect(slot)
+        return button
 
     def result_meta(self) -> ProjectMeta:
         meta = self._meta.copy()

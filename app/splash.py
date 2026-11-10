@@ -8,7 +8,7 @@ gezeigt, bis das Hauptfenster bereit ist.
 from __future__ import annotations
 
 from PySide6.QtCore import QRect, QRectF, Qt
-from PySide6.QtGui import QBitmap, QColor, QFont, QPainter, QPixmap, QRegion
+from PySide6.QtGui import QBitmap, QColor, QFont, QFontMetricsF, QPainter, QPixmap, QRegion
 from PySide6.QtWidgets import QSplashScreen
 
 from app import config, resources
@@ -19,6 +19,9 @@ SPLASH_WIDTH = 560
 SPLASH_HEIGHT = 440
 LOGO_SIZE = 270.0   # Kantenlänge der Raute im Ladebildschirm
 LOGO_TOP = 46.0     # Abstand der Raute vom oberen Rand
+CREDIT_MARGIN = 24  # freier Rand links und rechts der Urheberzeile
+CREDIT_FONT_SIZE = 15
+CREDIT_MIN_FONT_SIZE = 9
 # Das Logo hat einen schwarzen Rand – auf Schwarz fügt es sich nahtlos ein
 BACKGROUND = "#000000"
 TEXT_COLOR = "#f2f2f2"
@@ -83,10 +86,15 @@ def render_splash(device_pixel_ratio: float = 1.0, message: str = "", with_text:
     register_bundled_fonts()  # mitgelieferte Schrift, auf allen Systemen gleich
     font = QFont()
     font.setFamilies(config.ITEM_FONT_FAMILIES)
-    font.setPixelSize(15)
+    # Die Zeile muss ganz hineinpassen: so lange verkleinern, bis auch der letzte Buchstabe Platz hat
+    credit_width = SPLASH_WIDTH - 2 * CREDIT_MARGIN
+    for size in range(CREDIT_FONT_SIZE, CREDIT_MIN_FONT_SIZE - 1, -1):
+        font.setPixelSize(size)
+        if QFontMetricsF(font).horizontalAdvance(config.SPLASH_CREDIT) <= credit_width:
+            break
     painter.setFont(font)
     painter.setPen(QColor(TEXT_COLOR))
-    painter.drawText(QRectF(20, logo_rect.bottom() + 22, SPLASH_WIDTH - 40, 26),
+    painter.drawText(QRectF(CREDIT_MARGIN, logo_rect.bottom() + 22, credit_width, 26),
                      Qt.AlignmentFlag.AlignCenter, config.SPLASH_CREDIT)
 
     font.setPixelSize(12)

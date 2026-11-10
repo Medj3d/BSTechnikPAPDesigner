@@ -9,7 +9,7 @@ import sys as _sys
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.13.0"
+APP_VERSION = "1.13.1"
 APP_RELEASE_DATE = "November 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Kontakt und Website (im Dialog „Über das Programm“)
@@ -131,7 +131,11 @@ DEFAULT_SNAP_TO_GRID = True
 # Zoom
 MIN_ZOOM = 0.25
 MAX_ZOOM = 4.0
-ZOOM_STEP = 1.15  # Faktor pro Mausrad-Raste bzw. Menübefehl
+ZOOM_STEP = 1.15  # Faktor pro Mausrad-Raste
+# Die Lupen-Knöpfe (und Strg +/−) springen auf runde Werte: Zehnerschritte, ab 200 % 25er-Schritte
+ZOOM_BUTTON_STEP = 10
+ZOOM_BUTTON_COARSE_STEP = 25
+ZOOM_BUTTON_COARSE_FROM = 200
 
 # Größe der (praktisch unbegrenzten) Szene in Szeneneinheiten
 SCENE_HALF_EXTENT = 50000

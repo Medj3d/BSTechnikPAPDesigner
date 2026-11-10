@@ -6,9 +6,9 @@ Ein Klick auf einen Eintrag wählt die betroffenen Elemente im Plan aus.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QToolButton,
+from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QSizePolicy, QToolButton,
                                QVBoxLayout, QWidget)
 
 from app import icons, styles
@@ -27,6 +27,39 @@ def severity_icon(severity: str) -> QIcon:
     painter.setPen(Qt.PenStyle.NoPen)
     painter.setBrush(color)
     painter.drawEllipse(3, 3, 8, 8)
+    painter.end()
+    return QIcon(pixmap)
+
+
+COUNT_ICON_SIZE = QSize(36, 18)   # Symbol mit Zähler in der Statusleiste
+
+
+def count_icon(count: int, has_warnings: bool) -> QIcon:
+    """Das Hinweis-Symbol mit einem Zähler oben rechts („3“, ab 100 „99+“); ohne Hinweise nur das Symbol."""
+    theme = styles.current_theme()
+    ratio = 3.0
+    width, height = COUNT_ICON_SIZE.width(), COUNT_ICON_SIZE.height()
+    pixmap = QPixmap(int(width * ratio), int(height * ratio))
+    pixmap.setDevicePixelRatio(ratio)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+    base = icons.icon("warning" if has_warnings else "info").pixmap(QSize(16, 16), ratio)
+    painter.drawPixmap(0, 1, base)
+    if count > 0:
+        text = str(count) if count < 100 else "99+"
+        font = QFont(painter.font())
+        font.setPixelSize(11)
+        font.setBold(True)
+        painter.setFont(font)
+        bubble_width = min(width - 12, max(16, painter.fontMetrics().horizontalAdvance(text) + 8))
+        bubble = QRectF(width - bubble_width, 1, bubble_width, 16)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(theme.connection_invalid if has_warnings else theme.accent))
+        painter.drawRoundedRect(bubble, 8, 8)
+        painter.setPen(QColor("#ffffff") if has_warnings else QColor(theme.accent_text))
+        painter.drawText(bubble, Qt.AlignmentFlag.AlignCenter, text)
     painter.end()
     return QIcon(pixmap)
 
@@ -60,6 +93,8 @@ class DiagnosticsPanel(QWidget):
         self.list.setIconSize(QSize(14, 14))
         self.list.setWordWrap(True)
         self.list.setFrameShape(QListWidget.Shape.NoFrame)
+        # Die Liste verlangt keine Mindesthöhe: das Feld lässt sich bis auf die Kopfzeile zusammenschieben
+        self.list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
         self.list.itemClicked.connect(self._on_item_clicked)
         self.list.itemActivated.connect(self._on_item_clicked)
 
@@ -69,6 +104,10 @@ class DiagnosticsPanel(QWidget):
         layout.addLayout(header)
         layout.addWidget(self.list, 1)
         self.refresh()
+
+    def sizeHint(self) -> QSize:
+        # Höhe beim ersten Öffnen: Platz für einige Zeilen (die Liste selbst meldet keine Wunschhöhe)
+        return QSize(320, 130)
 
     # ------------------------------------------------------------ Dokument
     def set_debounce(self, milliseconds: int) -> None:

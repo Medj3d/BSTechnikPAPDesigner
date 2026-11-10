@@ -27,6 +27,22 @@ QUICK_MENU_TYPES = (ElementType.INPUT, ElementType.OUTPUT, ElementType.PROCESS, 
                     ElementType.DECISION, ElementType.LOOP, ElementType.END)
 
 
+def next_zoom_level(zoom: float, direction: int) -> float:
+    """Die nächste runde Zoomstufe über (``direction > 0``) bzw. unter der aktuellen.
+
+    Die Lupen-Knöpfe landen immer auf glatten Werten: bis 200 % in Zehnerschritten, darüber in
+    25er-Schritten – auch wenn das Mausrad vorher z. B. 115 % eingestellt hat.
+    """
+    percent = zoom * 100.0
+    if direction > 0:
+        step = config.ZOOM_BUTTON_STEP if percent < config.ZOOM_BUTTON_COARSE_FROM - 1e-6             else config.ZOOM_BUTTON_COARSE_STEP
+        target = (math.floor(percent / step + 1e-6) + 1) * step
+    else:
+        step = config.ZOOM_BUTTON_STEP if percent <= config.ZOOM_BUTTON_COARSE_FROM + 1e-6             else config.ZOOM_BUTTON_COARSE_STEP
+        target = (math.ceil(percent / step - 1e-6) - 1) * step
+    return max(config.MIN_ZOOM, min(config.MAX_ZOOM, target / 100.0))
+
+
 class DiagramView(QGraphicsView):
     zoom_changed = Signal(float)
     cursor_scene_pos_changed = Signal(QPointF)
@@ -96,10 +112,10 @@ class DiagramView(QGraphicsView):
         self.zoom_changed.emit(self._zoom)
 
     def zoom_in(self) -> None:
-        self.set_zoom(self._zoom * config.ZOOM_STEP)
+        self.set_zoom(next_zoom_level(self._zoom, +1))
 
     def zoom_out(self) -> None:
-        self.set_zoom(self._zoom / config.ZOOM_STEP)
+        self.set_zoom(next_zoom_level(self._zoom, -1))
 
     def zoom_reset(self) -> None:
         self.set_zoom(1.0)

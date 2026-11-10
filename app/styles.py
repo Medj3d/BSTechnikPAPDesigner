@@ -455,6 +455,28 @@ QTabBar#PageTabs::tab:selected {{
     border-top: none;
     border-bottom: 2px solid {t.accent};
 }}
+QSpinBox#PlainSpin::up-button, QSpinBox#PlainSpin::down-button {{
+    width: 0px;
+    height: 0px;
+    border: none;
+}}
+QToolButton#StepButton {{
+    background: {t.panel_raised};
+    border: 1px solid {t.border_strong};
+    border-radius: 5px;
+    color: {t.text};
+    font-size: 15pt;
+    font-weight: bold;
+    min-width: 30px;
+    min-height: 26px;
+    padding: 0px;
+}}
+QToolButton#StepButton:hover {{
+    border-color: {t.accent};
+}}
+QToolButton#StepButton:pressed {{
+    background: {t.border};
+}}
 QToolButton#PageAddButton {{
     color: {t.text_muted};
     padding: 2px 8px;

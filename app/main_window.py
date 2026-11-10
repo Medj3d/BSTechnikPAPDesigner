@@ -27,7 +27,7 @@ from app.actions import ALIGN_ACTIONS, ActionRegistry, clean_text, insert_action
 from app.autosave import AutosaveManager
 from app.canvas import DiagramView
 from app.codegen.dialog import CodeDialog
-from app.diagnostics.panel import DiagnosticsPanel
+from app.diagnostics.panel import COUNT_ICON_SIZE, DiagnosticsPanel, count_icon
 from app.dialogs.recovery import RecoveryDialog
 from app.layout.auto_layout import apply_layout, plan_auto_layout
 from app.nsd.dialog import StructogramDialog
@@ -165,6 +165,9 @@ class MainWindow(QMainWindow):
         state = self.settings_store.window_state()
         if state is not None:
             self.restoreState(state, WINDOW_STATE_VERSION)
+        # Die Hinweise sind beim Start immer zu – auch wenn sie beim letzten Beenden offen waren.
+        # Geöffnet werden sie über den Knopf mit dem Zähler unten in der Statusleiste.
+        self.diagnostics_dock.hide()
 
         QApplication.clipboard().dataChanged.connect(self._update_actions)
         self._refresh_recent_menu()
@@ -484,7 +487,7 @@ class MainWindow(QMainWindow):
             return
         if not total:
             self.issues_button.setText(tr("Keine Hinweise"))
-            self.issues_button.setIcon(icons.icon("info"))
+            self.issues_button.setIcon(count_icon(0, False))
         else:
             parts = []
             if warnings:
@@ -492,7 +495,7 @@ class MainWindow(QMainWindow):
             if infos:
                 parts.append(tr("{n} Hinweis", n=infos) if infos == 1 else tr("{n} Hinweise", n=infos))
             self.issues_button.setText(" · ".join(parts))
-            self.issues_button.setIcon(icons.icon("warning" if warnings else "info"))
+            self.issues_button.setIcon(count_icon(total, bool(warnings)))
 
     def _toggle_diagnostics(self) -> None:
         """Hinweise zeigen bzw. nach vorne holen; nur ausblenden, wenn sie schon vorne liegen."""
@@ -545,7 +548,7 @@ class MainWindow(QMainWindow):
         self.zoom_label = QLabel("")
         self.issues_button = QToolButton()
         self.issues_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.issues_button.setIconSize(QSize(14, 14))
+        self.issues_button.setIconSize(COUNT_ICON_SIZE)
         self.issues_button.setAutoRaise(True)
         self.issues_button.clicked.connect(self._toggle_diagnostics)
         status.addPermanentWidget(self.issues_button)
