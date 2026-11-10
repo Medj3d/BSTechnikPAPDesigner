@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QDialog, QDialogBut
                                QHeaderView, QKeySequenceEdit, QLabel, QLineEdit, QPushButton, QScrollArea, QTableWidget,
                                QTableWidgetItem, QTabWidget, QToolButton, QVBoxLayout, QWidget)
 
-from app import preferences
+from app import config, preferences
 from app.actions import clean_text, sequence_text
 from app.i18n import N_, tr
 from app.search_text import matches
@@ -164,7 +164,8 @@ class SettingsDialog(QDialog):
         sections: dict[str, list[str]] = {}
         for preference in preferences.PREFERENCES:
             sections.setdefault(preference.section, []).append(preferences.action_name(preference.name))
-        groups = [*sections.items(), _GENERAL, _UPDATES]
+        tools = sections.pop(preferences.SECTION_TOOLS, [])
+        groups = [*sections.items(), _GENERAL, _UPDATES, (preferences.SECTION_TOOLS, tools)]
         self.switches: dict[str, QCheckBox] = {}
         for heading, names in groups:
             box = QGroupBox(tr(heading))
@@ -172,6 +173,13 @@ class SettingsDialog(QDialog):
             for name in names:
                 inner.addWidget(self._switch(name))
             layout.addWidget(box)
+        reset = QPushButton(tr("Alle Schalter zurücksetzen"))
+        reset.setToolTip(tr("Alle Schalter wieder auf den Standard stellen (Tastenkürzel bleiben)"))
+        reset.clicked.connect(self.reset_switches)
+        row = QHBoxLayout()
+        row.addStretch(1)
+        row.addWidget(reset)
+        layout.addLayout(row)
         layout.addStretch(1)
         scroll = QScrollArea()
         scroll.setWidget(content)
@@ -179,6 +187,15 @@ class SettingsDialog(QDialog):
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         return scroll
+
+    def reset_switches(self) -> None:
+        defaults = {preferences.action_name(p.name): p.default for p in preferences.PREFERENCES}
+        defaults.update({"auto_save": config.AUTO_SAVE_DEFAULT, "backup_on_save": config.BACKUP_ON_SAVE_DEFAULT,
+                         "check_updates_on_start": True})
+        for name, default in defaults.items():
+            action = self.actions.get(name)
+            if action is not None and action.isChecked() != default:
+                action.trigger()   # wie ein Klick: alles, was an der Einstellung hängt, folgt
 
     def _switch(self, name: str) -> QWidget:
         action = self.actions[name]

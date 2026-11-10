@@ -111,6 +111,7 @@ class SimulationHighlight(QGraphicsItem):
 
 class SimulationPanel(QWidget):
     element_focus_requested = Signal(str)
+    breakpoint_requested = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -140,6 +141,9 @@ class SimulationPanel(QWidget):
         self.speed_slider.setFixedWidth(90)
         self.speed_slider.setToolTip(tr("Tempo beim Abspielen (rechts = schneller)"))
         self.stop_button = self._tool("stop", tr("Beenden", ctx="Schreibtischtest"), self.stop)
+        # Haltepunkt am ausgewählten Baustein (die Auswahl kennt das Hauptfenster)
+        self.breakpoint_button = self._tool("breakpoint", tr("Haltepunkt am ausgewählten Baustein setzen bzw. "
+                                                             "entfernen"), self.breakpoint_requested.emit)
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(6, 4, 6, 0)
         toolbar.addWidget(self.program_combo, 1)
@@ -147,6 +151,7 @@ class SimulationPanel(QWidget):
             toolbar.addWidget(button)
         toolbar.addWidget(self.speed_slider)
         toolbar.addWidget(self.stop_button)
+        toolbar.addWidget(self.breakpoint_button)
         # hält die Schaltflächen zusammen, wenn die Ablaufauswahl ausgeblendet ist
         self._toolbar_stretch = QWidget()
         toolbar.addWidget(self._toolbar_stretch, 1)
@@ -181,8 +186,9 @@ class SimulationPanel(QWidget):
         self._set_decision_options([])
 
         # Tabellen
-        self.variables_table = CopyableTable(0, 2)
-        self.variables_table.setHorizontalHeaderLabels([tr("Variable"), tr("Wert")])
+        # Variablen beobachten: was sich im letzten Schritt geändert hat, ist hervorgehoben, daneben der alte Wert
+        self.variables_table = CopyableTable(0, 3)
+        self.variables_table.setHorizontalHeaderLabels([tr("Variable"), tr("Wert"), tr("vorher")])
         self.trace_table = CopyableTable(0, 4)
         self.outputs = QPlainTextEdit()
         self.outputs.setReadOnly(True)
@@ -410,15 +416,22 @@ class SimulationPanel(QWidget):
         self.step()
         if self._simulator is None or self._simulator.finished:
             self.pause()
+        elif self._simulator.pending is None and self._at_breakpoint():
+            self.pause()
+            self._report_breakpoint()
         elif self._simulator.pending is None:
             self._schedule_play()
 
     def run(self) -> None:
         if not self._ensure_running():
             return
-        for _ in range(RUN_BATCH):
+        for count in range(RUN_BATCH):
             if self._simulator.pending is not None or self._simulator.finished:
                 break
+            if count and self._at_breakpoint():
+                self._show_result(None, logged=True)
+                self._report_breakpoint()
+                return
             self._remember()
             result = self._simulator.step()
             self._log(result)
@@ -427,6 +440,20 @@ class SimulationPanel(QWidget):
         else:
             self.status.setText(tr("Nach {count} Schritten angehalten – mit ▶ fortsetzen.", count=RUN_BATCH))
         self._show_result(self._simulator.pending or None, logged=True)
+
+    def _at_breakpoint(self) -> bool:
+        """Steht der Ablauf vor einem Baustein mit Haltepunkt?"""
+        simulator = self._simulator
+        if simulator is None or simulator.finished or simulator.pending is not None or self._document is None:
+            return False
+        from app.simulation.breakpoints import has_breakpoint
+
+        return bool(simulator.current) and has_breakpoint(self._document, simulator.current)
+
+    def _report_breakpoint(self) -> None:
+        found = self._document.find_element(self._simulator.current) if self._document is not None else None
+        text = " ".join(found[1].data.text.split()) if found is not None else ""
+        self.status.setText(tr("Haltepunkt erreicht: „{text}“ – mit ▶ oder „Schritt“ weiter.", text=text))
 
     def stop(self, silent: bool = False) -> None:
         self.pause()
@@ -534,11 +561,24 @@ class SimulationPanel(QWidget):
     def _update_tables(self) -> None:
         simulator = self._simulator
         variables = simulator.variables if simulator else {}
+        trace = simulator.trace if simulator else []
+        changed = self.changed_variables()
+        before = trace[-2].variables if len(trace) > 1 else {}
+        theme = styles.current_theme()
+        mark = QColor(theme.accent)
+        mark.setAlpha(70)
         self.variables_table.setRowCount(len(variables))
         for row, (name, value) in enumerate(variables.items()):
-            self.variables_table.setItem(row, 0, QTableWidgetItem(name))
-            self.variables_table.setItem(row, 1, QTableWidgetItem(format_value(value)))
-        trace = simulator.trace if simulator else []
+            cells = [QTableWidgetItem(name), QTableWidgetItem(format_value(value)),
+                     QTableWidgetItem(format_value(before[name]) if name in changed and name in before else "")]
+            for column, cell in enumerate(cells):
+                if name in changed:
+                    cell.setBackground(mark)
+                    if column < 2:
+                        font = cell.font()
+                        font.setBold(True)
+                        cell.setFont(font)
+                self.variables_table.setItem(row, column, cell)
         names = list(variables)
         # wie auf Papier: Ergebnis der Bedingung und Ausgabe in derselben Zeile wie die Werte
         fixed = [tr("Schritt"), tr("Baustein"), tr("Bedingung"), tr("Ausgabe", ctx="Spalte")]
@@ -561,6 +601,15 @@ class SimulationPanel(QWidget):
         self.trace_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         if trace:
             self.trace_table.scrollToBottom()
+
+    def changed_variables(self) -> set:
+        """Variablen, die sich im letzten Schritt geändert haben (oder neu sind)."""
+        simulator = self._simulator
+        if simulator is None or not simulator.trace:
+            return set()
+        last = simulator.trace[-1].variables
+        before = simulator.trace[-2].variables if len(simulator.trace) > 1 else {}
+        return {name for name, value in last.items() if name not in before or before[name] != value}
 
     def _update_controls(self) -> None:
         has_document = self._document is not None

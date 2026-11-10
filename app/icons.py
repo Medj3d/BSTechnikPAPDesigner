@@ -414,6 +414,33 @@ def _draw_warning(p, c):
     p.drawEllipse(QPointF(12, 16.8), 0.6, 0.6)
 
 
+def _draw_code_view(p, c):
+    p.drawRoundedRect(QRectF(3, 4, 18, 16), 2, 2)
+    p.drawLine(QPointF(12, 4), QPointF(12, 20))
+    p.drawPolyline(QPolygonF([QPointF(7.5, 9), QPointF(5.5, 12), QPointF(7.5, 15)]))
+    for y in (9, 12, 15):
+        p.drawLine(QPointF(14.5, y), QPointF(18.5 - (y == 12) * 2, y))
+
+
+def _draw_task(p, c):
+    p.drawRoundedRect(QRectF(5, 4.5, 14, 16), 1.5, 1.5)
+    p.drawRect(QRectF(9, 3, 6, 3))
+    p.drawPolyline(QPolygonF([QPointF(8, 12.5), QPointF(10.5, 15), QPointF(16, 9.5)]))
+
+
+def _draw_minimap(p, c):
+    p.drawRoundedRect(QRectF(3, 4, 18, 16), 2, 2)
+    p.drawRect(QRectF(12, 12, 7, 6))
+    p.setBrush(c)
+    p.drawRect(QRectF(14, 14, 3, 2))
+
+
+def _draw_breakpoint(p, c):
+    p.setBrush(QColor("#e05252"))
+    p.setPen(_pen(QColor("#e05252")))
+    p.drawEllipse(QPointF(12, 12), 6, 6)
+
+
 _DRAWERS = {
     "new": _draw_new, "open": _draw_open, "save": _draw_save, "save_as": _draw_save_as,
     "close": _draw_close, "undo": _draw_undo, "redo": _draw_redo, "cut": _draw_cut,
@@ -428,7 +455,8 @@ _DRAWERS = {
     "keyboard": _draw_keyboard, "connect": _draw_connect, "register": _draw_register,
     "code": _draw_code, "structogram": _draw_structogram, "layout": _draw_layout, "play": _draw_play,
     "step": _draw_step, "step_back": _draw_step_back, "autoplay": _draw_autoplay, "pause": _draw_pause,
-    "stop": _draw_stop, "restart": _draw_restart, "warning": _draw_warning,
+    "stop": _draw_stop, "restart": _draw_restart, "warning": _draw_warning, "code_view": _draw_code_view,
+    "task": _draw_task, "minimap": _draw_minimap, "breakpoint": _draw_breakpoint,
 }
 
 

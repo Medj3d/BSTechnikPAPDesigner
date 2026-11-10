@@ -27,7 +27,11 @@ from app.actions import ALIGN_ACTIONS, ActionRegistry, clean_text, insert_action
 from app.autosave import AutosaveManager
 from app.canvas import DiagramView
 from app.codegen.dialog import CodeDialog
+from app.codegen.live_panel import CodePanel
 from app.diagnostics.panel import COUNT_ICON_SIZE, DiagnosticsPanel, count_icon
+from app.minimap import Minimap
+from app.simulation import breakpoints
+from app.task_panel import TaskDialog, TaskPanel, ask_password
 from app.dialogs.recovery import RecoveryDialog
 from app.layout.auto_layout import apply_layout, plan_auto_layout
 from app.nsd.dialog import StructogramDialog
@@ -36,7 +40,7 @@ from app.commands import ProjectPropertiesCommand
 from app.connections.connection import ConnectionItem
 from app.connections.label import ConnectionLabel
 from app.dialogs.about import AboutDialog
-from app.dialogs.export_options import ExportOptionsDialog
+from app.dialogs.export_options import ExportOptionsDialog, StampSettings
 from app.dialogs.project_properties import ProjectPropertiesDialog
 from app.dialogs.settings import SettingsDialog
 from app.dialogs.shortcuts import ShortcutsDialog
@@ -168,6 +172,7 @@ class MainWindow(QMainWindow):
         # Die Hinweise sind beim Start immer zu – auch wenn sie beim letzten Beenden offen waren.
         # Geöffnet werden sie über den Knopf mit dem Zähler unten in der Statusleiste.
         self.diagnostics_dock.hide()
+        self._apply_tools()
 
         QApplication.clipboard().dataChanged.connect(self._update_actions)
         self._refresh_recent_menu()
@@ -377,27 +382,38 @@ class MainWindow(QMainWindow):
         toolbar.setFloatable(False)
         toolbar.setIconSize(QSize(18, 18))
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        for name in ("new", "open", "save", None, "undo", "redo", None, "cut", "copy", "paste", "delete",
-                     None, "zoom_out"):
-            if name is None:
-                toolbar.addSeparator()
-            else:
-                toolbar.addAction(a[name])
+        # Standard: nur, was man fast immer braucht. Weitere Knöpfe schaltet man in den Einstellungen zu
+        # (Abschnitt „Zusatzknöpfe“); im Menü stehen alle Befehle immer.
+        self._toolbar_groups: dict[str, list] = {}
+
+        def group(key, names, proxy=True):
+            entries = [toolbar.addSeparator()]
+            for name in names:
+                entries.append(self._toolbar_proxy(a[name]) if proxy else a[name])
+                toolbar.addAction(entries[-1])
+            self._toolbar_groups[key] = entries
+
+        for name in ("new", "open", "save", None, "undo", "redo"):
+            toolbar.addSeparator() if name is None else toolbar.addAction(a[name])
+        group(preferences.TOOL_CLIPBOARD, ("cut", "copy", "paste"))
+        toolbar.addAction(a["delete"])
+        toolbar.addSeparator()
+        toolbar.addAction(a["zoom_out"])
         self.zoom_button = QToolButton()
         self.zoom_button.setText("100 %")
         self.zoom_button.setMinimumWidth(58)
         self.zoom_button.clicked.connect(lambda: self._with_view(lambda v: v.zoom_reset()))
         toolbar.addWidget(self.zoom_button)
-        for name in ("zoom_in", "zoom_fit", None, "toggle_grid", "toggle_snap", None, "align_left_group"):
-            if name is None:
-                toolbar.addSeparator()
-            elif name == "align_left_group":
-                for align in (alignment.ALIGN_LEFT, alignment.ALIGN_CENTER_X, alignment.ALIGN_RIGHT,
-                              alignment.ALIGN_TOP, alignment.ALIGN_CENTER_Y, alignment.ALIGN_BOTTOM,
-                              alignment.DISTRIBUTE_H, alignment.DISTRIBUTE_V):
-                    toolbar.addAction(a[align])
-            else:
-                toolbar.addAction(a[name])
+        toolbar.addAction(a["zoom_in"])
+        toolbar.addAction(a["zoom_fit"])
+        group(preferences.TOOL_GRID, ("toggle_grid", "toggle_snap"))
+        group(preferences.TOOL_ALIGN, (alignment.ALIGN_LEFT, alignment.ALIGN_CENTER_X, alignment.ALIGN_RIGHT,
+                                       alignment.ALIGN_TOP, alignment.ALIGN_CENTER_Y, alignment.ALIGN_BOTTOM,
+                                       alignment.DISTRIBUTE_H, alignment.DISTRIBUTE_V))
+        toolbar.addSeparator()
+        toolbar.addAction(a["auto_layout"])
+        toolbar.addAction(a["generate_code"])
+        self._toolbar_simulation = toolbar.addSeparator()   # Schreibtischtest und Zusatzknöpfe folgen später
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
@@ -443,15 +459,58 @@ class MainWindow(QMainWindow):
         self.tabifyDockWidget(self.diagnostics_dock, self.simulation_dock)
         self.diagnostics_dock.raise_()
         for name, dock, text, shortcut in (
-                ("toggle_simulation", self.simulation_dock, tr("&Schreibtischtest"), "F9"),
+                ("toggle_simulation", self.simulation_dock, tr("&Schreibtischtest"), "Ctrl+T"),
                 ("toggle_diagnostics", self.diagnostics_dock, tr("&Hinweise"), "Ctrl+Shift+H")):
             toggle = dock.toggleViewAction()
             toggle.setText(text)
             self.actions.adopt(name, toggle, [shortcut])
             self.extras_menu.addAction(toggle)
             self.view_menu.addAction(toggle)
+        self.extras_menu.addAction(self.actions["toggle_breakpoint"])
+        self.extras_menu.addAction(self.actions["clear_breakpoints"])
+        self.extras_menu.addSeparator()
+
+        # Code neben dem Plan (zuschaltbar, links)
+        self.code_panel = CodePanel(language=str(self.settings_store.value("view/code_language", "python")))
+        self.code_panel.element_requested.connect(self._show_code_element)
+        self.code_panel.language.currentIndexChanged.connect(
+            lambda _i: self.settings_store.set_value("view/code_language", self.code_panel.current_language))
+        self.code_dock = self._make_dock(tr("Code"), "CodeDock", self.code_panel)
+        self.removeDockWidget(self.code_dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.code_dock)   # eigene Spalte neben dem Plan
+        self.code_dock.show()
+        # Aufgabe über der Arbeitsfläche (zuschaltbar, oben)
+        self.task_panel = TaskPanel()
+        self.task_panel.edit_requested.connect(self.edit_task)
+        self.task_dock = self._make_dock(tr("Aufgabe"), "TaskDock", self.task_panel)
+        self.task_dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+        self.removeDockWidget(self.task_dock)
+        self.addDockWidget(Qt.DockWidgetArea.TopDockWidgetArea, self.task_dock)
+        self.task_dock.show()
+        for name, dock, text, shortcut, icon_name in (
+                ("toggle_task", self.task_dock, tr("A&ufgabe anzeigen"), "Ctrl+Shift+A", "task"),
+                ("toggle_code_view", self.code_dock, tr("&Code-Ansicht"), "", "code_view")):
+            toggle = dock.toggleViewAction()
+            toggle.setText(text)
+            toggle.setIcon(icons.icon(icon_name))
+            toggle.setProperty("icon_name", icon_name)
+            self.actions.adopt(name, toggle, [shortcut] if shortcut else [])
+            self.view_menu.addAction(toggle)
+        self.view_menu.addAction(self.actions["toggle_minimap"])
+        self.extras_menu.addAction(self.actions["edit_task"])
+        self.extras_menu.addAction(self.actions["toggle_task"])
         self.extras_menu.addSeparator()
         self.extras_menu.addActions([self.actions["search"], self.actions["settings"]])
+        self.code_dock.hide()
+        self.task_dock.hide()
+        # Knöpfe hinter „Automatisch anordnen“ und „Code erzeugen“: Schreibtischtest, dann die Zusatzknöpfe
+        simulation = self.actions["toggle_simulation"]
+        simulation.setIcon(icons.icon("play"))
+        simulation.setProperty("icon_name", "play")
+        after = self._toolbar_simulation
+        for name in ("toggle_simulation", "toggle_breakpoint", "toggle_code_view", "toggle_minimap", "toggle_task"):
+            self.toolbar.insertAction(after, self.actions[name])
+        after.setVisible(False)
         self.simulation_dock.visibilityChanged.connect(self._on_simulation_visibility)
         # visibilityChanged meldet auch, ob der Reiter vorne liegt (tabifizierte Docks)
         self._diagnostics_on_top = False
@@ -619,6 +678,13 @@ class MainWindow(QMainWindow):
             a[name].triggered.connect(lambda _=False, n=name: self.page_command(n))
 
         a["generate_code"].triggered.connect(self.show_code_dialog)
+        a["edit_task"].triggered.connect(self.edit_task)
+        stored = self.settings_store.value("view/minimap", True)
+        a["toggle_minimap"].setChecked(str(stored).strip().lower() in ("true", "1"))
+        a["toggle_minimap"].toggled.connect(self._set_minimap_visible)
+        a["toggle_breakpoint"].triggered.connect(self.toggle_breakpoint)
+        a["clear_breakpoints"].triggered.connect(self.clear_breakpoints)
+        self.simulation_panel.breakpoint_requested.connect(self.toggle_breakpoint)
         a["structogram"].triggered.connect(self.show_structogram)
         a["auto_layout"].triggered.connect(self.auto_layout)
         a["theme_dark"].triggered.connect(lambda: self.set_theme("dark"))
@@ -657,8 +723,147 @@ class MainWindow(QMainWindow):
 
     # ============================================================ Einstellungen
     def _press_simulation_button(self, button) -> None:
-        if self.simulation_dock.isVisible():
-            button.click()
+        if not self.simulation_dock.isVisible():
+            # F5/F10 öffnen den Schreibtischtest, statt nichts zu tun
+            self.simulation_dock.show()
+            self.simulation_dock.raise_()
+        button.click()
+
+    # ------------------------------------------------------------ Zusatzknöpfe
+    def _toolbar_proxy(self, action: QAction) -> QAction:
+        """Knopf für die Werkzeugleiste, der ``action`` auslöst – so lässt er sich ausblenden, ohne dass der
+        Menüeintrag verschwindet."""
+        proxy = QAction(action.icon(), action.text(), self)
+        proxy.setProperty("source", action)
+        proxy.setCheckable(action.isCheckable())
+
+        def sync() -> None:
+            proxy.setIcon(action.icon())
+            proxy.setToolTip(action.toolTip())
+            proxy.setEnabled(action.isEnabled())
+            if action.isCheckable():
+                proxy.setChecked(action.isChecked())
+
+        proxy.triggered.connect(lambda _checked=False: (action.trigger(), sync()))
+        action.changed.connect(sync)
+        sync()
+        return proxy
+
+    def _apply_tools(self) -> None:
+        """Zeigt die in den Einstellungen zugeschalteten Zusatzknöpfe (und die zugehörigen Flächen)."""
+        on = preferences.enabled
+        for key, entries in self._toolbar_groups.items():
+            for entry in entries:
+                entry.setVisible(on(key))
+        a = self.actions
+        for name, key in (("toggle_code_view", preferences.TOOL_CODE_VIEW),
+                          ("toggle_minimap", preferences.TOOL_MINIMAP),
+                          ("toggle_breakpoint", preferences.TOOL_BREAKPOINTS),
+                          ("clear_breakpoints", preferences.TOOL_BREAKPOINTS),
+                          ("edit_task", preferences.TOOL_TEACHER)):
+            a[name].setVisible(on(key))
+        if not on(preferences.TOOL_CODE_VIEW):
+            self.code_dock.hide()
+        self.simulation_panel.breakpoint_button.setVisible(on(preferences.TOOL_BREAKPOINTS))
+        self._set_minimap_visible(a["toggle_minimap"].isChecked(), store=False)
+        self._update_task_action()
+
+    def _update_task_action(self) -> None:
+        """„Aufgabe anzeigen“ gibt es, wenn das Projekt eine Aufgabe hat – oder im Lehrermodus."""
+        if not hasattr(self, "task_dock"):
+            return
+        document = self.current_document()
+        has_task = document is not None and bool(document.meta.task_title or document.meta.task_text)
+        visible = has_task or preferences.enabled(preferences.TOOL_TEACHER)
+        self.actions["toggle_task"].setVisible(visible)
+        if not visible:
+            self.task_dock.hide()
+
+    def _set_minimap_visible(self, visible: bool, store: bool = True) -> None:
+        if store:
+            self.settings_store.set_value("view/minimap", bool(visible))
+        shown = bool(visible) and preferences.enabled(preferences.TOOL_MINIMAP)
+        for view in self.views():
+            view.minimap.setVisible(shown)
+
+    # ------------------------------------------------------------ Code-Ansicht
+    def _show_code_element(self, element_id: str) -> None:
+        """Klick auf eine Codezeile: Baustein auswählen und zeigen (der Fokus bleibt in der Code-Ansicht)."""
+        view = self.current_view()
+        found = view.document.find_element(element_id) if view is not None else None
+        if found is None:
+            return
+        page, item = found
+        view.document.show_page(page)
+        page.scene.select_items([item])
+        view.ensureVisible(item.scene_rect(), 80, 80)
+
+    def _sync_code_selection(self) -> None:
+        document = self.current_document()
+        if document is None or not self.code_dock.isVisible():
+            return
+        self.code_panel.show_selection([item.element_id for item in document.scene.selected_elements()])
+
+    # ------------------------------------------------------------ Haltepunkte
+    def _refresh_breakpoints(self, document) -> None:
+        if getattr(document, "breakpoints", None):
+            breakpoints.refresh_markers(document)
+
+    def toggle_breakpoint(self) -> None:
+        document = self.current_document()
+        if document is None:
+            return
+        items = [item for item in document.scene.selected_elements() if not item.is_comment]
+        if not items:
+            self.statusBar().showMessage(tr("Bitte zuerst einen Baustein auswählen."), 4000)
+            return
+        if breakpoints.toggle(document, [item.element_id for item in items]):
+            self.statusBar().showMessage(tr("Haltepunkt gesetzt – der Schreibtischtest hält vor diesem Baustein an."),
+                                         5000)
+        else:
+            self.statusBar().showMessage(tr("Haltepunkt entfernt."), 4000)
+
+    def clear_breakpoints(self) -> None:
+        document = self.current_document()
+        if document is not None:
+            breakpoints.clear(document)
+            self.statusBar().showMessage(tr("Alle Haltepunkte entfernt."), 4000)
+
+    # ------------------------------------------------------------ Aufgabe (Lehrermodus)
+    def edit_task(self) -> None:
+        from app import task as T
+
+        document = self.current_document()
+        if document is None:
+            return
+        current = T.task_of(document.meta)
+        password, solution = "", ""
+        if current.locked or current.has_solution:
+            entered = ask_password(self, tr("Aufgabe stellen"), tr("Passwort der Lehrkraft:"))
+            if entered is None:
+                return
+            try:
+                if current.locked and not T.check_lock(current.lock, entered):
+                    raise T.WrongPassword()
+                if current.has_solution:
+                    solution = T.decrypt(current.solution, entered)
+            except T.WrongPassword:
+                QMessageBox.warning(self, tr("Aufgabe stellen"), tr("Das Passwort ist falsch."))
+                return
+            password = entered
+        dialog = TaskDialog(current, solution, self)
+        dialog.set_previous_password(password)
+        if dialog.exec() != TaskDialog.DialogCode.Accepted:
+            return
+        new_meta = document.meta.copy()
+        T.apply_task(new_meta, dialog.result_task())
+        grid = document.settings.grid_size
+        document.undo_stack.push(ProjectPropertiesCommand(document, document.meta, new_meta, grid, grid))
+        self.task_panel.refresh()
+        self._update_task_action()
+        if new_meta.task_title or new_meta.task_text:
+            self.task_dock.show()
+            self.task_dock.raise_()
 
     def _load_preferences(self) -> None:
         for preference in preferences.PREFERENCES:
@@ -669,6 +874,9 @@ class MainWindow(QMainWindow):
     def _on_preference(self, name: str, enabled: bool) -> None:
         preferences.set_enabled(name, enabled)
         self.settings_store.set_preference(name, enabled)
+        if name in preferences.TOOLS:
+            self._apply_tools()
+            return
         for view in self.views():
             for page in view.document.pages:
                 page.scene.preferences_changed()
@@ -783,6 +991,10 @@ class MainWindow(QMainWindow):
     # ============================================================ Tabs
     def add_document(self, document: DiagramDocument) -> DiagramView:
         view = DiagramView(document)
+        view.minimap = Minimap(view)
+        view.minimap.setVisible(self.actions["toggle_minimap"].isChecked()
+                                and preferences.enabled(preferences.TOOL_MINIMAP))
+        document.content_changed.connect(lambda d=document: self._refresh_breakpoints(d))
         index = self.tabs.addTab(view, document.display_name)
         close_button = QToolButton()
         close_button.setObjectName("TabCloseButton")
@@ -809,6 +1021,9 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentIndex(index)
         self._update_document_title(document)
         self._update_ui()
+        if document.meta.task_title or document.meta.task_text:
+            self.task_dock.show()   # Wer eine Aufgabe öffnet, soll sie gleich sehen
+            self.task_dock.raise_()
         view.setFocus()
         return view
 
@@ -819,6 +1034,7 @@ class MainWindow(QMainWindow):
         scene.setProperty("bst_connected", True)
         scene.selection_state_changed.connect(self._update_actions)
         scene.selection_state_changed.connect(self._update_status)
+        scene.selection_state_changed.connect(self._sync_code_selection)
         scene.content_changed.connect(self._schedule_status_update)
         scene.editing_changed.connect(lambda _e: self._update_actions())
         scene.status_message.connect(self._show_scene_message)
@@ -841,6 +1057,9 @@ class MainWindow(QMainWindow):
         if hasattr(self, "simulation_panel"):
             self.simulation_panel.set_document(document)
             self.diagnostics_panel.set_document(document)
+            self.code_panel.set_document(document)
+            self.task_panel.set_document(document)
+            self._update_task_action()
         self.page_bar.set_document(document)
 
     def _update_document_title(self, document: DiagramDocument) -> None:
@@ -999,8 +1218,10 @@ class MainWindow(QMainWindow):
             self.close_tab(replace_index)
             self.tabs.setCurrentIndex(self.tabs.indexOf(view))
         view.fit_diagram()
-        self.statusBar().showMessage(tr("Lernbeispiel „{name}“ geöffnet – F9 öffnet den Schreibtischtest.",
-                                        name=document.display_name), 6000)
+        keys = self.actions["toggle_simulation"].shortcuts()
+        self.statusBar().showMessage(tr("Lernbeispiel „{name}“ geöffnet – {key} öffnet den Schreibtischtest.",
+                                        name=document.display_name,
+                                        key=sequence_text(keys[0]) if keys else "F5"), 6000)
         return True
 
     def open_external_files(self, paths: list[str]) -> None:
@@ -1370,6 +1591,16 @@ class MainWindow(QMainWindow):
             entry.update()
         self.simulation_panel.refresh_theme()
         self.diagnostics_panel.refresh_theme()
+        self.code_panel.refresh_theme()
+        for name in ("toggle_task", "toggle_code_view", "toggle_simulation"):
+            self.actions[name].setIcon(icons.icon(self.actions[name].property("icon_name")))
+        for entries in self._toolbar_groups.values():
+            for proxy in entries:
+                source = proxy.property("source")
+                if source is not None:
+                    proxy.setIcon(source.icon())
+        for view in self.views():
+            view.minimap.invalidate()
         self.diagnostics_panel.refresh()
         self.page_bar.refresh_theme()
         self._sync_theme_actions()
@@ -1647,6 +1878,8 @@ class MainWindow(QMainWindow):
                         change.triggered.connect(lambda _=False, t=element_type: scene.change_element_type(item, t))
             if item.element_type not in (ElementType.START, ElementType.END) and not item.is_comment:
                 menu.addAction(a["extract_subprogram"])
+            if not item.is_comment:
+                menu.addAction(a["toggle_breakpoint"])
             menu.addSeparator()
             if len(scene.selected_elements()) >= 2:
                 align_menu = menu.addMenu(tr("Ausrichten"))
@@ -1989,12 +2222,22 @@ class MainWindow(QMainWindow):
 
     def _export_options(self, fmt: str) -> export.ExportOptions | None:
         current = self.export_options.get(fmt, export.ExportOptions())
-        dialog = ExportOptionsDialog(fmt, current, self)
+        dialog = ExportOptionsDialog(fmt, current, self, self._stamp_settings())
         if dialog.exec() != ExportOptionsDialog.DialogCode.Accepted:
             return None
+        stamp = dialog.stamp_settings()
+        self.settings_store.set_value("export/stamp", stamp.enabled)
+        self.settings_store.set_value("export/name", stamp.name)
+        self.settings_store.set_value("export/class", stamp.school_class)
         options = dialog.options()
         self.export_options[fmt] = options
         return options
+
+    def _stamp_settings(self) -> StampSettings:
+        """Name, Klasse und Datum auf dem Plan – wie beim letzten Export eingestellt."""
+        enabled = str(self.settings_store.value("export/stamp", False)).strip().lower() in ("true", "1")
+        return StampSettings(enabled, str(self.settings_store.value("export/name", "") or ""),
+                             str(self.settings_store.value("export/class", "") or ""))
 
     def export_diagram(self, fmt: str) -> None:
         document = self.current_document()
@@ -2067,7 +2310,8 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QPrintDialog.DialogCode.Accepted:
             return
         try:
-            export.print_scene(_printable_scenes(document), printer, export.ExportOptions(theme_name="light"))
+            export.print_scene(_printable_scenes(document), printer,
+                               export.ExportOptions(theme_name="light", stamp=self._stamp_settings().text()))
         except export.ExportError as exc:
             self._error(tr("Drucken nicht möglich"), str(exc))
 
@@ -2087,7 +2331,7 @@ class MainWindow(QMainWindow):
         dialog = QPrintPreviewDialog(printer, self)
         dialog.setWindowTitle(tr("Druckvorschau"))
         dialog.resize(900, 700)
-        options = export.ExportOptions(theme_name="light")
+        options = export.ExportOptions(theme_name="light", stamp=self._stamp_settings().text())
 
         def paint(p):
             try:

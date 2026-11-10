@@ -28,6 +28,8 @@ class ExportOptions:
     scale: float = config.EXPORT_DEFAULT_PNG_SCALE
     transparent: bool = False
     margin: float = config.EXPORT_MARGIN
+    # Kleine Zeile unten rechts auf dem Plan, z. B. „Max Muster · 10b · 10.11.2026“ (leer = keine)
+    stamp: str = ""
 
     @property
     def theme(self):
@@ -38,11 +40,56 @@ def _not_written(path: str) -> str:
     return tr("Die Datei „{name}“ konnte nicht geschrieben werden.", name=os.path.basename(path))
 
 
-def _source_rect(scene, margin: float) -> QRectF:
+STAMP_PIXEL_SIZE = 11      # Schriftgröße der Namenszeile (Szeneneinheiten, wächst mit der Auflösung)
+STAMP_SPACE = 30           # so viel Platz braucht sie unter dem Plan
+
+
+def _source_rect(scene, margin: float, stamp: str = "") -> QRectF:
     bounds = scene.diagram_bounds()
     if bounds.isNull() or bounds.isEmpty():
         raise ExportError(tr("Das Diagramm ist leer – es gibt nichts zu exportieren."))
-    return bounds.adjusted(-margin, -margin, margin, margin)
+    rect = bounds.adjusted(-margin, -margin, margin, margin)
+    if stamp:
+        # Die Namenszeile steht im unteren Rand – reicht er nicht, wird er größer; zu schmale Pläne werden breiter
+        rect.setBottom(max(rect.bottom(), bounds.bottom() + STAMP_SPACE))
+        needed = _stamp_width(stamp) + 2 * 12
+        if rect.width() < needed:
+            rect.setRight(rect.left() + needed)
+    return rect
+
+
+def _stamp_font():
+    from app.styles import item_font
+
+    return item_font(STAMP_PIXEL_SIZE)
+
+
+def _stamp_width(stamp: str) -> float:
+    from PySide6.QtGui import QFontMetricsF
+
+    return QFontMetricsF(_stamp_font()).horizontalAdvance(stamp)
+
+
+def stamp_text(name: str, school_class: str, date_text: str) -> str:
+    """„Name · Klasse · Datum“ ohne leere Teile."""
+    return " · ".join(part.strip() for part in (name, school_class, date_text) if part and part.strip())
+
+
+def _draw_stamp(painter: QPainter, target: QRectF, source: QRectF, options: ExportOptions) -> None:
+    """Zeichnet die Namenszeile klein und gedämpft unten rechts – so, dass sie den Plan nicht stört."""
+    if not options.stamp:
+        return
+    scale = min(target.width() / source.width(), target.height() / source.height())
+    left = target.left() + (target.width() - source.width() * scale) / 2
+    top = target.top() + (target.height() - source.height() * scale) / 2
+    painter.save()
+    painter.translate(left, top)
+    painter.scale(scale, scale)
+    painter.setFont(_stamp_font())
+    painter.setPen(QColor(options.theme.text_muted))
+    area = QRectF(12, source.height() - STAMP_SPACE + 4, source.width() - 24, STAMP_SPACE - 10)
+    painter.drawText(area, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, options.stamp)
+    painter.restore()
 
 
 def _render(scene, painter: QPainter, target: QRectF, source: QRectF, options: ExportOptions,
@@ -55,6 +102,7 @@ def _render(scene, painter: QPainter, target: QRectF, source: QRectF, options: E
         painter.fillRect(target, QColor(theme.canvas_bg))
     with scene.export_mode(theme):
         scene.render(painter, target, source, Qt.AspectRatioMode.KeepAspectRatio)
+    _draw_stamp(painter, target, source, options)
 
 
 def _image(scene, source: QRectF, options: ExportOptions) -> QImage:
@@ -82,7 +130,7 @@ def _image(scene, source: QRectF, options: ExportOptions) -> QImage:
 
 
 def export_png(scene, path: str, options: ExportOptions) -> None:
-    image = _image(scene, _source_rect(scene, options.margin), options)
+    image = _image(scene, _source_rect(scene, options.margin, options.stamp), options)
     if not image.save(path, "PNG"):
         raise ExportError(_not_written(path))
 
@@ -111,7 +159,7 @@ def render_image(scene, options: ExportOptions, element_ids=None) -> QImage:
     """Das Diagramm – oder nur die Bausteine ``element_ids`` samt Verbindungen zwischen ihnen – als Bild,
     so wie beim PNG-Export (z. B. für die Zwischenablage)."""
     if not element_ids:
-        return _image(scene, _source_rect(scene, options.margin), options)
+        return _image(scene, _source_rect(scene, options.margin, options.stamp), options)
     element_ids = set(element_ids)
     with _only(scene, element_ids):
         bounds = QRectF()
@@ -134,7 +182,7 @@ def export_svg(scene, path: str, options: ExportOptions) -> None:
         from PySide6.QtSvg import QSvgGenerator
     except ImportError as exc:  # pragma: no cover - PySide6 enthält QtSvg
         raise ExportError(tr("SVG-Export ist in dieser Installation nicht verfügbar.")) from exc
-    source = _source_rect(scene, options.margin)
+    source = _source_rect(scene, options.margin, options.stamp)
     generator = QSvgGenerator()
     generator.setFileName(path)
     generator.setSize(QSize(int(source.width()), int(source.height())))
@@ -168,7 +216,7 @@ def _pdf_layout(source: QRectF) -> QPageLayout:
 def export_pdf(scenes, path: str, options: ExportOptions) -> None:
     """PDF mit einer Seite je Szene (Hauptprogramm und Unterprogramme), jede so groß wie ihr Diagramm."""
     scenes = _scene_list(scenes)
-    sources = [_source_rect(scene, options.margin) for scene in scenes]
+    sources = [_source_rect(scene, options.margin, options.stamp) for scene in scenes]
     writer = QPdfWriter(path)
     writer.setCreator(config.APP_NAME)
     writer.setTitle(tr("Programmablaufplan"))
@@ -191,7 +239,7 @@ def export_pdf(scenes, path: str, options: ExportOptions) -> None:
 def print_scene(scenes, printer, options: ExportOptions) -> None:
     """Druckt jedes Diagramm auf eine eigene Seite (seitenfüllend, Seitenverhältnis bleibt)."""
     scenes = _scene_list(scenes)
-    sources = [_source_rect(scene, options.margin) for scene in scenes]
+    sources = [_source_rect(scene, options.margin, options.stamp) for scene in scenes]
     painter = QPainter()
     if not painter.begin(printer):
         raise ExportError(tr("Der Druck konnte nicht gestartet werden."))

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel,
+from dataclasses import dataclass
+
+from PySide6.QtCore import QDate, QLocale
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit,
                                QVBoxLayout)
 
-from app.export import ExportOptions
+from app.export import ExportOptions, stamp_text
 from app.i18n import N_, tr
 
 # Die Beschriftungen sind deutscher Quelltext (mit N_ markiert); angezeigt werden sie mit tr(). „3×“ besteht nur
@@ -15,8 +18,25 @@ SCALE_CHOICES = [(1.0, N_("1× (Bildschirmauflösung)")), (2.0, N_("2× (empfohl
                  (4.0, N_("4× (sehr hoch)"))]
 
 
+@dataclass
+class StampSettings:
+    """Name, Klasse und Datum auf dem Plan (gemerkt für das nächste Mal)."""
+    enabled: bool = False
+    name: str = ""
+    school_class: str = ""
+
+    def text(self) -> str:
+        if not self.enabled:
+            return ""
+        return stamp_text(self.name, self.school_class, today_text())
+
+
+def today_text() -> str:
+    return QLocale().toString(QDate.currentDate(), QLocale.FormatType.ShortFormat)
+
+
 class ExportOptionsDialog(QDialog):
-    def __init__(self, format_name: str, options: ExportOptions, parent=None):
+    def __init__(self, format_name: str, options: ExportOptions, parent=None, stamp: StampSettings | None = None):
         super().__init__(parent)
         self.setWindowTitle(tr("{format} – Optionen", format=format_name))
         self.setMinimumWidth(400)
@@ -48,6 +68,23 @@ class ExportOptionsDialog(QDialog):
             self.transparent_check.setChecked(options.transparent)
             form.addRow("", self.transparent_check)
 
+        # Name, Klasse und Datum klein unten rechts auf dem Plan (z. B. für die Abgabe)
+        stamp = stamp or StampSettings()
+        self.stamp_check = QCheckBox(tr("Name, Klasse und Datum auf den Plan schreiben"))
+        self.stamp_check.setChecked(stamp.enabled)
+        self.name_edit = QLineEdit(stamp.name)
+        self.name_edit.setPlaceholderText(tr("Vor- und Nachname"))
+        self.class_edit = QLineEdit(stamp.school_class)
+        self.class_edit.setPlaceholderText(tr("z. B. 10b"))
+        self.date_label = QLabel(today_text())
+        self.date_label.setObjectName("Muted")
+        form.addRow("", self.stamp_check)
+        form.addRow(tr("Name"), self.name_edit)
+        form.addRow(tr("Klasse"), self.class_edit)
+        form.addRow(tr("Datum"), self.date_label)
+        self.stamp_check.toggled.connect(self._update_stamp_fields)
+        self._update_stamp_fields()
+
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Weiter"))
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("Abbrechen"))
@@ -61,8 +98,17 @@ class ExportOptionsDialog(QDialog):
         layout.addLayout(form)
         layout.addWidget(buttons)
 
+    def _update_stamp_fields(self) -> None:
+        enabled = self.stamp_check.isChecked()
+        for widget in (self.name_edit, self.class_edit, self.date_label):
+            widget.setEnabled(enabled)
+
+    def stamp_settings(self) -> StampSettings:
+        return StampSettings(self.stamp_check.isChecked(), self.name_edit.text().strip(),
+                             self.class_edit.text().strip())
+
     def options(self) -> ExportOptions:
-        result = ExportOptions(theme_name=self.theme_combo.currentData())
+        result = ExportOptions(theme_name=self.theme_combo.currentData(), stamp=self.stamp_settings().text())
         if self.scale_combo is not None:
             result.scale = float(self.scale_combo.currentData())
         if self.transparent_check is not None:

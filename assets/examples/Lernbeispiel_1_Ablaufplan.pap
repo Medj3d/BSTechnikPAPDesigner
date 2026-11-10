@@ -62,8 +62,8 @@ die Variable, deren Wert erscheint.]]></TEXT>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="150" bst:WIDTH="320" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="624bc86e14524bf6869d30578bc1f236">
-                <TEXT><![CDATA[Ausprobieren: F9 öffnet den Schreibtischtest,
-F5 lässt den Plan laufen. Mit F10 geht es
+                <TEXT><![CDATA[Ausprobieren: F5 lässt den Plan im
+Schreibtischtest laufen. Mit F10 geht es
 Schritt für Schritt, mit Strg+F10 zurück.]]></TEXT>
               </FIGURE>
             </ENTRY>

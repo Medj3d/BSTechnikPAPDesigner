@@ -666,7 +666,11 @@ def diagram_to_xml(diagram: Diagram) -> str:
     out.append(_tag("PROJECT", [
         ("FORMAT", PAP_ELEMENT_FORMAT), ("NAME", meta.name), ("AUTHOR", meta.author),
         ("CREATED", created), ("MODIFIED", modified), (_ext("DESCRIPTION"), meta.description),
-        (_ext("CREATED"), meta.created), (_ext("MODIFIED"), meta.modified)], 1))
+        (_ext("CREATED"), meta.created), (_ext("MODIFIED"), meta.modified)]
+        # Aufgabe nur, wenn es eine gibt: Dateien ohne Aufgabe bleiben unverändert
+        + [(_ext(key), value) for key, value in (("TASK_TITLE", meta.task_title), ("TASK_TEXT", meta.task_text),
+                                                 ("TASK_SOLUTION", meta.task_solution),
+                                                 ("TASK_LOCK", meta.task_lock)) if value], 1))
     out.append(_tag("DIAGRAMS", [], 2))
     grid = [(_ext("GRID_SIZE"), int(settings.grid_size)),
             (_ext("GRID_VISIBLE"), _format_flag(settings.grid_visible)),
@@ -865,6 +869,11 @@ def _meta_from(project, native: bool, fallback_name: str) -> ProjectMeta:
     meta.created = (project.get(_key("CREATED")) if native else None) or _timestamp(project.get("CREATED"))
     meta.modified = ((project.get(_key("MODIFIED")) if native else None)
                      or _timestamp(project.get("MODIFIED"), meta.created))
+    if native:
+        meta.task_title = project.get(_key("TASK_TITLE")) or ""
+        meta.task_text = project.get(_key("TASK_TEXT")) or ""
+        meta.task_solution = project.get(_key("TASK_SOLUTION")) or ""
+        meta.task_lock = project.get(_key("TASK_LOCK")) or ""
     return meta
 
 

@@ -35,10 +35,12 @@ def next_zoom_level(zoom: float, direction: int) -> float:
     """
     percent = zoom * 100.0
     if direction > 0:
-        step = config.ZOOM_BUTTON_STEP if percent < config.ZOOM_BUTTON_COARSE_FROM - 1e-6             else config.ZOOM_BUTTON_COARSE_STEP
+        step = config.ZOOM_BUTTON_STEP if percent < config.ZOOM_BUTTON_COARSE_FROM - 1e-6 \
+            else config.ZOOM_BUTTON_COARSE_STEP
         target = (math.floor(percent / step + 1e-6) + 1) * step
     else:
-        step = config.ZOOM_BUTTON_STEP if percent <= config.ZOOM_BUTTON_COARSE_FROM + 1e-6             else config.ZOOM_BUTTON_COARSE_STEP
+        step = config.ZOOM_BUTTON_STEP if percent <= config.ZOOM_BUTTON_COARSE_FROM + 1e-6 \
+            else config.ZOOM_BUTTON_COARSE_STEP
         target = (math.ceil(percent / step - 1e-6) - 1) * step
     return max(config.MIN_ZOOM, min(config.MAX_ZOOM, target / 100.0))
 

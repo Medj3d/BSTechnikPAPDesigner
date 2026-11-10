@@ -1492,3 +1492,53 @@ class JavaGenerator:
 
     def action_junction(self, stmt: Action, depth: int) -> None:
         pass
+
+
+# ------------------------------------------------------------------ Zuordnung Codezeile → Baustein
+_TRACE_MARK = "\u0000"
+_GENERATORS = {"python": PythonGenerator, "java": JavaGenerator, "pseudo": PseudoGenerator}
+
+
+def _statement_id(stmt) -> str | None:
+    """Der Baustein, für den eine Anweisung steht."""
+    for name in ("element_id", "begin_id"):
+        value = getattr(stmt, name, None)
+        if value:
+            return value
+    ids = getattr(stmt, "element_ids", None)
+    return ids[0] if ids else None
+
+
+def generate_traced(programs: list[Program], language: str, title: str | None = None) -> tuple[str, list]:
+    """Wie ``generate``, liefert zusätzlich für jede Codezeile den Baustein, aus dem sie stammt (oder ``None``).
+
+    Die Erzeuger bleiben unverändert: Jede Zeile, die während einer Anweisung entsteht, bekommt vorübergehend
+    eine unsichtbare Markierung mit der Baustein-Kennung, die hier wieder entfernt wird.
+    """
+    generator = _GENERATORS.get(language, PseudoGenerator)(with_title(programs, title))
+    original_stmt, original_emit = generator.stmt, generator.emit
+    current: list = [None]
+
+    def stmt(statement, depth: int) -> None:
+        previous = current[0]
+        current[0] = _statement_id(statement) or previous
+        try:
+            original_stmt(statement, depth)
+        finally:
+            current[0] = previous
+
+    def emit(depth: int, text: str) -> None:
+        original_emit(depth, text + (_TRACE_MARK + current[0] if current[0] else ""))
+
+    generator.stmt, generator.emit = stmt, emit
+    code = generator.generate()
+    lines, ids = [], []
+    for line in code.split("\n"):
+        if _TRACE_MARK in line:
+            parts = line.split(_TRACE_MARK)
+            lines.append("".join(part for index, part in enumerate(parts) if index == 0))
+            ids.append(parts[-1] or None)
+        else:
+            lines.append(line)
+            ids.append(None)
+    return "\n".join(lines), ids

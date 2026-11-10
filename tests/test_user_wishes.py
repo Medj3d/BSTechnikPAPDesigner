@@ -532,7 +532,7 @@ def test_search_is_reachable_in_a_narrow_window(window, qapp):
     window.new_document()  # ohne Projekt sind manche Funktionen gesperrt und werden nicht gefunden
     window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
     window.show()
-    for width, toolbar_visible in ((1400, True), (760, True), (1400, False)):
+    for width, toolbar_visible in ((1400, True), (480, True), (1400, False)):  # schlanke Leiste: erst sehr schmal zu eng
         window.toolbar.setVisible(toolbar_visible)
         window.resize(width, 700)
         settle()

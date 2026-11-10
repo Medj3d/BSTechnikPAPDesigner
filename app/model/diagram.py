@@ -35,6 +35,12 @@ class ProjectMeta:
     description: str = ""
     created: str = field(default_factory=now_iso)
     modified: str = field(default_factory=now_iso)
+    # Aufgabe für den Unterricht (siehe app/task.py): Titel und Text offen, Musterlösung verschlüsselt,
+    # Prüfwert des Lehrer-Passworts
+    task_title: str = ""
+    task_text: str = ""
+    task_solution: str = ""
+    task_lock: str = ""
 
     def copy(self) -> "ProjectMeta":
         return copy.deepcopy(self)

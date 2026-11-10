@@ -37,7 +37,7 @@ _DEFINITIONS = {
                           "aufheben")),
     "export_png": (N_("Als &PNG-Bild …"), None, [], N_("Diagramm als PNG-Bild exportieren")),
     "export_svg": (N_("Als &SVG-Grafik …"), None, [], N_("Diagramm als SVG-Vektorgrafik exportieren")),
-    "export_pdf": (N_("Als P&DF-Dokument …"), None, [], N_("Diagramm als PDF exportieren")),
+    "export_pdf": (N_("Als P&DF-Dokument …"), None, ["Ctrl+E"], N_("Diagramm als PDF exportieren")),
     "print": (N_("&Drucken …"), "print", [K.Print], N_("Diagramm drucken")),
     "print_preview": (N_("Druck&vorschau …"), None, [], N_("Druckvorschau anzeigen")),
     "properties": (N_("Projekt&eigenschaften …"), "properties", [],
@@ -123,6 +123,13 @@ _DEFINITIONS = {
     "settings": (N_("&Einstellungen …"), "properties", ["Ctrl+,"],
                  N_("Schalter und frei belegbare Tastenkürzel")),
     "search": (N_("&Suchen …"), None, ["Ctrl+K"], N_("Funktionen, Einstellungen und Bausteine im Plan finden")),
+    "edit_task": (N_("&Aufgabe stellen …"), "task", [],
+                  N_("Lehrkraft: Aufgabenstellung und verschlüsselte Musterlösung in das Projekt schreiben")),
+    "toggle_minimap": (N_("&Minikarte"), "minimap", ["Ctrl+M"],
+                       N_("Kleine Übersicht des ganzen Plans unten rechts ein-/ausblenden")),
+    "toggle_breakpoint": (N_("&Haltepunkt setzen/entfernen"), "breakpoint", ["F9"],
+                          N_("Der Schreibtischtest hält vor dem ausgewählten Baustein an")),
+    "clear_breakpoints": (N_("Alle Haltepunkte &entfernen"), None, [], N_("Alle Haltepunkte des Projekts entfernen")),
     "add_bend": (N_("&Knick einfügen"), None, [],
                  N_("In die ausgewählte Verbindung eine Stufe einfügen (ändert nur das Aussehen)")),
     # Hilfe
@@ -220,7 +227,7 @@ class ActionRegistry:
             self._actions[name].setCheckable(True)
             self._actions[name].setChecked(True)
         for name in ("theme_dark", "theme_light", "auto_save", "backup_on_save", "check_updates_on_start",
-                     "presentation"):
+                     "presentation", "toggle_minimap"):
             self._actions[name].setCheckable(True)
 
     def refresh_icons(self) -> None:
