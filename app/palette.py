@@ -57,9 +57,17 @@ class PaletteEntry(QWidget):
             p.setBrush(QColor(theme.panel_raised))
             p.drawRoundedRect(rect, 6, 6)
 
+        # Arabisch (rechts nach links): gespiegelt – Vorschau rechts, Bezeichnung daneben, Taste links
+        rtl = self.isRightToLeft()
+        chip = None
+        if self.key_hint:
+            width = max(16.0, p.fontMetrics().horizontalAdvance(self.key_hint) + 8.0)
+            chip_x = rect.left() + 4 if rtl else rect.right() - width - 4
+            chip = QRectF(chip_x, rect.center().y() - 9, width, 18)
+
         # Formvorschau
         p.save()
-        preview_center_x = rect.left() + 12 + PREVIEW_WIDTH / 2
+        preview_center_x = (rect.right() - 12 - PREVIEW_WIDTH / 2) if rtl else (rect.left() + 12 + PREVIEW_WIDTH / 2)
         p.translate(preview_center_x, rect.center().y())
         geometry = geometry_for(self.element_type)
         colors = theme.element_colors(self.element_type)
@@ -81,12 +89,19 @@ class PaletteEntry(QWidget):
 
         # Bezeichnung
         p.setPen(QColor(theme.text if self.isEnabled() else theme.text_disabled))
-        text_rect = rect.adjusted(12 + PREVIEW_WIDTH + 14, 0, -4, 0)
-        p.drawText(text_rect, int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft), self.label)
-        if self.key_hint:
+        # zwischen Vorschau und Taste; die Taste wird nie über den Text gemalt
+        if rtl:
+            text_rect = QRectF(rect.left(), rect.top(), rect.width() - (12 + PREVIEW_WIDTH + 14), rect.height())
+            text_rect.setLeft((chip.right() + 6) if chip is not None else rect.left() + 4)
+        else:
+            text_rect = rect.adjusted(12 + PREVIEW_WIDTH + 14, 0, -4, 0)
+            if chip is not None:
+                text_rect.setRight(chip.left() - 6)
+        # immer neben der Vorschau (AlignAbsolute: Qt dreht „links“ sonst je nach Richtung der Anwendung um)
+        side = Qt.AlignmentFlag.AlignRight if rtl else Qt.AlignmentFlag.AlignLeft
+        p.drawText(text_rect, int(Qt.AlignmentFlag.AlignVCenter | side | Qt.AlignmentFlag.AlignAbsolute), self.label)
+        if chip is not None:
             # Taste, die diesen Baustein einfügt
-            width = max(16.0, p.fontMetrics().horizontalAdvance(self.key_hint) + 8.0)
-            chip = QRectF(rect.right() - width - 4, rect.center().y() - 9, width, 18)
             p.setPen(QPen(QColor(theme.border_strong), 1))
             p.setBrush(QColor(theme.panel_raised))
             p.drawRoundedRect(chip, 4, 4)

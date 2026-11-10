@@ -249,6 +249,63 @@ def test_register_writes_desktop_entry_mime_type_icons_and_default(tmp_path):
         "[Default Applications]\ntext/plain=gedit.desktop;\n\n[Added Associations]\nimage/png=gimp.desktop;\n")
 
 
+def _gear_lever_entry(data: str, appimage: str, mime: bool = True, name: str = "bs_technik_pap_designer") -> str:
+    """Ein Startmenü-Eintrag, wie Gear Lever ihn anlegt (Exec mit shlex-Anführungszeichen, TryExec, Symbolpfad)."""
+    import shlex
+    folder = os.path.join(data, "applications")
+    os.makedirs(folder, exist_ok=True)
+    lines = ["[Desktop Entry]", "Type=Application", "Name=BS Technik PAP Designer",
+             f"TryExec={appimage}", f"Exec={shlex.join([appimage])} %F", "Icon=/x/.icons/bs.png"]
+    if mime:
+        lines.append(f"MimeType={config.LINUX_MIME_TYPE};")
+    path = os.path.join(folder, name + ".desktop")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
+    return path
+
+
+def test_gear_lever_entry_means_no_second_start_menu_entry(tmp_path):
+    data, conf = str(tmp_path / "share"), str(tmp_path / "config")
+    appimage = str(tmp_path / "AppImages" / "bs technik pap designer.appimage")
+    os.makedirs(os.path.dirname(appimage))
+    open(appimage, "wb").close()
+    # erst ohne Gear Lever gestartet: eigener Eintrag
+    linux.register([appimage], data, conf, run_tools=False)
+    assert os.path.isfile(linux.paths(data)["desktop"])
+    # Gear Lever bindet das AppImage ein: unser Eintrag verschwindet, der von Gear Lever öffnet die .pap-Dateien
+    _gear_lever_entry(data, appimage)
+    assert linux.foreign_entry([appimage], data) == ("bs_technik_pap_designer.desktop", True)
+    assert linux.needs_installation([appimage], data)
+    linux.register([appimage], data, conf, run_tools=False)
+    assert not os.path.exists(linux.paths(data)["desktop"])
+    assert os.path.isfile(linux.paths(data)["mime"]) and os.path.isfile(linux.paths(data)["mime_icon"])
+    mimeapps = open(linux.paths(data, conf)["mimeapps"], encoding="utf-8").read()
+    assert f"{config.LINUX_MIME_TYPE}=bs_technik_pap_designer.desktop;" in mimeapps
+    assert not linux.needs_installation([appimage], data)  # beim nächsten Start nichts mehr zu tun
+
+
+def test_foreign_entry_without_file_type_gets_a_hidden_helper(tmp_path):
+    data, conf = str(tmp_path / "share"), str(tmp_path / "config")
+    appimage = str(tmp_path / "Apps" / "PAP.AppImage")
+    os.makedirs(os.path.dirname(appimage))
+    open(appimage, "wb").close()
+    _gear_lever_entry(data, appimage, mime=False, name="appimagekit_123-PAP")
+    linux.register([appimage], data, conf, run_tools=False)
+    entry = open(linux.paths(data)["desktop"], encoding="utf-8").read()
+    assert "NoDisplay=true" in entry and "TryExec" not in entry and f"MimeType={config.LINUX_MIME_TYPE};" in entry
+    assert f"={linux.DESKTOP_FILE_NAME};" in open(linux.paths(data, conf)["mimeapps"], encoding="utf-8").read()
+
+
+def test_entries_of_other_programs_are_ignored(tmp_path):
+    data, conf = str(tmp_path / "share"), str(tmp_path / "config")
+    appimage = str(tmp_path / "PAP.AppImage")
+    open(appimage, "wb").close()
+    _gear_lever_entry(data, str(tmp_path / "andere.appimage"), name="andere")  # anderes AppImage
+    assert linux.foreign_entry([appimage], data) is None
+    linux.register([appimage], data, conf, run_tools=False)
+    assert "NoDisplay" not in open(linux.paths(data)["desktop"], encoding="utf-8").read()
+
+
 def test_default_application_replaces_another_program(tmp_path):
     mimeapps = tmp_path / "mimeapps.list"
     mimeapps.write_text("[Default Applications]\napplication/x-bstechnik-pap=anderes.desktop;\n", encoding="utf-8")

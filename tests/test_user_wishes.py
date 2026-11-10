@@ -523,6 +523,32 @@ def test_search_finds_functions_settings_and_blocks(window):
     assert bar.entries == [] and bar.results.count() == 1
 
 
+def test_search_is_reachable_in_a_narrow_window(window, qapp):
+    """Schmales Fenster (Laptop mit Skalierung) oder ausgeblendete Werkzeugleiste: Strg+K findet trotzdem ein Feld."""
+    def settle():
+        for _ in range(6):
+            qapp.processEvents()
+
+    window.new_document()  # ohne Projekt sind manche Funktionen gesperrt und werden nicht gefunden
+    window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+    window.show()
+    for width, toolbar_visible in ((1400, True), (760, True), (1400, False)):
+        window.toolbar.setVisible(toolbar_visible)
+        window.resize(width, 700)
+        settle()
+        window.actions["search"].trigger()
+        settle()
+        bar = window.active_search_bar()
+        assert bar.isVisible() and window.focusWidget() is bar, (width, toolbar_visible)
+        assert (bar is window.search_bar) == (width == 1400 and toolbar_visible)
+        assert window.menu_search_bar.isVisible() != window.search_bar.isVisible()
+        bar.setText("raster anzeigen")
+        assert bar.entries and bar.popup.isVisible()
+        bar.close_results()
+        bar.clear()
+    window.toolbar.setVisible(True)
+
+
 def test_search_runs_a_function(window):
     window.new_document()
     bar = window.search_bar
@@ -646,3 +672,29 @@ def test_comment_without_line_moves_with_the_nearest_block(scene):
     apply_layout(scene, plan_auto_layout(scene))
     assert abs((note.pos().x() - a.pos().x()) - 200) < 1 and note.pos().y() == a.pos().y()
     assert not note.scene_rect().intersects(a.scene_rect())
+
+
+def test_palette_label_is_never_hidden_behind_the_key_in_right_to_left(qapp):
+    """Arabisch: Vorschau rechts, Bezeichnung daneben, Taste links – die Taste verdeckt die Bezeichnung nicht."""
+    from app.palette import PaletteEntry
+
+    def render(direction, label, key):
+        qapp.setLayoutDirection(direction)  # wie bei arabischer Oberfläche: die ganze Anwendung
+        try:
+            entry = PaletteEntry(T.SUBPROGRAM)
+            entry.label, entry.key_hint = label, key
+            entry.setLayoutDirection(direction)
+            entry.resize(260, 44)
+            return entry.grab().toImage()
+        finally:
+            qapp.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+
+    for direction, label in ((Qt.LayoutDirection.LeftToRight, "Unterprogramm"),
+                             (Qt.LayoutDirection.RightToLeft, "برنامج فرعي")):
+        plain, with_key = render(direction, label, ""), render(direction, label, "4")
+        background = plain.pixelColor(2, 2).lightness()
+        # Wo die Taste etwas ändert, stand ohne Taste nichts (kein Text, keine Vorschau)
+        covered = sum(1 for x in range(plain.width()) for y in range(plain.height())
+                      if plain.pixel(x, y) != with_key.pixel(x, y)
+                      and abs(plain.pixelColor(x, y).lightness() - background) > 40)
+        assert covered < 5, (direction, covered)

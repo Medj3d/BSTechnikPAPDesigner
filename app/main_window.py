@@ -402,6 +402,13 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self.search_bar)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
         self.toolbar = toolbar
+        # Ist das Fenster zu schmal (z. B. Laptop mit Skalierung), schiebt Qt die Suchleiste in den versteckten
+        # Überlauf der Werkzeugleiste; ist die Werkzeugleiste ausgeblendet, fehlt sie ganz. Dann erscheint ein
+        # Suchfeld rechts in der Menüzeile – so erreicht Strg+K immer eines.
+        self.menu_search_bar = SearchBar(self.search_entries, self)
+        self.menuBar().setCornerWidget(self.menu_search_bar, Qt.Corner.TopRightCorner)
+        self.menu_search_bar.hide()
+        toolbar.visibilityChanged.connect(lambda _visible: self._schedule_search_place())
         toggle = toolbar.toggleViewAction()
         toggle.setText(tr("&Werkzeugleiste"))
         self.view_menu.addAction(toggle)
@@ -618,7 +625,7 @@ class MainWindow(QMainWindow):
         a["register_filetype"].triggered.connect(self.register_file_type)
         a["about"].triggered.connect(lambda: AboutDialog(self).exec())
         a["settings"].triggered.connect(lambda: self.show_settings())
-        a["search"].triggered.connect(self.search_bar.open)
+        a["search"].triggered.connect(self.open_search)
         for preference in preferences.PREFERENCES:
             a[preferences.action_name(preference.name)].triggered.connect(
                 lambda checked=False, name=preference.name: self._on_preference(name, checked))
@@ -684,8 +691,32 @@ class MainWindow(QMainWindow):
         tip = tr("Hinweisliste ein-/ausblenden")
         self.issues_button.setToolTip(f"{tip} ({sequence_text(keys[0])})" if keys else tip)
         search_keys = self.actions["search"].shortcuts()
-        self.search_bar.setPlaceholderText(
-            tr("Suchen … ({key})", key=sequence_text(search_keys[0])) if search_keys else tr("Suchen …"))
+        for bar in (self.search_bar, self.menu_search_bar):
+            bar.setPlaceholderText(
+                tr("Suchen … ({key})", key=sequence_text(search_keys[0])) if search_keys else tr("Suchen …"))
+
+    # ------------------------------------------------------------ Suche
+    def active_search_bar(self) -> SearchBar:
+        """Das sichtbare Suchfeld: in der Werkzeugleiste oder – wenn es dort keinen Platz hat – in der Menüzeile."""
+        return self.search_bar if self.search_bar.isVisible() else self.menu_search_bar
+
+    def open_search(self) -> None:
+        self._place_search()
+        self.active_search_bar().open()
+
+    def _schedule_search_place(self) -> None:
+        QTimer.singleShot(0, self, self._place_search)  # mit Kontext: entfällt, wenn das Fenster schon weg ist
+
+    def _place_search(self) -> None:
+        if not self.isVisible():
+            return
+        in_toolbar = self.toolbar.isVisible() and self.search_bar.isVisible()
+        if self.menu_search_bar.isHidden() != in_toolbar:
+            self.menu_search_bar.setVisible(not in_toolbar)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._schedule_search_place()
 
     def search_entries(self) -> list:
         """Alles, was die Suchleiste finden kann: Funktionen, Einstellungen und Bausteine aller Seiten."""
