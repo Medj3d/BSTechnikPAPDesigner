@@ -348,6 +348,11 @@ def install_user_program(new_dir: str, version: str) -> str:
     return target
 
 
+def remove_user_staging() -> None:
+    """Entfernt den Zwischenordner eines gerade abgeschlossenen Downloads im Benutzerordner."""
+    _remove(os.path.join(user_update_root(), STAGING_DIRECTORY))
+
+
 def _remove_if_unused(path: str) -> None:
     """Entfernt einen Ordner nur, wenn ihn kein laufendes Programm benutzt (Windows lässt ihn dann nicht umbenennen)."""
     aside = path + ".weg"
@@ -359,11 +364,37 @@ def _remove_if_unused(path: str) -> None:
     _remove(aside)
 
 
+def is_installed_program(app_dir: str | None = None) -> bool:
+    """Läuft das mit dem Setup installierte Programm (neben ihm liegt das Deinstallationsprogramm ``unins*.exe``)?"""
+    app_dir = app_dir or application_directory()
+    if app_dir is None:
+        return False
+    try:
+        names = os.listdir(app_dir)
+    except OSError:
+        return False
+    return any(name.lower().startswith("unins") and name.lower().endswith(".exe") for name in names)
+
+
+def may_tidy_user_programs() -> bool:
+    """Darf dieses Programm die Kopien im Benutzerordner aufräumen?
+
+    Nur das installierte Programm und die Kopien selbst. Eine lose Programmdatei (z. B. ein frisch gebautes
+    ``dist``-Programm, eine ausgepackte ZIP-Datei oder eine Kopie auf einem anderen Laufwerk) hat dieselbe oder eine
+    neuere Version als die Kopie und hielte sie deshalb für veraltet. Sie löschte die Kopie, und das installierte
+    Programm startete beim nächsten Mal wieder seine alte Version.
+    """
+    return running_from_user_copy() or is_installed_program()
+
+
 def cleanup_user_programs() -> None:
     """Räumt den Benutzerordner auf: veraltete oder unvollständige Kopien und Zwischenreste.
 
-    Das laufende Programm und neuere Kopien bleiben stehen; ebenso die Sperrmarkierung.
+    Das laufende Programm und neuere Kopien bleiben stehen; ebenso die Sperrmarkierung. Nur das installierte Programm
+    und die Kopien räumen auf (siehe ``may_tidy_user_programs``).
     """
+    if not may_tidy_user_programs():
+        return
     root = user_update_root()
     running = application_directory()
     try:

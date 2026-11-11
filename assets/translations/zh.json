@@ -279,7 +279,6 @@
  "Funktion oder Taste suchen …": "搜索功能或按键…",
  "Alle zurücksetzen": "全部重置",
  "Einstellungen": "设置",
- "Schalter": "开关",
  "Tastenkürzel": "快捷键",
  "Taste drücken": "按下按键",
  "Funktion": "功能",
@@ -1026,5 +1025,11 @@
  "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "教师可以用“布置任务”把任务说明和加密的参考答案写入文件。打开文件的人会在这里看到任务。",
  "Mehr": "更多",
  "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "更多功能：代码视图、小地图、任务、断点、网格、对齐…",
- "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "工具栏中的附加按钮（否则在“更多”中）"
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "工具栏中的附加按钮（否则在“更多”中）",
+ "Einstellungen und Tastenkürzel durchsuchen …": "搜索设置和快捷键…",
+ "Nichts gefunden.": "未找到任何内容。",
+ "Allgemein": "常规",
+ "Zeichnen": "绘图",
+ "Anteil der Bausteine dieses Ablaufs, die der Schreibtischtest schon ausgeführt hat": "桌面检查已执行的本流程模块所占比例",
+ "{done} von {total} Bausteinen · {percent} %": "{total} 个模块中的 {done} 个 · {percent} %"
 }

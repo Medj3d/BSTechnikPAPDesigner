@@ -279,7 +279,6 @@
  "Funktion oder Taste suchen …": "Поиск функции или клавиши…",
  "Alle zurücksetzen": "Сбросить всё",
  "Einstellungen": "Настройки",
- "Schalter": "Переключатели",
  "Tastenkürzel": "Сочетания клавиш",
  "Taste drücken": "Нажмите клавишу",
  "Funktion": "Функция",
@@ -1026,5 +1025,11 @@
  "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "С помощью «Задать задание» учитель может записать в файл задание и зашифрованное образцовое решение. Кто откроет файл, увидит задание здесь.",
  "Mehr": "Ещё",
  "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "Другие функции: просмотр кода, мини-карта, задание, точки останова, сетка, выравнивание…",
- "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Дополнительные кнопки на панели инструментов (иначе в «Ещё»)"
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Дополнительные кнопки на панели инструментов (иначе в «Ещё»)",
+ "Einstellungen und Tastenkürzel durchsuchen …": "Поиск по настройкам и сочетаниям клавиш…",
+ "Nichts gefunden.": "Ничего не найдено.",
+ "Allgemein": "Общие",
+ "Zeichnen": "Рисование",
+ "Anteil der Bausteine dieses Ablaufs, die der Schreibtischtest schon ausgeführt hat": "Доля блоков этого алгоритма, уже выполненных при ручной трассировке",
+ "{done} von {total} Bausteinen · {percent} %": "{done} из {total} блоков · {percent} %"
 }

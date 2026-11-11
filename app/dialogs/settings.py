@@ -10,7 +10,7 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QDialog, QDialogButtonBox, QGroupBox, QHBoxLayout,
                                QHeaderView, QKeySequenceEdit, QLabel, QLineEdit, QPushButton, QScrollArea, QTableWidget,
-                               QTableWidgetItem, QTabWidget, QToolButton, QVBoxLayout, QWidget)
+                               QTableWidgetItem, QToolButton, QVBoxLayout, QWidget, QListWidget, QStackedWidget)
 
 from app import config, preferences
 from app.actions import clean_text, sequence_text
@@ -131,71 +131,106 @@ class ShortcutTable(QWidget):
 
 
 class SettingsDialog(QDialog):
+    """Einstellungen: links die Bereiche, rechts ihre Schalter; oben ein Suchfeld über alles (auch Tastenkürzel)."""
+
     shortcuts_changed = Signal()
 
     def __init__(self, actions, parent=None, show_shortcuts: bool = False):
         super().__init__(parent)
         self.setWindowTitle(tr("Einstellungen"))
-        self.resize(680, 640)
+        self.resize(760, 600)
         self.actions = actions
         title = QLabel(tr("Einstellungen"))
         title.setObjectName("DialogTitle")
-        self.tabs = QTabWidget()
-        self.tabs.addTab(self._switches_page(), tr("Schalter"))
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr("Einstellungen und Tastenkürzel durchsuchen …"))
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self._filter)
+
+        self.switches: dict[str, QCheckBox] = {}
+        self._holders: dict[str, QWidget] = {}
+        self._groups: list[tuple[QGroupBox, list[str]]] = []
+        self.pages = QStackedWidget()
+        self.sections = QListWidget()
+        self.sections.setObjectName("SettingsSections")
+        self.sections.setFixedWidth(170)
+        self.sections.currentRowChanged.connect(self.pages.setCurrentIndex)
+        self._page_switches: list[list[str]] = []
+        sections: dict[str, list[str]] = {}
+        for preference in preferences.PREFERENCES:
+            sections.setdefault(preference.section, []).append(preferences.action_name(preference.name))
+        for page_title, groups in (
+                (N_("Allgemein"), [_GENERAL, _UPDATES]),
+                (N_("Zeichnen"), [(preferences.SECTION_NEW, sections[preferences.SECTION_NEW]),
+                                  (preferences.SECTION_ARROWS, sections[preferences.SECTION_ARROWS])]),
+                (N_("Prüfung"), [(preferences.SECTION_CHECKS, sections[preferences.SECTION_CHECKS])]),
+                (N_("Werkzeugleiste"), [(preferences.SECTION_TOOLS, sections[preferences.SECTION_TOOLS])])):
+            self._add_switch_page(tr(page_title), groups)
         self.shortcut_table = ShortcutTable(actions)
         self.shortcut_table.changed.connect(self.shortcuts_changed)
-        self.tabs.addTab(self.shortcut_table, tr("Tastenkürzel"))
-        if show_shortcuts:
-            self.tabs.setCurrentWidget(self.shortcut_table)
-            QTimer.singleShot(0, self.shortcut_table.search.setFocus)
+        self.shortcut_table.search.hide()   # gesucht wird oben, für alle Bereiche zugleich
+        self.pages.addWidget(self.shortcut_table)
+        self.sections.addItem(tr("Tastenkürzel"))
+        self._page_titles = [self.sections.item(row).text() for row in range(self.sections.count())]
+        self.sections.setCurrentRow(self.sections.count() - 1 if show_shortcuts else 0)
+
+        self.empty = QLabel(tr("Nichts gefunden."))
+        self.empty.setObjectName("Muted")
+        self.empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty.hide()
+        body = QHBoxLayout()
+        body.setSpacing(12)
+        body.addWidget(self.sections)
+        right = QVBoxLayout()
+        right.addWidget(self.pages, 1)
+        right.addWidget(self.empty, 1)
+        body.addLayout(right, 1)
+
+        reset = QPushButton(tr("Alle Schalter zurücksetzen"))
+        reset.setToolTip(tr("Alle Schalter wieder auf den Standard stellen (Tastenkürzel bleiben)"))
+        reset.clicked.connect(self.reset_switches)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(tr("Schließen"))
         buttons.rejected.connect(self.reject)
+        bottom = QHBoxLayout()
+        bottom.addWidget(reset)
+        bottom.addStretch(1)
+        bottom.addWidget(buttons)
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 16)
         layout.setSpacing(12)
         layout.addWidget(title)
-        layout.addWidget(self.tabs, 1)
-        layout.addWidget(buttons)
+        layout.addWidget(self.search)
+        layout.addLayout(body, 1)
+        layout.addLayout(bottom)
+        QTimer.singleShot(0, self.search.setFocus)
 
-    def _switches_page(self) -> QWidget:
+    # ------------------------------------------------------------ Aufbau
+    def _add_switch_page(self, page_title: str, groups) -> None:
         content = QWidget()
-        layout = QVBoxLayout(content)
-        sections: dict[str, list[str]] = {}
-        for preference in preferences.PREFERENCES:
-            sections.setdefault(preference.section, []).append(preferences.action_name(preference.name))
-        tools = sections.pop(preferences.SECTION_TOOLS, [])
-        groups = [*sections.items(), _GENERAL, _UPDATES, (preferences.SECTION_TOOLS, tools)]
-        self.switches: dict[str, QCheckBox] = {}
+        column = QVBoxLayout(content)
+        column.setContentsMargins(0, 0, 8, 0)
+        column.setSpacing(10)
+        names_on_page = []
         for heading, names in groups:
             box = QGroupBox(tr(heading))
             inner = QVBoxLayout(box)
+            inner.setSpacing(6)
             for name in names:
                 inner.addWidget(self._switch(name))
-            layout.addWidget(box)
-        reset = QPushButton(tr("Alle Schalter zurücksetzen"))
-        reset.setToolTip(tr("Alle Schalter wieder auf den Standard stellen (Tastenkürzel bleiben)"))
-        reset.clicked.connect(self.reset_switches)
-        row = QHBoxLayout()
-        row.addStretch(1)
-        row.addWidget(reset)
-        layout.addLayout(row)
-        layout.addStretch(1)
+            column.addWidget(box)
+            self._groups.append((box, list(names)))
+            names_on_page += list(names)
+        column.addStretch(1)
         scroll = QScrollArea()
         scroll.setWidget(content)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        return scroll
-
-    def reset_switches(self) -> None:
-        defaults = {preferences.action_name(p.name): p.default for p in preferences.PREFERENCES}
-        defaults.update({"auto_save": config.AUTO_SAVE_DEFAULT, "backup_on_save": config.BACKUP_ON_SAVE_DEFAULT,
-                         "check_updates_on_start": True})
-        for name, default in defaults.items():
-            action = self.actions.get(name)
-            if action is not None and action.isChecked() != default:
-                action.trigger()   # wie ein Klick: alles, was an der Einstellung hängt, folgt
+        self.pages.addWidget(scroll)
+        self.sections.addItem(page_title)
+        self._page_switches.append(names_on_page)
 
     def _switch(self, name: str) -> QWidget:
         action = self.actions[name]
@@ -208,11 +243,50 @@ class SettingsDialog(QDialog):
         tip = QLabel(action.statusTip())
         tip.setObjectName("Muted")
         tip.setWordWrap(True)
-        tip.setContentsMargins(24, 0, 0, 6)
+        tip.setContentsMargins(26, 0, 0, 4)
         holder = QWidget()
         column = QVBoxLayout(holder)
         column.setContentsMargins(0, 0, 0, 0)
-        column.setSpacing(2)
+        column.setSpacing(1)
         column.addWidget(box)
         column.addWidget(tip)
+        self._holders[name] = holder
         return holder
+
+    # ------------------------------------------------------------ Suche
+    def _filter(self, text: str) -> None:
+        """Blendet nicht Passendes aus; Bereiche zeigen die Zahl der Treffer, der erste mit Treffern wird gewählt."""
+        query = text.strip()
+        counts = []
+        for names in self._page_switches:
+            shown = 0
+            for name in names:
+                action = self.actions[name]
+                visible = not query or matches(query, clean_text(action.text()), action.statusTip())
+                self._holders[name].setVisible(visible)
+                shown += visible
+            counts.append(shown)
+        for box, names in self._groups:
+            box.setVisible(any(not self._holders[name].isHidden() for name in names))
+        self.shortcut_table.search.setText(query)
+        table = self.shortcut_table.table
+        counts.append(sum(1 for row in range(table.rowCount()) if not table.isRowHidden(row)))
+        for row, count in enumerate(counts):
+            item = self.sections.item(row)
+            item.setText(f"{self._page_titles[row]} ({count})" if query else self._page_titles[row])
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEnabled if (count or not query)
+                          else item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
+        found = [row for row, count in enumerate(counts) if count]
+        self.empty.setVisible(bool(query) and not found)
+        self.pages.setVisible(not (query and not found))
+        if query and found and counts[self.sections.currentRow()] == 0:
+            self.sections.setCurrentRow(found[0])
+
+    def reset_switches(self) -> None:
+        defaults = {preferences.action_name(p.name): p.default for p in preferences.PREFERENCES}
+        defaults.update({"auto_save": config.AUTO_SAVE_DEFAULT, "backup_on_save": config.BACKUP_ON_SAVE_DEFAULT,
+                         "check_updates_on_start": True})
+        for name, default in defaults.items():
+            action = self.actions.get(name)
+            if action is not None and action.isChecked() != default:
+                action.trigger()   # wie ein Klick: alles, was an der Einstellung hängt, folgt

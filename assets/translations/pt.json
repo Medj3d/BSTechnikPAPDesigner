@@ -279,7 +279,6 @@
  "Funktion oder Taste suchen …": "Pesquisar função ou tecla…",
  "Alle zurücksetzen": "Redefinir tudo",
  "Einstellungen": "Configurações",
- "Schalter": "Chaves",
  "Tastenkürzel": "Atalhos de teclado",
  "Taste drücken": "Pressione uma tecla",
  "Funktion": "Função",
@@ -1026,5 +1025,11 @@
  "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Com “Definir tarefa”, o professor pode escrever um enunciado e uma solução modelo criptografada no arquivo. Quem abrir o arquivo vê a tarefa aqui.",
  "Mehr": "Mais",
  "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "Mais funções: visualização de código, minimapa, tarefa, pontos de parada, grade, alinhar…",
- "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Botões extras na barra de ferramentas (senão em “Mais”)"
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Botões extras na barra de ferramentas (senão em “Mais”)",
+ "Einstellungen und Tastenkürzel durchsuchen …": "Pesquisar configurações e atalhos…",
+ "Nichts gefunden.": "Nada encontrado.",
+ "Allgemein": "Geral",
+ "Zeichnen": "Desenho",
+ "Anteil der Bausteine dieses Ablaufs, die der Schreibtischtest schon ausgeführt hat": "Parte dos blocos deste fluxo que o teste de mesa já executou",
+ "{done} von {total} Bausteinen · {percent} %": "{done} de {total} blocos · {percent} %"
 }

@@ -415,11 +415,9 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         toolbar.addAction(a["auto_layout"])
         self._toolbar_simulation = toolbar.addSeparator()   # hier kommt der Schreibtischtest hin (ist ein Dock)
-        toolbar.addAction(a["generate_code"])
         toolbar.addAction(a["structogram"])
         toolbar.addSeparator()
-        toolbar.addAction(a["export_pdf"])
-        toolbar.addAction(a["print"])
+        toolbar.addAction(a["print"])   # PDF steht unter Datei → Exportieren (Strg+E), Code unter „Mehr“
         self._toolbar_extras = toolbar.addSeparator()       # angeheftete Zusatzknöpfe und „Mehr“
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -767,7 +765,7 @@ class MainWindow(QMainWindow):
             self._toolbar_groups[key] = [proxy]
         # „Mehr“: alle Zusatzfunktionen mit einem Klick – auch wenn die Einstellungen zurückgesetzt wurden
         menu = QMenu(tr("Mehr"), self)
-        for name in ("toggle_code_view", "toggle_minimap", None, "toggle_task", "edit_task", None,
+        for name in ("generate_code", "toggle_code_view", "toggle_minimap", None, "toggle_task", "edit_task", None,
                      "toggle_breakpoint", "clear_breakpoints", None, "toggle_grid", "toggle_snap"):
             menu.addSeparator() if name is None else menu.addAction(a[name])
         align_menu = menu.addMenu(tr("Ausrichten"))
@@ -788,6 +786,18 @@ class MainWindow(QMainWindow):
         self.more_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         toolbar.insertWidget(anchor, self.more_button)
         anchor.setVisible(False)
+        self._show_checkmarks()
+
+    def _show_checkmarks(self) -> None:
+        """Schalter zeigen in allen Menüs ein Häkchen, wenn sie an sind.
+
+        Hat ein Menüeintrag ein Symbol, zeichnet Qt statt des Häkchens nur einen kaum sichtbaren Rahmen um das Symbol.
+        Deshalb erscheinen Schalter in Menüs ohne Symbol (in der Werkzeugleiste behalten sie es).
+        """
+        for menu in [self.menuBar(), *self.findChildren(QMenu)]:
+            for action in menu.actions():
+                if action.isCheckable():
+                    action.setIconVisibleInMenu(False)
 
     def _apply_tools(self) -> None:
         """Heftet die in den Einstellungen gewählten Zusatzknöpfe an die Werkzeugleiste (unter „Mehr“ und im Menü
@@ -815,6 +825,15 @@ class MainWindow(QMainWindow):
         self.code_panel.show_selection([element_id])   # sofort, nicht erst mit der (verzögerten) Auswahlmeldung
         view.ensureVisible(item.scene_rect(), 80, 80)
 
+    def _sync_breakpoint_action(self) -> None:
+        """Häkchen bei „Haltepunkt setzen/entfernen“: haben alle ausgewählten Bausteine einen Haltepunkt?"""
+        document = self.current_document()
+        ids = [item.element_id for item in document.scene.selected_elements() if not item.is_comment]             if document is not None else []
+        action = self.actions["toggle_breakpoint"]
+        action.blockSignals(True)
+        action.setChecked(bool(ids) and all(breakpoints.has_breakpoint(document, eid) for eid in ids))
+        action.blockSignals(False)
+
     def _sync_code_selection(self) -> None:
         document = self.current_document()
         if document is None or not self.code_dock.isVisible():
@@ -832,9 +851,12 @@ class MainWindow(QMainWindow):
             return
         items = [item for item in document.scene.selected_elements() if not item.is_comment]
         if not items:
+            self._sync_breakpoint_action()
             self.statusBar().showMessage(tr("Bitte zuerst einen Baustein auswählen."), 4000)
             return
-        if breakpoints.toggle(document, [item.element_id for item in items]):
+        switched_on = breakpoints.toggle(document, [item.element_id for item in items])
+        self._sync_breakpoint_action()
+        if switched_on:
             self.statusBar().showMessage(tr("Haltepunkt gesetzt – der Schreibtischtest hält vor diesem Baustein an."),
                                          5000)
         else:
@@ -1050,6 +1072,7 @@ class MainWindow(QMainWindow):
         scene.selection_state_changed.connect(self._update_actions)
         scene.selection_state_changed.connect(self._update_status)
         scene.selection_state_changed.connect(self._sync_code_selection)
+        scene.selection_state_changed.connect(self._sync_breakpoint_action)
         scene.content_changed.connect(self._schedule_status_update)
         scene.editing_changed.connect(lambda _e: self._update_actions())
         scene.status_message.connect(self._show_scene_message)

@@ -52,13 +52,15 @@ def enable_tools(window, *keys):
 def test_toolbar_is_simple_by_default(window):
     visible = [action for action in window.toolbar.actions() if action.isVisible() and not action.isSeparator()]
     for name in ("new", "open", "save", "undo", "redo", "delete", "zoom_in", "zoom_out", "zoom_fit", "auto_layout",
-                 "toggle_simulation", "generate_code", "structogram", "export_pdf", "print"):
+                 "toggle_simulation", "structogram", "print"):
         assert window.actions[name] in visible, name
     for entries in window._toolbar_groups.values():
         assert not any(entry.isVisible() for entry in entries)
     # alles Weitere unter „Mehr“ – ohne Einstellungen erreichbar
     more = window.more_menu.actions()
-    for name in ("toggle_code_view", "toggle_minimap", "toggle_task", "edit_task", "toggle_breakpoint",
+    for name in ("generate_code", "export_pdf"):
+        assert window.actions[name] not in visible   # Code unter „Mehr“, PDF unter Datei → Exportieren
+    for name in ("generate_code", "toggle_code_view", "toggle_minimap", "toggle_task", "edit_task", "toggle_breakpoint",
                  "toggle_grid", "settings"):
         assert window.actions[name] in more and window.actions[name].isVisible(), name
 
@@ -201,3 +203,62 @@ def test_stamp_is_drawn_bottom_right(window, qapp, tmp_path):
               for y in range(stamped.height() - 26, stamped.height() - 4)]
     assert min(corner) < 200   # dort steht Text
     assert export.stamp_text("Max", "", "1.1.2027") == "Max · 1.1.2027"
+
+
+# ------------------------------------------------------------------ 1.14.2: Häkchen, Prozente, Einstellungen
+def test_switches_show_checkmarks_in_menus(window):
+    from PySide6.QtWidgets import QMenu
+    checkable = [action for menu in window.findChildren(QMenu) for action in menu.actions() if action.isCheckable()]
+    assert window.actions["toggle_code_view"] in checkable and window.actions["toggle_grid"] in checkable
+    assert all(not action.isIconVisibleInMenu() for action in checkable)
+    assert window.actions["toggle_breakpoint"].isCheckable()
+
+
+def test_breakpoint_action_shows_the_state_of_the_selection(window, qapp):
+    window.open_file(EXAMPLE)
+    document = window.current_document()
+    item = next(item for item in document.scene.elements() if item.element_type.value == "process")
+    document.scene.select_items([item])
+    qapp.processEvents()
+    window._sync_breakpoint_action()
+    assert not window.actions["toggle_breakpoint"].isChecked()
+    window.actions["toggle_breakpoint"].trigger()
+    assert window.actions["toggle_breakpoint"].isChecked()
+    window.actions["toggle_breakpoint"].trigger()
+    assert not window.actions["toggle_breakpoint"].isChecked()
+
+
+def test_desk_check_shows_speed_and_coverage_percent(window, qapp):
+    window.open_file(EXAMPLE)
+    panel = window.simulation_panel
+    panel.speed_slider.setValue(panel.speed_slider.maximum())
+    assert panel.speed_label.text() == "100 %"
+    panel.speed_slider.setValue(0)
+    assert panel.speed_label.text().endswith(" %") and panel.speed_percent() < 20
+    window.simulation_dock.show()
+    panel.run()
+    done, total = panel.coverage()
+    assert 0 < done < total and str(round(100 * done / total)) in panel.coverage_label.text()
+    panel.input_field.setText("2")
+    panel.submit_input()
+    panel.run()
+    assert panel.simulator.finished and panel.coverage()[0] == panel.coverage()[1]
+    assert "100 %" in panel.coverage_label.text()
+
+
+def test_settings_search_covers_switches_and_shortcuts(window, qapp):
+    from app.dialogs.settings import SettingsDialog
+    dialog = SettingsDialog(window.actions, window)
+    dialog.show()
+    dialog.search.setText("minikarte")
+    qapp.processEvents()
+    tools = preferences.action_name(preferences.TOOL_MINIMAP)
+    assert dialog._holders[tools].isVisibleTo(dialog)
+    assert not dialog._holders["auto_save"].isVisibleTo(dialog)
+    assert dialog.pages.currentIndex() in (3, 4)   # Werkzeugleiste oder Tastenkürzel
+    assert "(" in dialog.sections.item(3).text()
+    dialog.search.setText("xyzgibtsnicht")
+    assert dialog.empty.isVisibleTo(dialog)
+    dialog.search.clear()
+    assert dialog._holders["auto_save"].isVisibleTo(dialog) or dialog.pages.currentIndex() != 0
+    dialog.close()

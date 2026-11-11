@@ -140,6 +140,16 @@ class SimulationPanel(QWidget):
         self.speed_slider.setValue(DEFAULT_PLAY_SPEED)
         self.speed_slider.setFixedWidth(90)
         self.speed_slider.setToolTip(tr("Tempo beim Abspielen (rechts = schneller)"))
+        self.speed_label = QLabel()
+        self.speed_label.setObjectName("Muted")
+        self.speed_label.setMinimumWidth(40)
+        self.speed_slider.valueChanged.connect(self._update_speed_label)
+        self._update_speed_label()
+        # Wie viel vom Plan der Schreibtischtest schon durchlaufen hat
+        self.coverage_label = QLabel("")
+        self.coverage_label.setObjectName("Muted")
+        self.coverage_label.setToolTip(tr("Anteil der Bausteine dieses Ablaufs, die der Schreibtischtest schon "
+                                          "ausgeführt hat"))
         self.stop_button = self._tool("stop", tr("Beenden", ctx="Schreibtischtest"), self.stop)
         # Haltepunkt am ausgewählten Baustein (die Auswahl kennt das Hauptfenster)
         self.breakpoint_button = self._tool("breakpoint", tr("Haltepunkt am ausgewählten Baustein setzen bzw. "
@@ -150,11 +160,13 @@ class SimulationPanel(QWidget):
         for button in (self.restart_button, self.back_button, self.step_button, self.run_button, self.play_button):
             toolbar.addWidget(button)
         toolbar.addWidget(self.speed_slider)
+        toolbar.addWidget(self.speed_label)
         toolbar.addWidget(self.stop_button)
         toolbar.addWidget(self.breakpoint_button)
         # hält die Schaltflächen zusammen, wenn die Ablaufauswahl ausgeblendet ist
         self._toolbar_stretch = QWidget()
         toolbar.addWidget(self._toolbar_stretch, 1)
+        toolbar.addWidget(self.coverage_label)
 
         self.status = QLabel(tr("Starten Sie den Schreibtischtest mit ▶ oder „Schritt“."))
         self.status.setWordWrap(True)
@@ -602,6 +614,38 @@ class SimulationPanel(QWidget):
         if trace:
             self.trace_table.scrollToBottom()
 
+    def speed_percent(self) -> int:
+        """Tempo des Abspielens in Prozent (100 % = schnellste Stufe)."""
+        return round(100 * (self.speed_slider.value() + 1) / len(PLAY_DELAYS_MS))
+
+    def _update_speed_label(self, *_args) -> None:
+        self.speed_label.setText(f"{self.speed_percent()} %")
+
+    def coverage(self) -> tuple[int, int]:
+        """(ausgeführte, alle) Bausteine des laufenden Ablaufs – mit aufgerufenen Unterprogrammen."""
+        simulator = self._simulator
+        if simulator is None:
+            return 0, 0
+        graph = simulator.graph
+        reachable, todo = set(), [simulator.start_id] if simulator.start_id else []
+        while todo:
+            node_id = todo.pop()
+            if node_id in reachable or node_id not in graph.nodes:
+                continue
+            reachable.add(node_id)
+            todo.extend(graph.successors(node_id))
+        visited = {row.element_id for row in simulator.trace if row.element_id in graph.nodes}
+        counted = {nid for nid in reachable | visited if graph.nodes[nid].type is not ElementType.JUNCTION}
+        return len(visited & counted), len(counted)
+
+    def _update_coverage(self) -> None:
+        done, total = self.coverage()
+        if not total:
+            self.coverage_label.setText("")
+            return
+        self.coverage_label.setText(tr("{done} von {total} Bausteinen · {percent} %", done=done, total=total,
+                                       percent=round(100 * done / total)))
+
     def changed_variables(self) -> set:
         """Variablen, die sich im letzten Schritt geändert haben (oder neu sind)."""
         simulator = self._simulator
@@ -612,6 +656,7 @@ class SimulationPanel(QWidget):
         return {name for name, value in last.items() if name not in before or before[name] != value}
 
     def _update_controls(self) -> None:
+        self._update_coverage()
         has_document = self._document is not None
         running = self._simulator is not None and not self._simulator.finished
         self.program_combo.setEnabled(has_document and not running)

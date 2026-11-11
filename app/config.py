@@ -9,7 +9,7 @@ import sys as _sys
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.14.1"
+APP_VERSION = "1.14.2"
 APP_RELEASE_DATE = "November 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Kontakt und Website (im Dialog „Über das Programm“)

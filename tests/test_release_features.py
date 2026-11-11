@@ -843,6 +843,29 @@ def test_locked_down_computers_keep_running_the_installed_program(monkeypatch, t
     assert updater.redirect_to_user_program([]) is False and FakePopen.calls == []  # nicht erneut versucht
 
 
+def test_loose_program_never_tidies_the_user_folder(monkeypatch, tmp_path):
+    """Eine lose Programmdatei (z. B. frisch gebaut in ``dist``) gleicher Version löschte früher die Kopie, auf die das
+    installierte Programm weiterleitet – danach startete wieder dessen alte Version (gemeldet mit 1.7 im Startmenü)."""
+    copy = place_copy(config.APP_VERSION)
+    loose = tmp_path / "dist" / "BSTechnikPAPDesigner"
+    loose.mkdir(parents=True)
+    frozen_app(monkeypatch, loose)
+    assert not updater.may_tidy_user_programs()
+    updater.cleanup_user_programs()
+    assert os.path.isfile(os.path.join(copy, updater.COMPLETE_MARKER))
+    # das installierte Programm (mit Deinstallationsprogramm daneben) behält neuere Kopien und räumt ältere ab
+    installed = tmp_path / "Programme" / "BS Technik PAP Designer"
+    installed.mkdir(parents=True)
+    (installed / "unins000.exe").write_bytes(b"")
+    frozen_app(monkeypatch, installed)
+    old = place_copy("0.0.1")
+    monkeypatch.setattr(config, "APP_VERSION", "1.7.0")
+    assert updater.may_tidy_user_programs()
+    updater.cleanup_user_programs()
+    assert os.path.isdir(copy) and not os.path.exists(old)
+    assert updater.newer_user_program() == (os.path.basename(copy), copy)
+
+
 def test_user_folder_is_tidied_without_touching_what_is_in_use(monkeypatch, tmp_path):
     root = updater.user_update_root()
     old, equal, incomplete = place_copy("0.0.1"), place_copy(config.APP_VERSION), place_copy("99.0.5", complete=False)

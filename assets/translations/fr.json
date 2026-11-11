@@ -279,7 +279,6 @@
  "Funktion oder Taste suchen …": "Rechercher une fonction ou une touche…",
  "Alle zurücksetzen": "Tout réinitialiser",
  "Einstellungen": "Paramètres",
- "Schalter": "Commutateurs",
  "Tastenkürzel": "Raccourcis clavier",
  "Taste drücken": "Appuyez sur une touche",
  "Funktion": "Fonction",
@@ -1026,5 +1025,11 @@
  "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "Avec « Définir une tâche », l'enseignant peut écrire un énoncé et une solution type chiffrée dans le fichier. Qui ouvre le fichier voit la tâche ici.",
  "Mehr": "Plus",
  "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "Autres fonctions : vue du code, mini-carte, tâche, points d'arrêt, grille, alignement…",
- "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Boutons supplémentaires dans la barre d'outils (sinon sous « Plus »)"
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Boutons supplémentaires dans la barre d'outils (sinon sous « Plus »)",
+ "Einstellungen und Tastenkürzel durchsuchen …": "Rechercher dans les réglages et raccourcis…",
+ "Nichts gefunden.": "Aucun résultat.",
+ "Allgemein": "Général",
+ "Zeichnen": "Dessin",
+ "Anteil der Bausteine dieses Ablaufs, die der Schreibtischtest schon ausgeführt hat": "Part des blocs de ce déroulement déjà exécutés par le test de bureau",
+ "{done} von {total} Bausteinen · {percent} %": "{done} sur {total} blocs · {percent} %"
 }

@@ -460,6 +460,20 @@ QSpinBox#PlainSpin::up-button, QSpinBox#PlainSpin::down-button {{
     height: 0px;
     border: none;
 }}
+QListWidget#SettingsSections {{
+    background: {t.panel_bg};
+    border: 1px solid {t.border};
+    border-radius: 6px;
+    padding: 4px;
+}}
+QListWidget#SettingsSections::item {{
+    padding: 7px 10px;
+    border-radius: 4px;
+}}
+QListWidget#SettingsSections::item:selected {{
+    background: {t.accent};
+    color: {t.accent_text};
+}}
 QToolButton#StepButton {{
     background: {t.panel_raised};
     border: 1px solid {t.border_strong};

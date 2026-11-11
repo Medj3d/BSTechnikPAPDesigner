@@ -329,7 +329,6 @@
  "Funktion oder Taste suchen …": "Search for a function or key…",
  "Alle zurücksetzen": "Reset All",
  "Einstellungen": "Settings",
- "Schalter": "Switches",
  "Tastenkürzel": "Keyboard Shortcuts",
  "Taste drücken": "Press a key",
  "Funktion": "Function",
@@ -1076,5 +1075,11 @@
  "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "With “Set Task”, teachers can write a task and an encrypted model solution into the file. Whoever opens the file sees the task here.",
  "Mehr": "More",
  "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "More functions: code view, minimap, task, breakpoints, grid, align…",
- "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Extra buttons in the toolbar (otherwise under “More”)"
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "Extra buttons in the toolbar (otherwise under “More”)",
+ "Einstellungen und Tastenkürzel durchsuchen …": "Search settings and shortcuts…",
+ "Nichts gefunden.": "Nothing found.",
+ "Allgemein": "General",
+ "Zeichnen": "Drawing",
+ "Anteil der Bausteine dieses Ablaufs, die der Schreibtischtest schon ausgeführt hat": "Share of this flow's blocks the desk check has already executed",
+ "{done} von {total} Bausteinen · {percent} %": "{done} of {total} blocks · {percent} %"
 }

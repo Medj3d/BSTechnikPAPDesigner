@@ -262,7 +262,8 @@ class UpdateController(QObject):
                 # Das Programm beenden; die neue Version wartet darauf und ersetzt dann den Programmordner
             else:
                 folder = updater.install_user_program(new_dir, self._pending_info.version)
-                updater.cleanup_user_programs()  # Zwischenreste und veraltete Kopien entfernen
+                updater.remove_user_staging()    # der Zwischenordner dieses Downloads
+                updater.cleanup_user_programs()  # veraltete Kopien (nur als installiertes Programm oder Kopie)
                 self._launch_after_quit(folder)  # die neue Kopie startet, sobald dieses Programm beendet ist
         except updater.UpdateError as exc:
             QMessageBox.warning(self._window, tr("Update nicht möglich"), exc.message)

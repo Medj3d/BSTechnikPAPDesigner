@@ -227,7 +227,7 @@ class ActionRegistry:
             self._actions[name].setCheckable(True)
             self._actions[name].setChecked(True)
         for name in ("theme_dark", "theme_light", "auto_save", "backup_on_save", "check_updates_on_start",
-                     "presentation", "toggle_minimap"):
+                     "presentation", "toggle_minimap", "toggle_breakpoint"):
             self._actions[name].setCheckable(True)
 
     def refresh_icons(self) -> None:

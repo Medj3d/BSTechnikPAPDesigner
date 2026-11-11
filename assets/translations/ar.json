@@ -279,7 +279,6 @@
  "Funktion oder Taste suchen …": "البحث عن وظيفة أو مفتاح…",
  "Alle zurücksetzen": "إعادة تعيين الكل",
  "Einstellungen": "الإعدادات",
- "Schalter": "مفاتيح التشغيل",
  "Tastenkürzel": "اختصارات لوحة المفاتيح",
  "Taste drücken": "اضغط مفتاحًا",
  "Funktion": "الوظيفة",
@@ -1026,5 +1025,11 @@
  "Lehrkräfte können mit „Aufgabe stellen“ eine Aufgabenstellung und eine verschlüsselte Musterlösung in die Datei schreiben. Wer die Datei öffnet, sieht die Aufgabe hier.": "يمكن للمعلم عبر „تعيين مهمة“ كتابة نص المهمة وحل نموذجي مشفّر في الملف. ومن يفتح الملف يرى المهمة هنا.",
  "Mehr": "المزيد",
  "Weitere Funktionen: Code-Ansicht, Minikarte, Aufgabe, Haltepunkte, Raster, Ausrichten …": "وظائف أخرى: عرض الشيفرة، الخريطة المصغّرة، المهمة، نقاط التوقف، الشبكة، المحاذاة…",
- "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "أزرار إضافية في شريط الأدوات (وإلا ففي „المزيد“)"
+ "Zusatzknöpfe in der Werkzeugleiste (sonst unter „Mehr“)": "أزرار إضافية في شريط الأدوات (وإلا ففي „المزيد“)",
+ "Einstellungen und Tastenkürzel durchsuchen …": "البحث في الإعدادات والاختصارات…",
+ "Nichts gefunden.": "لم يتم العثور على شيء.",
+ "Allgemein": "عام",
+ "Zeichnen": "الرسم",
+ "Anteil der Bausteine dieses Ablaufs, die der Schreibtischtest schon ausgeführt hat": "نسبة كتل هذا التدفق التي نفّذها التتبع اليدوي بالفعل",
+ "{done} von {total} Bausteinen · {percent} %": "{done} من {total} كتل · {percent} %"
 }
