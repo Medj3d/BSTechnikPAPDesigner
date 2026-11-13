@@ -1043,5 +1043,7 @@
  "Als PDF exportieren": "تصدير بصيغة PDF",
  "Den Plan als PDF speichern, z. B. für die Abgabe (Strg+E)": "حفظ المخطط بصيغة PDF، مثلًا للتسليم (Ctrl+E)",
  "Den Plan drucken": "طباعة المخطط",
- "Knöpfe in der Werkzeugleiste": "أزرار شريط الأدوات"
+ "Knöpfe in der Werkzeugleiste": "أزرار شريط الأدوات",
+ "Assembler (PIC16F887)": "لغة التجميع (PIC16F887)",
+ "Assembler-Datei ({pattern})": "ملف لغة التجميع ({pattern})"
 }

@@ -27,13 +27,14 @@ from app.i18n import N_, tr, tr_code
 from app.labels import generic_program_names
 
 # Zielsprachen des Dialogs: Schlüssel → Name (angezeigt wird ``language_name``)
-LANGUAGES = {"pseudo": N_("Pseudocode"), "python": "Python", "java": "Java"}
+# Der Assembler für den PIC16F887 (wie im Unterricht) steht vorn und ist voreingestellt
+LANGUAGES = {"asm": N_("Assembler (PIC16F887)"), "pseudo": N_("Pseudocode"), "python": "Python", "java": "Java"}
 INDENT = "    "
 
 
 def language_name(key: str) -> str:
     """Name der Zielsprache in der Oberfläche („Python“ und „Java“ heißen überall gleich)."""
-    return tr(LANGUAGES[key]) if key == "pseudo" else LANGUAGES[key]
+    return tr(LANGUAGES[key]) if key in ("pseudo", "asm") else LANGUAGES[key]
 
 
 def generate(programs: list[Program], language: str, title: str | None = None) -> str:
@@ -42,6 +43,10 @@ def generate(programs: list[Program], language: str, title: str | None = None) -
         return PythonGenerator(programs).generate()
     if language == "java":
         return JavaGenerator(programs).generate()
+    if language == "asm":
+        from app.codegen.pic_asm import PicAsmGenerator
+
+        return PicAsmGenerator(programs).generate()
     return PseudoGenerator(programs).generate()
 
 
@@ -1515,6 +1520,10 @@ def generate_traced(programs: list[Program], language: str, title: str | None = 
     Die Erzeuger bleiben unverändert: Jede Zeile, die während einer Anweisung entsteht, bekommt vorübergehend
     eine unsichtbare Markierung mit der Baustein-Kennung, die hier wieder entfernt wird.
     """
+    if language == "asm":
+        from app.codegen.pic_asm import PicAsmGenerator
+
+        _GENERATORS["asm"] = PicAsmGenerator
     generator = _GENERATORS.get(language, PseudoGenerator)(with_title(programs, title))
     original_stmt, original_emit = generator.stmt, generator.emit
     current: list = [None]

@@ -26,6 +26,33 @@ Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 
 Alle Versionen: [Veröffentlichungen auf GitHub](https://github.com/Medj3d/BSTechnikPAPDesigner/releases).
 
+### Funktionen auf einen Blick
+
+- **Alle PAP-Bausteine**: Start, Ende, Eingabe, Ausgabe, Vorgang, Unterprogramm, Verzweigung, Schleife und Kommentar in der üblichen Form (DIN 66001)
+- **Schnell einfügen**: aus der Palette ziehen, Tasten 1–9 oder auf einen Pfeil ziehen, dann landet der Baustein mitten im Ablauf
+- **Pfeile**: verbinden sich von selbst rechtwinklig um Bausteine herum, lassen sich frei verschieben und umhängen; ja/nein steht automatisch an Verzweigungen
+- **Prüfung beim Zeichnen**: falsche Pfeile werden rot, auffällige gelb markiert, mit dem Grund als Hinweis
+- **Unterprogramme** auf eigenen Seiten, mit Aufruf per Doppelklick, Umbenennen samt aller Aufrufe und „Auswahl in Unterprogramm auslagern“
+- **Schreibtischtest**: Plan Schritt für Schritt ausführen, auch rückwärts oder automatisch, mit Haltepunkten (F9), Variablentabelle, Abdeckung in Prozent und Tabelle für Word/Excel
+- **Code erzeugen**: aus dem Plan wird Assembler für den PIC16F887 (wie im Unterricht, voreingestellt), Pseudocode, Python oder Java
+- **PIC-Assembler**: im Aufbau der Schulvorlage, mit Ports (`PORTD.0 = 1`, „Ausgabe x an PORTC“), Warten (`warte 100 ms`), Rechnen mit 8 Bit, Bitmasken und Unterprogrammen; als `.asm`-Datei für MPLAB speichern
+- **Code-Ansicht** neben dem Plan: Klick auf eine Codezeile markiert den passenden Baustein
+- **Struktogramm** (Nassi-Shneiderman) aus demselben Plan, auch als Bild oder PDF
+- **Hinweisliste**: findet fehlenden Start oder fehlendes Ende, Sackgassen, unerreichbare Bausteine; ein Klick springt zur Stelle
+- **Automatisch anordnen**: räumt den Plan ordentlich auf, ohne den Ablauf zu ändern
+- **Lehrermodus**: Aufgabe in der Datei, Musterlösung mit Passwort geschützt
+- **Minikarte** zum schnellen Springen in großen Plänen
+- **Export und Druck**: PNG, SVG, PDF und Druck, mit Name, Klasse und Datum; Strg+C kopiert den Plan als Bild für Word oder OneNote
+- **Suche** (Strg+K) nach Funktionen, Einstellungen und Bausteinen
+- **Einstellungen**: Schalter, eigene Tastenkürzel und frei wählbare Knöpfe in der Werkzeugleiste
+- **Sicher speichern**: automatisches Speichern, Sicherung nach Absturz, Sicherungskopie `.pap-backup`
+- **Rückgängig/Wiederholen** für jede Änderung, mehrere Projekte in Reitern
+- **PapDesigner-Dateien** öffnen und so speichern, dass sie im alten PapDesigner wieder aufgehen
+- **9 Sprachen**: Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch
+- **Hell oder dunkel**, Präsentationsansicht (F11), fünf Lernbeispiele
+- **Updates** von selbst, auch ohne Adminrechte; in der Schule zentral abschaltbar
+- **Windows und Linux** (AppImage für fast alle Distributionen)
+
 ---
 
 ## Versionen
@@ -35,6 +62,7 @@ die dritte Zahl kleine Nachbesserungen.
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| 1.15.0 | 13.11.2026 | Neue Codevariante **PIC-Assembler für den PIC16F887** (wie im Unterricht, jetzt voreingestellt in „Code erzeugen“ und in der Code-Ansicht): Aufbau der Schulvorlage, Rechnen mit 8 Bit, Vergleiche, alle Schleifen, Bits und Bitmasken an Ports, „Eingabe x von PORTA“ / „Ausgabe x an PORTC“, Warten in ms und s, Unterprogramme; Ports werden passend als Ein- oder Ausgang eingestellt, Register anderer Bänke bekommen `BANKSEL`; Speichern als `.asm` für MPLAB. Geprüft mit gpasm und dem Simulator gpsim. README: Liste aller Funktionen am Anfang |
 | 1.14.3 | 13.11.2026 | Jeder Knopf der Werkzeugleiste lässt sich in den Einstellungen ein- und ausblenden, auch die Standardknöpfe (der Menüeintrag bleibt). Minikarte standardmäßig an. Einstellungen: Funktionen fett, Bereichstitel hervorgehoben, deutlichere Kästchen mit Haken. Extras → Pfeile und Extras → Prüfung als Schnellzugriff auf die Schalter. README: Download und Versionen (neueste oben) gleich am Anfang |
 | 1.14.2 | 11.11.2026 | Update-Fix: eine lose Programmdatei (z. B. frisch gebaut oder aus einer ZIP-Datei) löscht die Update-Kopie im Benutzerordner nicht mehr – das installierte Programm startete danach wieder seine alte Version. Häkchen für aktive Schalter in allen Menüs. Schreibtischtest mit Tempo in Prozent und Abdeckung des Plans („3 von 5 Bausteinen · 60 %“). „Code erzeugen“ unter „Mehr“, PDF nur noch unter Datei → Exportieren (Strg+E). Einstellungen mit Bereichen und Suchfeld über Schalter und Tastenkürzel |
 | 1.14.1 | 10.11.2026 | Werkzeugleiste für den Alltag in einer Zeile (Datei, Rückgängig, Löschen, Zoom, Anordnen, Schreibtischtest, Code, Struktogramm, PDF, Drucken); alles Weitere unter „Mehr“ – auch ohne gespeicherte Einstellungen (z. B. Schulrechner) erreichbar. Bedienhinweise der Bausteinleiste als Kurzinfo an der Überschrift. Minikarte standardmäßig aus |
@@ -91,7 +119,8 @@ die dritte Zahl kleine Nachbesserungen.
 | Dateiformat | ausschließlich `.pap` (XML im Aufbau des PapDesigners, ergänzt um genaue Positionen, Anschlüsse und Ansicht; atomares Speichern, saubere Ablehnung zukünftiger Versionen, Reparatur fehlerhafter Einträge mit Hinweis) |
 | Export / Druck | PNG (1×–4×), SVG, PDF, Drucken und Druckvorschau – ohne UI-Elemente, wahlweise hell (Druck) oder dunkel |
 | Als Bild kopieren | **Strg+C** legt die Auswahl zusätzlich als Bild in die Zwischenablage; **Bearbeiten → Als Bild kopieren** (Strg+Umschalt+B) kopiert nur das Bild – der Auswahl oder ohne Auswahl der ganzen Seite –, hell und ohne Raster, zum direkten Einfügen in Word, OneNote oder PowerPoint. Auch das Struktogramm lässt sich als Bild kopieren |
-| Code erzeugen | **Extras → Code erzeugen** (Strg+Umschalt+C): Pseudocode, Python oder Java aus dem Plan; erkannte Zuweisungen, Bedingungen und Schleifenköpfe werden übersetzt, der Rest als TODO übernommen; nicht auswertbare Bedingungen werden zur Laufzeit erfragt. Die Programme rechnen wie der Schreibtischtest: echte Division, `mod`/`div`, `x^2`, kaufmännisches Runden (`round(x, 2)`), Text- und Wahrheitswert-Variablen (Java: `String`/`boolean` werden automatisch erkannt). Erkannt werden auch Schleifen mit der Prüfung in der Mitte (Eingabe → Prüfung → Meldung → zurück), das Verlassen einer Schleife aus dem Rumpf, Menüschleifen und Bausteine, in die mehrere Zweige münden; lässt sich ein Sprung nicht darstellen, hält das erzeugte Programm dort mit einer klaren Meldung an |
+| PIC-Assembler | voreingestellte Codevariante: Assembler für den **PIC16F887** (MPASM/gpasm, 4 MHz) im Aufbau der Schulvorlage (Kopf mit Beschaltung der Ports, `cblock` ab 0x20, Hardwarekonfiguration, Hauptprogramm, Unterprogramme). Übersetzt Zuweisungen mit 8 Bit ohne Vorzeichen (`+ - * / mod`, `& \| ^` als XOR, `<< >>`), Vergleiche und und/oder/nicht, alle Schleifen (Zählschleifen enden auch „bis 0“ und „bis 255“), Bits (`PORTD.0 = 1`, Bedingung `PORTA.0 = 1`, Bitmasken wie `(PORTB & 3) = 1`), „Eingabe x von PORTA“, „Ausgabe x an PORTC“, `warte 100 ms` / `warte 2 s` und Unterprogramme. Jeder benutzte Port wird passend als Ein- oder Ausgang eingestellt, Register anderer Bänke (z. B. `TRISB`, `OPTION_REG`) bekommen `BANKSEL`. Was der PIC nicht kann (Text, Kommazahlen), steht als `; TODO` im Code. Gespeichert wird in Windows-1252 mit Windows-Zeilenenden für MPLAB. Geprüft mit gpasm und dem Simulator gpsim |
+| Code erzeugen | **Extras → Code erzeugen** (Strg+Umschalt+C): PIC-Assembler, Pseudocode, Python oder Java aus dem Plan; erkannte Zuweisungen, Bedingungen und Schleifenköpfe werden übersetzt, der Rest als TODO übernommen; nicht auswertbare Bedingungen werden zur Laufzeit erfragt. Die Programme rechnen wie der Schreibtischtest: echte Division, `mod`/`div`, `x^2`, kaufmännisches Runden (`round(x, 2)`), Text- und Wahrheitswert-Variablen (Java: `String`/`boolean` werden automatisch erkannt). Erkannt werden auch Schleifen mit der Prüfung in der Mitte (Eingabe → Prüfung → Meldung → zurück), das Verlassen einer Schleife aus dem Rumpf, Menüschleifen und Bausteine, in die mehrere Zweige münden; lässt sich ein Sprung nicht darstellen, hält das erzeugte Programm dort mit einer klaren Meldung an |
 | Struktogramm | **Extras → Struktogramm** (Strg+Umschalt+N): derselbe Ablauf als Nassi-Shneiderman-Diagramm, Export als PNG/SVG/PDF |
 | Schreibtischtest | **Extras → Schreibtischtest** (F9): Plan Schritt für Schritt ausführen (F10), **Schritt zurück** (Strg+F10), **automatisch abspielen** mit einstellbarem Tempo (F6, hält bei Eingaben an) oder bis zur nächsten Eingabe laufen lassen (F5); aktueller Baustein wird hervorgehoben; Variablen, Ausgaben und Schreibtischtest-Tabelle mit den Spalten Bedingung (ja/nein bzw. gewählter Ausgang) und Ausgabe – kopierbar für Word/Excel und als CSV speicherbar; Unterprogramme werden mit ausgeführt, Verzweigungen mit mehreren Ausgängen („1“, „2“, „sonst“ oder „< 0“, „= 0“, „> 0“) ausgewertet |
 | Automatisch anordnen | **Extras → Automatisch anordnen** (Strg+L): Plan nach PAP-Konventionen ordnen (ja nach unten, nein nach rechts), ein Rückgängig-Schritt. Reine Eckpunkte fallen weg, Zusammenführungen stehen über ihrem Ziel, die Anschlüsse passen zur neuen Lage, Kommentare ohne Linie wandern mit dem nächsten Baustein; der Ablauf bleibt unverändert |
@@ -427,6 +456,11 @@ Installationsordner), wird der erzeugte Java-Code in den Tests wirklich
 `tests/test_structure_flows.py` vergleichen für viele Pläne die Ausgabe von
 Schreibtischtest, erzeugtem Python und erzeugtem Java. Ohne JDK werden diese
 Java-Läufe übersprungen.
+
+Sind `gpasm` und `gpsim` (Paket `gputils`/`gpsim`, z. B. unter Linux oder WSL)
+installiert, übersetzt `tests/test_pic_asm.py` den erzeugten PIC-Assembler und
+führt ihn im Simulator aus; die Werte der Variablen und Ports müssen genau
+stimmen (geprüft mit gpsim 0.31 und 0.32). Der Linux-Workflow installiert beide.
 
 `tests/test_papdesigner_corpus.py` erzeugt mit `tests/papdesigner_corpus.py`
 reproduzierbar viele komplexe Pläne im Dateiformat des PapDesigners

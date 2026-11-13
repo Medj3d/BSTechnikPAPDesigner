@@ -119,8 +119,11 @@ def test_code_dialog_constructs(qapp, monkeypatch):
     from app.codegen.dialog import CodeDialog
     document = DiagramDocument.open_file(EXAMPLE)
     dialog = CodeDialog(document)
-    assert "PROGRAMM" in dialog.code()
+    # voreingestellt ist der Assembler für den PIC16F887, danach Pseudocode und Python
+    assert "\tlist\tp=16F887" in dialog.code()
     dialog.language.setCurrentIndex(1)
+    assert "PROGRAMM" in dialog.code()
+    dialog.language.setCurrentIndex(2)
     assert "def main" in dialog.code()
     dialog.copy_code()
     dialog.deleteLater()

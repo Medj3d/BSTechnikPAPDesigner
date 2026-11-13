@@ -1043,5 +1043,7 @@
  "Als PDF exportieren": "Экспорт в PDF",
  "Den Plan als PDF speichern, z. B. für die Abgabe (Strg+E)": "Сохранить схему как PDF, напр. для сдачи (Ctrl+E)",
  "Den Plan drucken": "Напечатать схему",
- "Knöpfe in der Werkzeugleiste": "Кнопки панели инструментов"
+ "Knöpfe in der Werkzeugleiste": "Кнопки панели инструментов",
+ "Assembler (PIC16F887)": "Ассемблер (PIC16F887)",
+ "Assembler-Datei ({pattern})": "Файл ассемблера ({pattern})"
 }

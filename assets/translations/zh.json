@@ -1043,5 +1043,7 @@
  "Als PDF exportieren": "导出为 PDF",
  "Den Plan als PDF speichern, z. B. für die Abgabe (Strg+E)": "将流程图保存为 PDF，例如用于提交（Ctrl+E）",
  "Den Plan drucken": "打印流程图",
- "Knöpfe in der Werkzeugleiste": "工具栏按钮"
+ "Knöpfe in der Werkzeugleiste": "工具栏按钮",
+ "Assembler (PIC16F887)": "汇编 (PIC16F887)",
+ "Assembler-Datei ({pattern})": "汇编文件 ({pattern})"
 }

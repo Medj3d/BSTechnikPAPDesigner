@@ -118,7 +118,7 @@ def test_traced_code_equals_normal_code_and_maps_lines(window):
     document = window.current_document()
     from app.analysis.structure import structure_diagram
     programs = structure_diagram(document.flow_graph())
-    for language in ("pseudo", "python", "java"):
+    for language in ("asm", "pseudo", "python", "java"):
         code, ids = generate_traced(programs, language, document.meta.name)
         assert code == generate(programs, language, document.meta.name)
         assert len(ids) == len(code.split("\n"))

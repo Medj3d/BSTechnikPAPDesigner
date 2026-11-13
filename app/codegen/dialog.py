@@ -16,8 +16,8 @@ from app import config
 from app.i18n import N_, tr
 
 # Endung und Name des Dateityps (deutscher Quelltext; angezeigt wird er mit ``tr(..., pattern=...)``)
-EXTENSIONS = {"pseudo": (".txt", N_("Textdatei ({pattern})")), "python": (".py", N_("Python-Datei ({pattern})")),
-              "java": (".java", N_("Java-Datei ({pattern})"))}
+EXTENSIONS = {"asm": (".asm", N_("Assembler-Datei ({pattern})")), "pseudo": (".txt", N_("Textdatei ({pattern})")),
+              "python": (".py", N_("Python-Datei ({pattern})")), "java": (".java", N_("Java-Datei ({pattern})"))}
 
 
 def monospace_font() -> QFont:
@@ -28,7 +28,7 @@ def monospace_font() -> QFont:
 
 
 class CodeDialog(QDialog):
-    def __init__(self, document, parent=None, language: str = "pseudo"):
+    def __init__(self, document, parent=None, language: str = "asm"):
         super().__init__(parent)
         self.document = document
         self.setWindowTitle(tr("Code erzeugen"))
@@ -129,7 +129,9 @@ class CodeDialog(QDialog):
         if not path.lower().endswith(extension):
             path += extension
         try:
-            with open(path, "w", encoding="utf-8", newline="\n") as handle:
+            # Assembler wie in MPLAB üblich in Windows-1252 mit Windows-Zeilenenden, alles andere in UTF-8
+            encoding, newline = ("cp1252", "\r\n") if self.current_language == "asm" else ("utf-8", "\n")
+            with open(path, "w", encoding=encoding, errors="replace", newline=newline) as handle:
                 handle.write(self.code())
         except OSError as exc:
             QMessageBox.warning(self, tr("Speichern nicht möglich"),

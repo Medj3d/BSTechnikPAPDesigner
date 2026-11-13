@@ -1043,5 +1043,7 @@
  "Als PDF exportieren": "Exporter en PDF",
  "Den Plan als PDF speichern, z. B. für die Abgabe (Strg+E)": "Enregistrer le plan en PDF, p. ex. pour le rendre (Ctrl+E)",
  "Den Plan drucken": "Imprimer le plan",
- "Knöpfe in der Werkzeugleiste": "Boutons de la barre d'outils"
+ "Knöpfe in der Werkzeugleiste": "Boutons de la barre d'outils",
+ "Assembler (PIC16F887)": "Assembleur (PIC16F887)",
+ "Assembler-Datei ({pattern})": "Fichier assembleur ({pattern})"
 }

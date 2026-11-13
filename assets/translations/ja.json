@@ -1043,5 +1043,7 @@
  "Als PDF exportieren": "PDF として書き出し",
  "Den Plan als PDF speichern, z. B. für die Abgabe (Strg+E)": "図を PDF で保存（提出用など、Ctrl+E）",
  "Den Plan drucken": "図を印刷",
- "Knöpfe in der Werkzeugleiste": "ツールバーのボタン"
+ "Knöpfe in der Werkzeugleiste": "ツールバーのボタン",
+ "Assembler (PIC16F887)": "アセンブリ (PIC16F887)",
+ "Assembler-Datei ({pattern})": "アセンブリファイル ({pattern})"
 }

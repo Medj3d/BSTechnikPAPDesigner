@@ -1043,5 +1043,7 @@
  "Als PDF exportieren": "Exportar como PDF",
  "Den Plan als PDF speichern, z. B. für die Abgabe (Strg+E)": "Guardar el diagrama como PDF, p. ej. para entregarlo (Control+E)",
  "Den Plan drucken": "Imprimir el diagrama",
- "Knöpfe in der Werkzeugleiste": "Botones de la barra de herramientas"
+ "Knöpfe in der Werkzeugleiste": "Botones de la barra de herramientas",
+ "Assembler (PIC16F887)": "Ensamblador (PIC16F887)",
+ "Assembler-Datei ({pattern})": "Archivo ensamblador ({pattern})"
 }

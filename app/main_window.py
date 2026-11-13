@@ -451,7 +451,7 @@ class MainWindow(QMainWindow):
         self.extras_menu.addSeparator()
 
         # Code neben dem Plan (zuschaltbar, links)
-        self.code_panel = CodePanel(language=str(self.settings_store.value("view/code_language", "python")))
+        self.code_panel = CodePanel(language=str(self.settings_store.value("view/code_language", "asm")))
         self.code_panel.element_requested.connect(self._show_code_element)
         self.code_panel.language.currentIndexChanged.connect(
             lambda _i: self.settings_store.set_value("view/code_language", self.code_panel.current_language))
