@@ -230,6 +230,20 @@ def running_from_user_copy() -> bool:
     return app_dir is not None and _is_inside(app_dir, user_update_root())
 
 
+def installation_directory() -> str | None:
+    """Ordner der installierten Version – auch wenn gerade eine Kopie aus dem Benutzerordner läuft.
+
+    Die Kopie erfährt ihn beim Start über ``BSTECHNIK_PAP_INSTALLATION``; fehlt die Angabe oder gibt es den Ordner
+    nicht mehr, ``None``. Beim Start aus dem Quelltext ebenfalls ``None``."""
+    app_dir = application_directory()
+    if app_dir is None or not running_from_user_copy():
+        return app_dir
+    installed = os.environ.get(policy.INSTALLATION_ENV)
+    if installed and os.path.isfile(os.path.join(installed, config.EXECUTABLE_NAME)):
+        return installed
+    return None
+
+
 def user_updates_blocked() -> bool:
     """Wurde auf diesem Rechner schon erlebt, dass Programme aus dem Benutzerordner gesperrt sind?"""
     return os.path.isfile(os.path.join(user_update_root(), BLOCKED_MARKER))
@@ -598,8 +612,13 @@ def launch_program(app_dir: str, wait_pid: int | None = None) -> None:
     command = [os.path.join(app_dir, config.EXECUTABLE_NAME)]
     if wait_pid:
         command += [config.WAIT_FOR_FLAG, str(wait_pid)]
+    environment = dict(os.environ)
+    installed = installation_directory()
+    if installed and _is_inside(app_dir, user_update_root()):
+        # wie beim Abgeben an die Kopie: Sie soll wissen, wo die policy.ini des Administrators liegt
+        environment[policy.INSTALLATION_ENV] = installed
     try:
-        subprocess.Popen(command, cwd=app_dir, close_fds=True)
+        subprocess.Popen(command, cwd=app_dir, close_fds=True, env=environment)
     except OSError:
         log.exception("Programm konnte nach dem Update nicht gestartet werden")
 

@@ -327,7 +327,11 @@ def test_autosave_backup_and_recovery(qapp, tmp_path):
     assert len(orphans) == 1
     restored = survivor.restore(orphans[0])
     assert restored.is_modified and len(restored.scene.elements()) == 1
+    # die alte Sicherung verschwindet erst, wenn die neue Sitzung selbst gesichert hat
+    assert len(survivor.find_orphans()) == 1
+    survivor.adopt(restored, orphans[0])
     assert survivor.find_orphans() == []
+    assert os.path.exists(survivor._backup_path(restored))
     survivor.shutdown()
     crashed._timer.stop()
     document.scene.clear_diagram()

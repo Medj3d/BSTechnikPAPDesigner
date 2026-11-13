@@ -56,10 +56,25 @@ def ensure_installed() -> bool:
 
 
 # ==================================================================== Windows
+def _stable_program() -> tuple[str, str] | None:
+    """(Programmdatei, Ordner), die eingetragen werden – beim fertigen Programm sonst ``None``.
+
+    Läuft eine Kopie aus dem Benutzerordner (Update ohne Schreibrechte), wird die installierte Version eingetragen:
+    Den Ordner der Kopie löscht das nächste Update, die installierte Version gibt beim Öffnen selbst an die neueste
+    Kopie ab."""
+    if not getattr(sys, "frozen", False):
+        return None
+    from app import updater
+
+    folder = updater.installation_directory() or os.path.dirname(os.path.abspath(sys.executable))
+    return os.path.join(folder, os.path.basename(sys.executable)), folder
+
+
 def open_command() -> str:
     """Befehlszeile, mit der Windows eine Projektdatei öffnet."""
-    if getattr(sys, "frozen", False):
-        return f'"{sys.executable}" "%1"'
+    program = _stable_program()
+    if program is not None:
+        return f'"{program[0]}" "%1"'
     main_script = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "main.py"))
     python = sys.executable
     pythonw = os.path.join(os.path.dirname(python), "pythonw.exe")
@@ -70,9 +85,17 @@ def open_command() -> str:
 
 def icon_location() -> str:
     icon_path = resources.asset_path("file_icon.ico")
+    program = _stable_program()
+    if program is not None:
+        # dieselbe Datei im eingetragenen Programmordner (bei einer Kopie: in der installierten Version)
+        running = os.path.dirname(os.path.abspath(sys.executable))
+        stable = os.path.join(program[1], os.path.relpath(icon_path, running))
+        if os.path.exists(stable):
+            return f'"{stable}"'
+        return f'"{program[0]}",0'
     if os.path.exists(icon_path):
         return f'"{icon_path}"'
-    return f'"{sys.executable}",0' if getattr(sys, "frozen", False) else ""
+    return ""
 
 
 def register_windows() -> None:

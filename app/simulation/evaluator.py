@@ -17,6 +17,7 @@ from app.analysis import text as T
 from app.i18n import tr
 
 MAX_POWER = 10_000
+MAX_ROUND_DIGITS = 15
 MAX_STRING = 100_000
 MAX_INT_BITS = 10_000  # ca. 3000 Dezimalstellen
 
@@ -45,7 +46,12 @@ _COMPARE = {
 
 
 def runden(x, stellen=0):
-    """Kaufmännisch runden: ab 5 wird aufgerundet (2,5 → 3; -2,5 → -3)."""
+    """Kaufmännisch runden: ab 5 wird aufgerundet (2,5 → 3; -2,5 → -3).
+
+    Mehr als 15 Nachkommastellen kann eine Kommazahl nicht darstellen – dann bleibt der Wert, wie er ist (sonst
+    rechnete ``10 ** 100000000`` minutenlang)."""
+    if int(stellen) > MAX_ROUND_DIGITS:
+        return x
     faktor = 10 ** int(stellen)
     wert = math.floor(abs(x) * faktor + 0.5) / faktor
     wert = wert if x >= 0 else -wert

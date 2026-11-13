@@ -69,7 +69,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from app import config
-from app.fileformat.project import (CURRENT_FORMAT_VERSION, EXTENSION_NAMESPACE, EXTENSION_PREFIX,
+from app.fileformat.project import (COMMENT_LINE_FORMAT_VERSION, EXTENSION_NAMESPACE,
+                                    EXTENSION_PREFIX, TASK_FORMAT_VERSION,
                                     PAP_APP_VERSION, PAP_CHECKSUM, PAP_ELEMENT_FORMAT,
                                     PAP_FRAME_FORMAT, PAP_FRAME_GUID, PAP_TIME_FORMAT,
                                     SINGLE_PAGE_FORMAT_VERSION, SUBPROGRAM_FORMAT_VERSION, ProjectFileError,
@@ -688,10 +689,13 @@ def diagram_to_xml(diagram: Diagram) -> str:
 
 def format_version_for(diagram: Diagram) -> int:
     """Version der Zusatzangaben: so niedrig wie möglich, damit ältere Programmversionen die Datei öffnen, wo
-    sie es ohne Verlust können (Version 1 ohne Unterprogramm-Seiten, 2 mit, 3 mit Kommentarlinien)."""
+    sie es ohne Verlust können (Version 1 ohne Unterprogramm-Seiten, 2 mit, 3 mit Kommentarlinien, 4 mit Aufgabe)."""
+    meta = diagram.meta
+    if meta.task_title or meta.task_text or meta.task_solution or meta.task_lock:
+        return TASK_FORMAT_VERSION
     if any(_has_comment_lines(elements, connections) for elements, connections in
            [(diagram.elements, diagram.connections)] + [(p.elements, p.connections) for p in diagram.subprograms]):
-        return CURRENT_FORMAT_VERSION
+        return COMMENT_LINE_FORMAT_VERSION
     return SUBPROGRAM_FORMAT_VERSION if diagram.subprograms else SINGLE_PAGE_FORMAT_VERSION
 
 

@@ -207,7 +207,7 @@ def test_file_is_papdesigner_xml(tmp_path):
     assert root.tag == "FRAME" and root.get("APP_VERSION") and root.get("CHECKSUM")
     # mit Kommentarlinie: Version 3 (ältere Programmversionen sähen die Linie nicht und lehnen deshalb ab);
     # ohne Kommentarlinien und ohne Unterprogramm-Seiten bleibt es bei Version 1
-    assert root.get(BST + "VERSION") == str(CURRENT_FORMAT_VERSION) == "3"
+    assert root.get(BST + "VERSION") == "3" and CURRENT_FORMAT_VERSION >= 3
     plain = full_diagram()
     comments = {e.id for e in plain.elements if e.type is ElementType.COMMENT}
     plain.connections = [c for c in plain.connections if c.source_id not in comments and c.target_id not in comments]

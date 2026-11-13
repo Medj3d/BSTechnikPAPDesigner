@@ -24,6 +24,9 @@ Versionen:
   Ablaufpfeil. Ältere Programmversionen sähen sie nicht und würden sie beim
   Speichern verlieren; sie lehnen die Datei deshalb ab. Ohne Kommentarlinien
   bleibt es bei Version 1 bzw. 2.
+* 4 – das Projekt enthält eine Aufgabe (Lehrermodus, ``bst:TASK_*``). Ältere
+  Programmversionen würden sie beim Speichern weglassen und lehnen die Datei
+  deshalb ab. Ohne Aufgabe bleibt es bei Version 1, 2 bzw. 3.
 
 Für eine zukünftige Version wird ``CURRENT_FORMAT_VERSION`` erhöht; der
 Leser in ``serializer.py`` behandelt ältere Versionen dann gezielt.
@@ -34,7 +37,12 @@ from __future__ import annotations
 from app import config
 from app.i18n import tr
 
-CURRENT_FORMAT_VERSION = 3
+CURRENT_FORMAT_VERSION = 4
+# Version für Projekte mit Aufgabe (Lehrermodus, ab Programmversion 1.15.1): Ältere Versionen kennen die Aufgabe
+# nicht und würden sie beim Speichern stillschweigend weglassen – so lehnen sie die Datei mit Hinweis ab
+TASK_FORMAT_VERSION = 4
+# Version für Projekte mit Kommentarlinien (lesbar ab Programmversion 1.10.1)
+COMMENT_LINE_FORMAT_VERSION = 3
 # Version für Projekte, die nur aus dem Hauptprogramm bestehen (lesbar auch für Programmversionen vor 1.8.0)
 SINGLE_PAGE_FORMAT_VERSION = 1
 # Version für Projekte mit Unterprogramm-Seiten, aber ohne Kommentarlinien (lesbar ab Programmversion 1.8.0)

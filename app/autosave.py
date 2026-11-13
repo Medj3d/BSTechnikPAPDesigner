@@ -13,6 +13,7 @@ Programmfenster) werden nie angeboten.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -25,7 +26,7 @@ from datetime import datetime, timedelta
 from PySide6.QtCore import QObject, QTimer
 
 from app import config, errors
-from app.fileformat.serializer import save_diagram
+from app.fileformat.serializer import diagram_to_xml, save_diagram
 from app.model.diagram import now_iso
 
 log = logging.getLogger(__name__)
@@ -175,11 +176,15 @@ class AutosaveManager(QObject):
                         self._delete_backup(document)
                         info["index"] = None
                     continue
-                index = document.undo_stack.index()
+                # Verglichen wird der Inhalt, nicht die Stelle im Rückgängig-Verlauf: nach „Rückgängig“ und einer
+                # neuen Änderung ist sie dieselbe, und zusammengelegte Schritte (Verschieben mit Pfeiltasten) ändern
+                # sie gar nicht
+                diagram = document.to_diagram()
+                index = hashlib.sha256(diagram_to_xml(diagram).encode("utf-8")).hexdigest()
                 path = self._backup_path(document)
                 if info["index"] == index and os.path.exists(path):
                     continue  # seit der letzten Sicherung unverändert
-                save_diagram(document.to_diagram(), path)
+                save_diagram(diagram, path)
                 _write_json(path + META_SUFFIX, {
                     "original_path": document.file_path,
                     "display_name": document.display_name,
@@ -270,8 +275,15 @@ class AutosaveManager(QObject):
         # als ungespeichert markieren, damit der Benutzer bewusst speichert
         document.undo_stack.resetClean()
         document.title_changed.emit()
-        self.discard(entry)
         return document
+
+    def adopt(self, document, entry: RecoveryEntry) -> None:
+        """Übernimmt ein wiederhergestelltes Projekt: Die alte Sicherung wird erst gelöscht, wenn die neue
+        geschrieben ist – stürzt das Programm gleich wieder ab, bleibt der Stand erhalten."""
+        self.register(document)
+        self.save_now()
+        if os.path.exists(self._backup_path(document)):
+            self.discard(entry)
 
     def discard(self, entry: RecoveryEntry) -> None:
         _remove(entry.backup_path)

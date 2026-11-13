@@ -1571,6 +1571,7 @@ class MainWindow(QMainWindow):
                     self.autosave.discard(entry)
                     continue
                 self.add_document(document)
+                self.autosave.adopt(document, entry)
                 restored += 1
             else:
                 self.autosave.discard(entry)

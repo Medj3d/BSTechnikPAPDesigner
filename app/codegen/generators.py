@@ -458,6 +458,8 @@ class PythonGenerator:
         if self.uses_runden:
             helpers += [f"def {self.round_fn}(x, stellen=0):",
                         one + _docstring(tr_code("Kaufmännisch runden: ab 5 wird aufgerundet (2,5 wird 3).")),
+                        f"{one}if int(stellen) > 15:",
+                        f"{one}{one}return x",
                         f"{one}faktor = 10 ** int(stellen)",
                         f"{one}wert = int(abs(x) * faktor + 0.5) / faktor",
                         f"{one}wert = wert if x >= 0 else -wert",
@@ -1256,6 +1258,7 @@ class JavaGenerator:
                         f"{two}return runden(x, 0);",
                         f"{one}}}", "",
                         f"{one}static double runden(double x, double stellen) {{",
+                        f"{two}if (stellen > 15) return x;",
                         f"{two}double faktor = Math.pow(10, (long) stellen);",
                         f"{two}return Math.signum(x) * Math.floor(Math.abs(x) * faktor + 0.5) / faktor + 0.0;",
                         f"{one}}}", ""]

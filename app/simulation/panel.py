@@ -127,6 +127,13 @@ class SimulationPanel(QWidget):
         self._play_timer = QTimer(self)
         self._play_timer.setSingleShot(True)
         self._play_timer.timeout.connect(self._play_tick)
+        # Auswahl der Abläufe: jede Änderung am Plan meldet sich (beim Einfügen von 400 Bausteinen 800-mal) – darum
+        # gebündelt und nur, solange der Schreibtischtest zu sehen ist; sonst beim Zeigen bzw. vor dem Start
+        self._programs_dirty = False
+        self._programs_timer = QTimer(self)
+        self._programs_timer.setSingleShot(True)
+        self._programs_timer.setInterval(150)
+        self._programs_timer.timeout.connect(self._refresh_programs)
 
         self.program_combo = QComboBox()
         self.program_combo.setToolTip(tr("Ablauf (Start-Element)"))
@@ -283,19 +290,34 @@ class SimulationPanel(QWidget):
         if self._document is not None:
             try:
                 self._document.undo_stack.indexChanged.disconnect(self._on_document_changed)
-                self._document.content_changed.disconnect(self._refresh_programs)
-                self._document.pages_changed.disconnect(self._refresh_programs)
+                self._document.content_changed.disconnect(self._schedule_programs)
+                self._document.pages_changed.disconnect(self._schedule_programs)
             except (RuntimeError, TypeError):
                 pass
         self._document = document
         if document is not None:
             document.undo_stack.indexChanged.connect(self._on_document_changed)
             # alle Seiten: Unterprogramme sind eigene Abläufe
-            document.content_changed.connect(self._refresh_programs)
-            document.pages_changed.connect(self._refresh_programs)
+            document.content_changed.connect(self._schedule_programs)
+            document.pages_changed.connect(self._schedule_programs)
         self._refresh_programs()
 
+    def _schedule_programs(self, *_args) -> None:
+        self._programs_dirty = True
+        if self.isVisible():
+            self._programs_timer.start()
+
+    def _ensure_programs(self) -> None:
+        if self._programs_dirty:
+            self._refresh_programs()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._ensure_programs()   # während er verborgen war, wurde nicht mitgerechnet
+
     def _refresh_programs(self, *_args) -> None:
+        self._programs_timer.stop()
+        self._programs_dirty = False
         current = self.program_combo.currentData()
         self.program_combo.blockSignals(True)
         self.program_combo.clear()
@@ -340,6 +362,7 @@ class SimulationPanel(QWidget):
         if self._document is None:
             return
         self._document.scene.commit_edit()
+        self._ensure_programs()
         start_id = self.program_combo.currentData()
         graph = self._document.flow_graph()
         if not graph.starts():
