@@ -1,6 +1,6 @@
 # BS Technik PAP Designer
 
-Moderner Desktop-Editor für **Programmablaufpläne (PAP)** unter Windows – als
+Moderner Desktop-Editor für **Programmablaufpläne (PAP)** unter Windows und Linux – als
 Nachfolger des PapDesigners. Die klassische PAP-Notation (Bedeutung und Form
 der Bausteine) bleibt unverändert;  Bedienung, Optik und Technik sind neu.
 
@@ -8,6 +8,56 @@ Ein Programm von **Are Schäfer** und **Linus Twardzik** für die BS Technik.
 
 Arbeitstitel, Version und alle zentralen Namen/Standardwerte stehen in
 [`app/config.py`](app/config.py) und lassen sich dort an einer Stelle ändern.
+
+---
+
+## Inhalt
+
+[Download](#download) · [Versionen](#versionen) · [Funktionsumfang](#funktionsumfang) · [Start](#voraussetzungen-und-start) · [Bedienung](#bedienung-kurzreferenz) · [Dateiformat](#dateiformat-pap) · [Architektur](#architektur) · [Tests](#tests) · [EXE erstellen](#exe-erstellen) · [Linux](#linux-version-appimage) · [Hinweise](#hinweise)
+
+---
+
+## Download
+
+| System | Datei | Hinweis |
+|---|---|---|
+| Windows | [BSTechnikPAPDesigner-Setup.exe](https://github.com/Medj3d/BSTechnikPAPDesigner/releases/latest/download/BSTechnikPAPDesigner-Setup.exe) | Setup starten; das Programm sucht danach selbst nach Updates |
+| Linux | [BSTechnikPAPDesigner-x86_64.AppImage](https://github.com/Medj3d/BSTechnikPAPDesigner/releases/latest/download/BSTechnikPAPDesigner-x86_64.AppImage) | ausführbar machen und starten, siehe [Linux-Version](#linux-version-appimage) |
+
+Alle Versionen: [Veröffentlichungen auf GitHub](https://github.com/Medj3d/BSTechnikPAPDesigner/releases).
+
+---
+
+## Versionen
+
+Die neueste Version steht oben. Die Zahl nach dem ersten Punkt zählt die Erweiterungen seit dem Grundprogramm,
+die dritte Zahl kleine Nachbesserungen.
+
+| Version | Datum | Inhalt |
+|---|---|---|
+| 1.14.3 | 13.11.2026 | Jeder Knopf der Werkzeugleiste lässt sich in den Einstellungen ein- und ausblenden, auch die Standardknöpfe (der Menüeintrag bleibt). Minikarte standardmäßig an. Einstellungen: Funktionen fett, Bereichstitel hervorgehoben, deutlichere Kästchen mit Haken. Extras → Pfeile und Extras → Prüfung als Schnellzugriff auf die Schalter. README: Download und Versionen (neueste oben) gleich am Anfang |
+| 1.14.2 | 11.11.2026 | Update-Fix: eine lose Programmdatei (z. B. frisch gebaut oder aus einer ZIP-Datei) löscht die Update-Kopie im Benutzerordner nicht mehr – das installierte Programm startete danach wieder seine alte Version. Häkchen für aktive Schalter in allen Menüs. Schreibtischtest mit Tempo in Prozent und Abdeckung des Plans („3 von 5 Bausteinen · 60 %“). „Code erzeugen“ unter „Mehr“, PDF nur noch unter Datei → Exportieren (Strg+E). Einstellungen mit Bereichen und Suchfeld über Schalter und Tastenkürzel |
+| 1.14.1 | 10.11.2026 | Werkzeugleiste für den Alltag in einer Zeile (Datei, Rückgängig, Löschen, Zoom, Anordnen, Schreibtischtest, Code, Struktogramm, PDF, Drucken); alles Weitere unter „Mehr“ – auch ohne gespeicherte Einstellungen (z. B. Schulrechner) erreichbar. Bedienhinweise der Bausteinleiste als Kurzinfo an der Überschrift. Minikarte standardmäßig aus |
+| 1.14 | 10.11.2026 | Schlichte Werkzeugleiste; weitere Knöpfe in den Einstellungen unter „Zusatzknöpfe“ zuschaltbar (Zwischenablage, Raster, Ausrichten, Code-Ansicht, Minikarte, Haltepunkte, Lehrermodus), „Alle Schalter zurücksetzen“. Code-Ansicht neben dem Plan (Klick auf eine Zeile markiert den Baustein). Lehrermodus: Aufgabe in der Datei, Musterlösung mit Passwort verschlüsselt, Aufgabe erscheint beim Öffnen oben. Haltepunkte (F9) im Schreibtischtest, geänderte Variablen hervorgehoben mit altem Wert. Minikarte wie in VS Code. Name, Klasse und Datum klein auf PNG, SVG, PDF und Ausdruck. Tastenkürzel: Strg+T Schreibtischtest (F5/F10 öffnen ihn auch), F9 Haltepunkt, Strg+E PDF, Strg+M Minikarte |
+| 1.13.1 | 10.11.2026 | Ladebildschirm: Namenszeile wird nicht mehr abgeschnitten. Hinweise beim Start immer zu, Knopf in der Statusleiste mit Zähler am Symbol, Hinweisfeld lässt sich bis auf die Kopfzeile verkleinern. Lupen-Knöpfe springen auf runde Werte (bis 200 % in Zehner-, darüber in 25er-Schritten). Rastergröße in den Projekteigenschaften mit deutlichen Knöpfen „−“ und „+“ |
+| 1.13 | 10.11.2026 | Eine Schrift auf allen Systemen: die Programmierschrift JetBrains Mono NL (mitgeliefert, ohne Ligaturen) für Bausteine und Oberfläche – Pläne sehen unter Windows und Linux gleich aus (132 Testdateien identisch, auch die gespeicherten Dateien). Linux-Version geprüft auf Ubuntu 22.04/24.04/26.04 (Mint), Debian 13, Fedora 45, Arch und openSUSE; fehlen Grafikbibliotheken, nennt sie den Befehl zum Nachinstallieren; mit Gear Lever kein doppelter Startmenü-Eintrag mehr. Suche (Strg+K) auch bei schmalem Fenster erreichbar (dann in der Menüzeile); arabische Palette richtig gespiegelt; unter Linux gespeicherte Dateien mit normalen Dateirechten |
+| 1.12 | 09.11.2026 | Linux-Version als AppImage mit allen Funktionen: eine Datei für fast alle Distributionen, richtet beim ersten Start Startmenü-Eintrag und `.pap`-Dateityp ein, aktualisiert sich selbst (eigene Update-Angaben, Windows-Programme bleiben unberührt), Updates zentral abschaltbar über `/etc/bstechnik-pap/policy.ini`; mitgelieferte Schrift mit den Maßen von Segoe UI, damit Pläne unter Linux genauso aussehen wie unter Windows. Gebaut und angehängt von einem GitHub-Workflow auf Ubuntu 22.04; geprüft unter WSL mit 1269 Tests, Öffnen, Speichern, Doppelklick, Kopieren als Bild und Update |
+| 1.11 | 03.11.2026 | Einstellungen mit Schaltern und frei belegbaren Tastenkürzeln (je zwei Tasten), Suchleiste für Funktionen, Einstellungen und Bausteine, Bausteine auf den Tasten 1–9, neue Projekte beginnen mit Start → Ende. Pfeile: abgerundet, mit mehr Abstand, jedes Stück und jede Ecke frei verschiebbar (rechtwinklig, nur Aussehen), Enden umhängbar, Schnellmenü im Leeren, Pfeile mit losem Ende (Schalter). Ist die Zwischenablage belegt, meldet das Programm das, und Ausschneiden löscht nichts mehr. Prüfung: keine falschen roten Pfeile mehr beim Einfügen neben Ende und Start, Stufe „gelb“ für Auffälliges, Warnzeichen mit Grund am Pfeil, erweiterte Prüfung (Schalter). Automatisch anordnen neu: gemessen an 260 Plänen 92 % weniger Linien durch Bausteine, keine Punkte mehr in Bausteinen, nur noch ein Fünftel der Kreuzungen; der Ablauf bleibt nachweislich gleich |
+| 1.10.1 | 28.10.2026 | Gegenprobe im Original-PapDesigner: Dateien aus diesem Programm öffnen sich jetzt dort – Verbindungen werden rechtwinklig mit Eckpunkten gespeichert (das Original lehnte Dateien mit schräg abgehenden Verzweigungen ab), Kommentarlinien stehen nur noch in den Zusatzangaben; die Verbindung eines Bausteins mit sich selbst bleibt auch im Original erhalten; erzeugte Testpläne sind wie Originaldateien aufgebaut. Geprüft mit allen 44 echten PapDesigner-Dateien, den Lernbeispielen und 60 komplexen Plänen direkt im Original |
+| 1.10 | 28.10.2026 | alle Bau-Funktionen des PapDesigners: Schleife mit Kopf- bzw. Fußbedingung, Verbindungspunkt auf einer Verbindung, Sonderzeichen, Strg+Enter, bedingter Trennstrich „~“; Seiten duplizieren, kopieren, ausschneiden, einfügen (auch zwischen Projekten) und verschieben (auch per Ziehen), „Aufgerufen von“, Auswahl in Unterprogramm auslagern, Zurück/Vorwärts zwischen Seiten; Präsentationsansicht (F11), Sicherungskopie `.pap-backup`, Standard-Autor, fünf Lernbeispiele; „Ausgabe von "Text" x“ gibt wie im PapDesigner auch den Wert aus; geprüft mit Hunderten erzeugter komplexer Pläne im Format des PapDesigners |
+| 1.9 | 27.10.2026 | Bild in die Zwischenablage (Strg+C bzw. „Als Bild kopieren“, auch Struktogramm); Schreibtischtest mit Schritt zurück, automatischem Abspielen und Spalten Bedingung/Ausgabe, Tabelle kopieren und als CSV speichern; Updates zentral abschaltbar (Setup /NOUPDATES, Richtlinie, policy.ini) und für sich selbst beim Start; Link zu medjed.net im Über-Dialog; PapDesigner-Kompatibilität mit echten Dateien geprüft: Unterprogramme heißen wie ihr Diagramm (auch mit Start „Start“ und Namen wie „bool isLeapYear(int year)“), Aufrufe mit Zuweisung und Argumenten werden zugeordnet, Nummerierung je Diagramm wie im Original, Kopieren per Strg+Ziehen, Baustein umwandeln, Gegenwort ja/nein, Unterprogramm-Auswahl „Ruft auf“ |
+| 1.8 | 26.10.2026 | Unterprogramme auf eigenen Seiten (Hauptprogramm + Unterprogramme als Reiter, anlegen, öffnen per Strg+Doppelklick, umbenennen samt Aufrufen); Schreibtischtest springt ins Unterprogramm; PDF und Druck mit allen Seiten |
+| 1.7 | 08.10.2026 | neun Sprachen (Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch); weitere Dateien öffnen sich als Reiter im laufenden Programm; Schullogo im Ladebildschirm vollständig und mittig |
+| 1.6 | 08.10.2026 | Updates funktionieren auch ohne Schreibrechte im Programmordner: Die neue Version wird im Benutzerordner abgelegt und von dort gestartet |
+| 1.5.3 | 08.10.2026 | ohne Schreibrechte im Programmordner (z. B. Installation für alle Benutzer) nur noch ein Hinweis in der Statuszeile statt einer Update-Frage |
+| 1.5.2 | 08.10.2026 | Setup-Datei zum Weitergeben und Installieren |
+| 1.5.1 | 07.10.2026 | Ladebildschirm erscheint früher und bleibt 6 Sekunden stehen |
+| 1.5 | 07.10.2026 | Urheber und Version im Über-Dialog, Ladebildschirm, automatisches Speichern, Updates |
+| 1.4 | 07.10.2026 | `.pap` als einziges Projektformat |
+| 1.3 | 01.–06.10.2026 | erzeugter Java-Code wird übersetzt, ausgeführt und mit Schreibtischtest und Python verglichen; rund 75 Fehler behoben |
+| 1.2 | 30.09.–01.10.2026 | PapDesigner-Dateien lesen, Code erzeugen, Schreibtischtest, automatisch anordnen, Hinweisliste, automatisches Sichern, Struktogramm, helles Farbschema |
+| 1.1 | 30.09.2026 | fragwürdige Verbindungen werden rot markiert statt verhindert; Verbindungen können an bestehenden Pfeilen ansetzen |
+| 1.0 | September 2026 | Grundprogramm: Editor für Programmablaufpläne |
 
 ---
 
@@ -636,38 +686,6 @@ Einstellungen nach Neustart und das Update (AppImage wird ersetzt und neu gestar
 
 Ohne `--ohne-upload` hängt `make_release.py` beides an die bestehende
 Veröffentlichung `v<Version>`.
-
----
-
-## Versionen
-
-Die Zahl nach dem Punkt zählt die Erweiterungen seit dem Grundprogramm, die
-dritte Zahl kleine Nachbesserungen.
-
-| Version | Zeitraum | Inhalt |
-|---|---|---|
-| 1.0 | September 2026 | Grundprogramm: Editor für Programmablaufpläne |
-| 1.1 | 30.09.2026 | fragwürdige Verbindungen werden rot markiert statt verhindert; Verbindungen können an bestehenden Pfeilen ansetzen |
-| 1.2 | 30.09.–01.10.2026 | PapDesigner-Dateien lesen, Code erzeugen, Schreibtischtest, automatisch anordnen, Hinweisliste, automatisches Sichern, Struktogramm, helles Farbschema |
-| 1.3 | 01.–06.10.2026 | erzeugter Java-Code wird übersetzt, ausgeführt und mit Schreibtischtest und Python verglichen; rund 75 Fehler behoben |
-| 1.4 | 07.10.2026 | `.pap` als einziges Projektformat |
-| 1.5 | 07.10.2026 | Urheber und Version im Über-Dialog, Ladebildschirm, automatisches Speichern, Updates |
-| 1.5.1 | 07.10.2026 | Ladebildschirm erscheint früher und bleibt 6 Sekunden stehen |
-| 1.5.2 | 08.10.2026 | Setup-Datei zum Weitergeben und Installieren |
-| 1.5.3 | 08.10.2026 | ohne Schreibrechte im Programmordner (z. B. Installation für alle Benutzer) nur noch ein Hinweis in der Statuszeile statt einer Update-Frage |
-| 1.6 | 08.10.2026 | Updates funktionieren auch ohne Schreibrechte im Programmordner: Die neue Version wird im Benutzerordner abgelegt und von dort gestartet |
-| 1.7 | 08.10.2026 | neun Sprachen (Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch); weitere Dateien öffnen sich als Reiter im laufenden Programm; Schullogo im Ladebildschirm vollständig und mittig |
-| 1.8 | 26.10.2026 | Unterprogramme auf eigenen Seiten (Hauptprogramm + Unterprogramme als Reiter, anlegen, öffnen per Strg+Doppelklick, umbenennen samt Aufrufen); Schreibtischtest springt ins Unterprogramm; PDF und Druck mit allen Seiten |
-| 1.9 | 27.10.2026 | Bild in die Zwischenablage (Strg+C bzw. „Als Bild kopieren“, auch Struktogramm); Schreibtischtest mit Schritt zurück, automatischem Abspielen und Spalten Bedingung/Ausgabe, Tabelle kopieren und als CSV speichern; Updates zentral abschaltbar (Setup /NOUPDATES, Richtlinie, policy.ini) und für sich selbst beim Start; Link zu medjed.net im Über-Dialog; PapDesigner-Kompatibilität mit echten Dateien geprüft: Unterprogramme heißen wie ihr Diagramm (auch mit Start „Start“ und Namen wie „bool isLeapYear(int year)“), Aufrufe mit Zuweisung und Argumenten werden zugeordnet, Nummerierung je Diagramm wie im Original, Kopieren per Strg+Ziehen, Baustein umwandeln, Gegenwort ja/nein, Unterprogramm-Auswahl „Ruft auf“ |
-| 1.14.2 | 11.11.2026 | Update-Fix: eine lose Programmdatei (z. B. frisch gebaut oder aus einer ZIP-Datei) löscht die Update-Kopie im Benutzerordner nicht mehr – das installierte Programm startete danach wieder seine alte Version. Häkchen für aktive Schalter in allen Menüs. Schreibtischtest mit Tempo in Prozent und Abdeckung des Plans („3 von 5 Bausteinen · 60 %“). „Code erzeugen“ unter „Mehr“, PDF nur noch unter Datei → Exportieren (Strg+E). Einstellungen mit Bereichen und Suchfeld über Schalter und Tastenkürzel |
-| 1.14.1 | 10.11.2026 | Werkzeugleiste für den Alltag in einer Zeile (Datei, Rückgängig, Löschen, Zoom, Anordnen, Schreibtischtest, Code, Struktogramm, PDF, Drucken); alles Weitere unter „Mehr“ – auch ohne gespeicherte Einstellungen (z. B. Schulrechner) erreichbar. Bedienhinweise der Bausteinleiste als Kurzinfo an der Überschrift. Minikarte standardmäßig aus |
-| 1.14 | 10.11.2026 | Schlichte Werkzeugleiste; weitere Knöpfe in den Einstellungen unter „Zusatzknöpfe“ zuschaltbar (Zwischenablage, Raster, Ausrichten, Code-Ansicht, Minikarte, Haltepunkte, Lehrermodus), „Alle Schalter zurücksetzen“. Code-Ansicht neben dem Plan (Klick auf eine Zeile markiert den Baustein). Lehrermodus: Aufgabe in der Datei, Musterlösung mit Passwort verschlüsselt, Aufgabe erscheint beim Öffnen oben. Haltepunkte (F9) im Schreibtischtest, geänderte Variablen hervorgehoben mit altem Wert. Minikarte wie in VS Code. Name, Klasse und Datum klein auf PNG, SVG, PDF und Ausdruck. Tastenkürzel: Strg+T Schreibtischtest (F5/F10 öffnen ihn auch), F9 Haltepunkt, Strg+E PDF, Strg+M Minikarte |
-| 1.13.1 | 10.11.2026 | Ladebildschirm: Namenszeile wird nicht mehr abgeschnitten. Hinweise beim Start immer zu, Knopf in der Statusleiste mit Zähler am Symbol, Hinweisfeld lässt sich bis auf die Kopfzeile verkleinern. Lupen-Knöpfe springen auf runde Werte (bis 200 % in Zehner-, darüber in 25er-Schritten). Rastergröße in den Projekteigenschaften mit deutlichen Knöpfen „−“ und „+“ |
-| 1.13 | 10.11.2026 | Eine Schrift auf allen Systemen: die Programmierschrift JetBrains Mono NL (mitgeliefert, ohne Ligaturen) für Bausteine und Oberfläche – Pläne sehen unter Windows und Linux gleich aus (132 Testdateien identisch, auch die gespeicherten Dateien). Linux-Version geprüft auf Ubuntu 22.04/24.04/26.04 (Mint), Debian 13, Fedora 45, Arch und openSUSE; fehlen Grafikbibliotheken, nennt sie den Befehl zum Nachinstallieren; mit Gear Lever kein doppelter Startmenü-Eintrag mehr. Suche (Strg+K) auch bei schmalem Fenster erreichbar (dann in der Menüzeile); arabische Palette richtig gespiegelt; unter Linux gespeicherte Dateien mit normalen Dateirechten |
-| 1.12 | 09.11.2026 | Linux-Version als AppImage mit allen Funktionen: eine Datei für fast alle Distributionen, richtet beim ersten Start Startmenü-Eintrag und `.pap`-Dateityp ein, aktualisiert sich selbst (eigene Update-Angaben, Windows-Programme bleiben unberührt), Updates zentral abschaltbar über `/etc/bstechnik-pap/policy.ini`; mitgelieferte Schrift mit den Maßen von Segoe UI, damit Pläne unter Linux genauso aussehen wie unter Windows. Gebaut und angehängt von einem GitHub-Workflow auf Ubuntu 22.04; geprüft unter WSL mit 1269 Tests, Öffnen, Speichern, Doppelklick, Kopieren als Bild und Update |
-| 1.11 | 03.11.2026 | Einstellungen mit Schaltern und frei belegbaren Tastenkürzeln (je zwei Tasten), Suchleiste für Funktionen, Einstellungen und Bausteine, Bausteine auf den Tasten 1–9, neue Projekte beginnen mit Start → Ende. Pfeile: abgerundet, mit mehr Abstand, jedes Stück und jede Ecke frei verschiebbar (rechtwinklig, nur Aussehen), Enden umhängbar, Schnellmenü im Leeren, Pfeile mit losem Ende (Schalter). Ist die Zwischenablage belegt, meldet das Programm das, und Ausschneiden löscht nichts mehr. Prüfung: keine falschen roten Pfeile mehr beim Einfügen neben Ende und Start, Stufe „gelb“ für Auffälliges, Warnzeichen mit Grund am Pfeil, erweiterte Prüfung (Schalter). Automatisch anordnen neu: gemessen an 260 Plänen 92 % weniger Linien durch Bausteine, keine Punkte mehr in Bausteinen, nur noch ein Fünftel der Kreuzungen; der Ablauf bleibt nachweislich gleich |
-| 1.10.1 | 28.10.2026 | Gegenprobe im Original-PapDesigner: Dateien aus diesem Programm öffnen sich jetzt dort – Verbindungen werden rechtwinklig mit Eckpunkten gespeichert (das Original lehnte Dateien mit schräg abgehenden Verzweigungen ab), Kommentarlinien stehen nur noch in den Zusatzangaben; die Verbindung eines Bausteins mit sich selbst bleibt auch im Original erhalten; erzeugte Testpläne sind wie Originaldateien aufgebaut. Geprüft mit allen 44 echten PapDesigner-Dateien, den Lernbeispielen und 60 komplexen Plänen direkt im Original |
-| 1.10 | 28.10.2026 | alle Bau-Funktionen des PapDesigners: Schleife mit Kopf- bzw. Fußbedingung, Verbindungspunkt auf einer Verbindung, Sonderzeichen, Strg+Enter, bedingter Trennstrich „~“; Seiten duplizieren, kopieren, ausschneiden, einfügen (auch zwischen Projekten) und verschieben (auch per Ziehen), „Aufgerufen von“, Auswahl in Unterprogramm auslagern, Zurück/Vorwärts zwischen Seiten; Präsentationsansicht (F11), Sicherungskopie `.pap-backup`, Standard-Autor, fünf Lernbeispiele; „Ausgabe von "Text" x“ gibt wie im PapDesigner auch den Wert aus; geprüft mit Hunderten erzeugter komplexer Pläne im Format des PapDesigners |
 
 ---
 

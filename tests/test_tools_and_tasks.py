@@ -27,7 +27,7 @@ def window(qapp, monkeypatch, tmp_path):
     for group in ("preferences", "view", "export"):
         store._settings.remove(group)
     for key in preferences.TOOLS:
-        preferences.set_enabled(key, False)
+        preferences.set_enabled(key, preferences.default(key))
     win = MainWindow(enable_autosave=True, autosave_directory=str(tmp_path / "autosave"))
     win.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
     win.show()
@@ -49,20 +49,37 @@ def enable_tools(window, *keys):
 
 
 # ------------------------------------------------------------------ Werkzeugleiste
+def shown_in_toolbar(window) -> set:
+    """Die Befehle, deren Knopf in der Werkzeugleiste zu sehen ist."""
+    return {entry.property("source") for entries in window._toolbar_groups.values() for entry in entries
+            if entry.isVisible() and entry.property("source") is not None}
+
+
 def test_toolbar_is_simple_by_default(window):
-    visible = [action for action in window.toolbar.actions() if action.isVisible() and not action.isSeparator()]
+    shown = shown_in_toolbar(window)
     for name in ("new", "open", "save", "undo", "redo", "delete", "zoom_in", "zoom_out", "zoom_fit", "auto_layout",
                  "toggle_simulation", "structogram", "print"):
-        assert window.actions[name] in visible, name
-    for entries in window._toolbar_groups.values():
-        assert not any(entry.isVisible() for entry in entries)
+        assert window.actions[name] in shown, name
+    for name in ("cut", "toggle_grid", "generate_code", "export_pdf", "toggle_code_view", "toggle_minimap"):
+        assert window.actions[name] not in shown, name
     # alles Weitere unter „Mehr“ – ohne Einstellungen erreichbar
     more = window.more_menu.actions()
-    for name in ("generate_code", "export_pdf"):
-        assert window.actions[name] not in visible   # Code unter „Mehr“, PDF unter Datei → Exportieren
     for name in ("generate_code", "toggle_code_view", "toggle_minimap", "toggle_task", "edit_task", "toggle_breakpoint",
                  "toggle_grid", "settings"):
         assert window.actions[name] in more and window.actions[name].isVisible(), name
+
+
+def test_every_toolbar_button_can_be_switched(window, qapp):
+    """Auch die Standardknöpfe lassen sich ausblenden; der Menüeintrag bleibt. Leere Abschnitte ohne Trennstrich."""
+    name = preferences.action_name(preferences.TOOL_FILE)
+    window.actions[name].trigger()
+    assert window.actions["new"] not in shown_in_toolbar(window) and window.actions["new"].isVisible()
+    for key in preferences.TOOLS:
+        if preferences.enabled(key):
+            window.actions[preferences.action_name(key)].trigger()
+    assert not shown_in_toolbar(window)
+    assert not any(separator.isVisible() for separator, _keys in window._toolbar_segments)
+    assert window.more_button.isVisible()
 
 
 def test_pinned_buttons_and_reset(window, qapp):
@@ -71,8 +88,18 @@ def test_pinned_buttons_and_reset(window, qapp):
     from app.dialogs.settings import SettingsDialog
     dialog = SettingsDialog(window.actions, window)
     dialog.reset_switches()
-    assert not any(entry.isVisible() for entries in window._toolbar_groups.values() for entry in entries)
+    for key, entries in window._toolbar_groups.items():
+        assert all(entry.isVisible() == preferences.default(key) for entry in entries), key
     assert window.settings_store.preference(preferences.TOOL_CODE_VIEW) is False
+
+
+def test_arrow_and_check_switches_in_extras(window):
+    from PySide6.QtWidgets import QMenu
+    titles = {action.text(): action.menu() for action in window.extras_menu.actions() if action.menu()}
+    arrows, checks = titles["Pfeile"], titles["Prüfung"]
+    assert window.actions[preferences.action_name(preferences.LOOSE_ENDS)] in arrows.actions()
+    assert window.actions[preferences.action_name(preferences.EXTENDED_CHECKS)] in checks.actions()
+    assert isinstance(arrows, QMenu)
 
 
 def test_toolbar_proxy_follows_action(window):
@@ -117,10 +144,7 @@ def test_code_view_selects_block_and_highlights_lines(window, qapp):
 def test_minimap_shows_and_moves_view(window, qapp):
     window.open_file(EXAMPLE)
     view = window.current_view()
-    assert not view.minimap.isVisible()   # standardmäßig aus
-    window.actions["toggle_minimap"].trigger()
-    qapp.processEvents()
-    assert view.minimap.isVisible()
+    assert view.minimap.isVisible()   # standardmäßig an
     view.minimap.repaint()
     before = view.visible_center()
     point = view.minimap.scene_point(view.minimap.rect().topLeft() + view.minimap.rect().center() * 0.2)
@@ -128,6 +152,8 @@ def test_minimap_shows_and_moves_view(window, qapp):
     assert view.visible_center() != before
     window.actions["toggle_minimap"].trigger()
     assert not view.minimap.isVisible()
+    window.actions["toggle_minimap"].trigger()
+    assert view.minimap.isVisible()
 
 
 # ------------------------------------------------------------------ Haltepunkte

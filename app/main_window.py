@@ -309,6 +309,14 @@ class MainWindow(QMainWindow):
         extras_menu.addAction(a["structogram"])
         extras_menu.addAction(a["auto_layout"])
         extras_menu.addSeparator()
+        # Schnellzugriff auf die Schalter für Pfeile und Prüfung (dieselben wie in den Einstellungen)
+        for title, section in ((preferences.SECTION_ARROWS, preferences.SECTION_ARROWS),
+                               (preferences.SECTION_CHECKS, preferences.SECTION_CHECKS)):
+            submenu = extras_menu.addMenu(tr(title))
+            for preference in preferences.PREFERENCES:
+                if preference.section == section:
+                    submenu.addAction(a[preferences.action_name(preference.name)])
+        extras_menu.addSeparator()
         self.extras_menu = extras_menu  # Schreibtischtest/Hinweise folgen in _build_tool_docks
 
         help_menu = bar.addMenu(tr("&Hilfe"))
@@ -382,46 +390,13 @@ class MainWindow(QMainWindow):
         toolbar.setFloatable(False)
         toolbar.setIconSize(QSize(18, 18))
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        # Eine Leiste mit dem, was man jeden Tag braucht – in der Reihenfolge der Arbeit:
-        # Datei | Rückgängig | Löschen | Ansicht | Prüfen und Umwandeln | Abgeben | Mehr ▾
-        # Alles Weitere steht unter „Mehr“ – ohne Einstellungen, denn Schulrechner vergessen diese bei jeder
-        # Anmeldung. Wer möchte, heftet Knöpfe in den Einstellungen („Zusatzknöpfe“) zusätzlich an.
+        # Die Knöpfe entstehen in _finish_toolbar (dann gibt es auch die Docks); jeder lässt sich in den Einstellungen
+        # (Werkzeugleiste) ein- und ausblenden. Im Menü und unter „Mehr“ steht immer alles.
         self._toolbar_groups: dict[str, list] = {}
-
-        def group(key, names, proxy=True):
-            entries = [toolbar.addSeparator()]
-            for name in names:
-                entries.append(self._toolbar_proxy(a[name]) if proxy else a[name])
-                toolbar.addAction(entries[-1])
-            self._toolbar_groups[key] = entries
-
-        for name in ("new", "open", "save", None, "undo", "redo"):
-            toolbar.addSeparator() if name is None else toolbar.addAction(a[name])
-        group(preferences.TOOL_CLIPBOARD, ("cut", "copy", "paste"))
-        toolbar.addAction(a["delete"])
-        toolbar.addSeparator()
-        toolbar.addAction(a["zoom_out"])
-        self.zoom_button = QToolButton()
-        self.zoom_button.setText("100 %")
-        self.zoom_button.setMinimumWidth(58)
-        self.zoom_button.clicked.connect(lambda: self._with_view(lambda v: v.zoom_reset()))
-        toolbar.addWidget(self.zoom_button)
-        toolbar.addAction(a["zoom_in"])
-        toolbar.addAction(a["zoom_fit"])
-        group(preferences.TOOL_GRID, ("toggle_grid", "toggle_snap"))
-        group(preferences.TOOL_ALIGN, (alignment.ALIGN_LEFT, alignment.ALIGN_CENTER_X, alignment.ALIGN_RIGHT,
-                                       alignment.ALIGN_TOP, alignment.ALIGN_CENTER_Y, alignment.ALIGN_BOTTOM,
-                                       alignment.DISTRIBUTE_H, alignment.DISTRIBUTE_V))
-        toolbar.addSeparator()
-        toolbar.addAction(a["auto_layout"])
-        self._toolbar_simulation = toolbar.addSeparator()   # hier kommt der Schreibtischtest hin (ist ein Dock)
-        toolbar.addAction(a["structogram"])
-        toolbar.addSeparator()
-        toolbar.addAction(a["print"])   # PDF steht unter Datei → Exportieren (Strg+E), Code unter „Mehr“
-        self._toolbar_extras = toolbar.addSeparator()       # angeheftete Zusatzknöpfe und „Mehr“
+        self._toolbar_segments: list[tuple] = []
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        toolbar.addWidget(spacer)
+        self._toolbar_end = toolbar.addWidget(spacer)
         self.search_bar = SearchBar(self.search_entries, self)
         toolbar.addWidget(self.search_bar)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
@@ -677,7 +652,7 @@ class MainWindow(QMainWindow):
 
         a["generate_code"].triggered.connect(self.show_code_dialog)
         a["edit_task"].triggered.connect(self.edit_task)
-        stored = self.settings_store.value("view/minimap", False)
+        stored = self.settings_store.value("view/minimap", True)   # standardmäßig an
         a["toggle_minimap"].setChecked(str(stored).strip().lower() in ("true", "1"))
         a["toggle_minimap"].toggled.connect(self._set_minimap_visible)
         a["toggle_breakpoint"].triggered.connect(self.toggle_breakpoint)
@@ -748,21 +723,49 @@ class MainWindow(QMainWindow):
         return proxy
 
     def _finish_toolbar(self) -> None:
-        """Schreibtischtest, angeheftete Zusatzknöpfe und „Mehr“ – erst jetzt, weil die Docks nun bestehen."""
+        """Baut die Knöpfe der Werkzeugleiste und „Mehr“ – erst jetzt, weil die Docks nun bestehen.
+
+        Jeder Knopf ist ein Stellvertreter seines Befehls: Blendet man ihn aus, bleibt der Menüeintrag erhalten.
+        """
         a, toolbar = self.actions, self.toolbar
         simulation = a["toggle_simulation"]
         simulation.setIcon(icons.icon("play"))
         simulation.setProperty("icon_name", "play")
-        toolbar.insertAction(self._toolbar_simulation, simulation)
-        self._toolbar_simulation.setVisible(False)
-        anchor = self._toolbar_extras
-        for key, name in ((preferences.TOOL_CODE_VIEW, "toggle_code_view"),
-                          (preferences.TOOL_MINIMAP, "toggle_minimap"),
-                          (preferences.TOOL_BREAKPOINTS, "toggle_breakpoint"),
-                          (preferences.TOOL_TEACHER, "edit_task")):
-            proxy = self._toolbar_proxy(a[name])
-            toolbar.insertAction(anchor, proxy)
-            self._toolbar_groups[key] = [proxy]
+        self.zoom_button = QToolButton()
+        self.zoom_button.setText("100 %")
+        self.zoom_button.setMinimumWidth(58)
+        self.zoom_button.clicked.connect(lambda: self._with_view(lambda v: v.zoom_reset()))
+        P = preferences
+        aligns = (alignment.ALIGN_LEFT, alignment.ALIGN_CENTER_X, alignment.ALIGN_RIGHT, alignment.ALIGN_TOP,
+                  alignment.ALIGN_CENTER_Y, alignment.ALIGN_BOTTOM, alignment.DISTRIBUTE_H, alignment.DISTRIBUTE_V)
+        # Abschnitte (durch Trennstriche getrennt) in der Reihenfolge der Arbeit
+        segments = (
+            ((P.TOOL_FILE, ("new", "open", "save")),),
+            ((P.TOOL_UNDO, ("undo", "redo")), (P.TOOL_CLIPBOARD, ("cut", "copy", "paste")),
+             (P.TOOL_DELETE, ("delete",))),
+            ((P.TOOL_ZOOM, ("zoom_out", self.zoom_button, "zoom_in", "zoom_fit")),
+             (P.TOOL_GRID, ("toggle_grid", "toggle_snap"))),
+            ((P.TOOL_ALIGN, aligns),),
+            ((P.TOOL_LAYOUT, ("auto_layout",)), (P.TOOL_SIMULATION, ("toggle_simulation",)),
+             (P.TOOL_GENERATE_CODE, ("generate_code",)), (P.TOOL_STRUCTOGRAM, ("structogram",))),
+            ((P.TOOL_CODE_VIEW, ("toggle_code_view",)), (P.TOOL_MINIMAP, ("toggle_minimap",)),
+             (P.TOOL_BREAKPOINTS, ("toggle_breakpoint",)), (P.TOOL_TEACHER, ("edit_task",))),
+            ((P.TOOL_PDF, ("export_pdf",)), (P.TOOL_PRINT, ("print",))),
+        )
+        end = self._toolbar_end
+        for segment in segments:
+            separator = toolbar.insertSeparator(end)
+            for key, items in segment:
+                entries = []
+                for item in items:
+                    if isinstance(item, QWidget):
+                        entries.append(toolbar.insertWidget(end, item))
+                    else:
+                        entries.append(self._toolbar_proxy(a[item]))
+                        toolbar.insertAction(end, entries[-1])
+                self._toolbar_groups[key] = entries
+            self._toolbar_segments.append((separator, [key for key, _items in segment]))
+        self._more_separator = toolbar.insertSeparator(end)
         # „Mehr“: alle Zusatzfunktionen mit einem Klick – auch wenn die Einstellungen zurückgesetzt wurden
         menu = QMenu(tr("Mehr"), self)
         for name in ("generate_code", "toggle_code_view", "toggle_minimap", None, "toggle_task", "edit_task", None,
@@ -784,8 +787,7 @@ class MainWindow(QMainWindow):
         self.more_button.setMenu(menu)
         self.more_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.more_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
-        toolbar.insertWidget(anchor, self.more_button)
-        anchor.setVisible(False)
+        toolbar.insertWidget(end, self.more_button)
         self._show_checkmarks()
 
     def _show_checkmarks(self) -> None:
@@ -800,11 +802,17 @@ class MainWindow(QMainWindow):
                     action.setIconVisibleInMenu(False)
 
     def _apply_tools(self) -> None:
-        """Heftet die in den Einstellungen gewählten Zusatzknöpfe an die Werkzeugleiste (unter „Mehr“ und im Menü
-        stehen sie immer)."""
+        """Zeigt die in den Einstellungen gewählten Knöpfe der Werkzeugleiste (im Menü und unter „Mehr“ stehen sie
+        immer). Trennstriche erscheinen nur zwischen Abschnitten, die etwas zeigen."""
         for key, entries in self._toolbar_groups.items():
             for entry in entries:
                 entry.setVisible(preferences.enabled(key))
+        shown_before = False
+        for separator, keys in self._toolbar_segments:
+            shown = any(preferences.enabled(key) for key in keys)
+            separator.setVisible(shown and shown_before)
+            shown_before = shown_before or shown
+        self._more_separator.setVisible(shown_before)
 
     def _set_minimap_visible(self, visible: bool, store: bool = True) -> None:
         if store:

@@ -126,7 +126,7 @@ _DEFINITIONS = {
     "edit_task": (N_("&Aufgabe stellen …"), "task", [],
                   N_("Lehrkraft: Aufgabenstellung und verschlüsselte Musterlösung in das Projekt schreiben")),
     "toggle_minimap": (N_("&Minikarte"), "minimap", ["Ctrl+M"],
-                       N_("Kleine Übersicht des ganzen Plans unten rechts ein-/ausblenden")),
+                       N_("Kleine Übersicht des ganzen Plans am rechten Rand ein-/ausblenden")),
     "toggle_breakpoint": (N_("&Haltepunkt setzen/entfernen"), "breakpoint", ["F9"],
                           N_("Der Schreibtischtest hält vor dem ausgewählten Baustein an")),
     "clear_breakpoints": (N_("Alle Haltepunkte &entfernen"), None, [], N_("Alle Haltepunkte des Projekts entfernen")),

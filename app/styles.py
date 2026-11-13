@@ -310,7 +310,36 @@ def build_palette(t: Theme) -> QPalette:
     return p
 
 
+def check_mark_image(color: str) -> str:
+    """Pfad zu einem Häkchen-Bild in ``color`` für die Kästchen (Stylesheets brauchen eine Datei).
+
+    Das Bild wird einmal gezeichnet und im Temp-Ordner abgelegt; fehlt der Zugriff, bleibt das Kästchen nur gefüllt.
+    """
+    import tempfile
+
+    from PySide6.QtCore import QPointF, Qt
+    from PySide6.QtGui import QImage, QPainter, QPen
+
+    path = os.path.join(tempfile.gettempdir(), f"bstechnik-pap-haken-{color.lstrip('#').lower()}.png")
+    if not os.path.isfile(path):
+        image = QImage(64, 64, QImage.Format.Format_ARGB32_Premultiplied)
+        image.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(image)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        pen = QPen(QColor(color), 9)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(pen)
+        painter.drawPolyline([QPointF(14, 33), QPointF(27, 46), QPointF(50, 19)])
+        painter.end()
+        if not image.save(path, "PNG"):
+            return ""
+    return path.replace("\\", "/")
+
+
 def build_stylesheet(t: Theme) -> str:
+    check = check_mark_image(t.accent_text)
+    check_image = f"image: url({check});" if check else ""
     return f"""
 QMainWindow, QDialog {{
     background: {t.window_bg};
@@ -546,6 +575,30 @@ QPushButton:disabled {{
 QCheckBox, QRadioButton {{
     spacing: 8px;
 }}
+/* Kästchen: deutlich umrandet, angehakt in der Akzentfarbe mit weißem Haken */
+QCheckBox::indicator {{
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid {t.text_muted};
+    border-radius: 4px;
+    background: {t.canvas_bg};
+}}
+QCheckBox::indicator:hover {{
+    border-color: {t.accent};
+}}
+QCheckBox::indicator:checked {{
+    background: {t.accent};
+    border-color: {t.accent};
+    {check_image}
+}}
+QCheckBox::indicator:disabled {{
+    border-color: {t.border};
+    background: {t.panel_bg};
+}}
+QCheckBox#SettingSwitch {{
+    font-weight: bold;
+    font-size: 10.5pt;
+}}
 QFrame#SearchResults {{
     background: {t.panel_raised};
     border: 1px solid {t.border_strong};
@@ -561,7 +614,8 @@ QGroupBox::title {{
     subcontrol-origin: margin;
     left: 10px;
     padding: 0 4px;
-    color: {t.text_muted};
+    color: {t.accent};
+    font-weight: bold;
 }}
 QScrollBar:vertical {{
     background: transparent;

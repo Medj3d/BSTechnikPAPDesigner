@@ -235,6 +235,7 @@ class SettingsDialog(QDialog):
     def _switch(self, name: str) -> QWidget:
         action = self.actions[name]
         box = QCheckBox(clean_text(action.text()))
+        box.setObjectName("SettingSwitch")   # fett und etwas größer: die Funktion, darunter gedämpft die Erklärung
         box.setChecked(action.isChecked())
         # „trigger“ löst wie ein Klick im Menü alles aus, was an der Einstellung hängt
         box.clicked.connect(lambda _checked=False: action.trigger())
