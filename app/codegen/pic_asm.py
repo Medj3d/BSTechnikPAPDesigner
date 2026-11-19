@@ -60,7 +60,7 @@ _RESERVED = {
 _PORT_WORD = re.compile(r"\s*\b(?:an|auf|von|ueber|über|aus|nach|to|from)?\s*\b(PORT[A-E])\b", re.IGNORECASE)
 _BIT_ASSIGN = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*[.,]\s*([0-7])\s*(?:=|:=|←|<-)\s*([01])\s*;?\s*$")
 _BIT_TEST = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*[.,]\s*([0-7])\s*(?:(==|=|!=|<>|≠)\s*([01]))?\s*\??\s*$")
-_WAIT = re.compile(r"^\s*(?:warte|warten|pause|wait|delay)\s*:?\s*(\d+)\s*(ms|millisekunden?|s|sek(?:unden?)?|sec)\b",
+_WAIT = re.compile(r"^\s*(?:warte|warten|pause|wait|delay)\s*:?\s*(\d+)\s*(ms|millisekunden?|s|sek(?:unden?)?|sec)\s*$",
                    re.IGNORECASE)
 _SIMPLE = (ast.Name, ast.Constant)
 _OUTPUT_WORD = re.compile(r"^\s*(?:ausgabe|gib|zeige|drucke|schreibe)\b\s*:?\s*", re.IGNORECASE)
@@ -236,7 +236,9 @@ class PicAsmGenerator:
                 raise _Unsupported()
             if node.id in self.strings:
                 raise _Unsupported()
-            return self.var(node.id)
+            register = self.var(node.id)
+            self.use_port(register, output=False)   # z. B. „x = PORTB & 15“: der Port wird gelesen
+            return register
         return None
 
     def to_w(self, node) -> list[str]:
@@ -630,7 +632,7 @@ class PicAsmGenerator:
     def limit_loop(self, stmt: LimitLoop) -> None:
         self.comments(stmt.comments)
         header = T.parse_loop_header(stmt.header)
-        footer = T.parse_loop_footer(stmt.footer) if stmt.footer else None
+        footer = T.loop_footer(stmt.header, stmt.footer)
         head, again, end = self.new_label("schleife"), self.new_label("weiter"), self.new_label("endeschleife")
         self.note(stmt.header)
         if header.kind == "for":
@@ -788,7 +790,8 @@ class PicAsmGenerator:
 
     def action_process(self, stmt: Action) -> None:
         self.note(stmt.text)
-        for line in [line.strip() for line in stmt.text.splitlines() if line.strip()]:
+        # wie überall im Programm: mehrere Anweisungen je Zeile oder durch „;“ getrennt
+        for line in [part.strip() for part in re.split(r"[\n;]", stmt.text) if part.strip()]:
             bit = _BIT_ASSIGN.match(line)
             if bit:
                 register, command = self.var(bit.group(1)), "BSF" if bit.group(3) == "1" else "BCF"

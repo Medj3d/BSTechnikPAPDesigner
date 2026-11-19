@@ -1045,5 +1045,10 @@
  "Den Plan drucken": "打印流程图",
  "Knöpfe in der Werkzeugleiste": "工具栏按钮",
  "Assembler (PIC16F887)": "汇编 (PIC16F887)",
- "Assembler-Datei ({pattern})": "汇编文件 ({pattern})"
+ "Assembler-Datei ({pattern})": "汇编文件 ({pattern})",
+ "Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.": "无法转换的部分在代码中标记为 TODO。仅由文字组成的条件会变成对 PORTB 的位测试 – 请调整。",
+ "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "伪代码按原样采用各模块的文字。",
+ "Das Hauptprogramm hat kein Start-Element.": "主程序中没有开始符号。",
+ "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "删除密码 – 之后任何人都可以修改任务",
+ "Die Sicherung wurde aufbewahrt: {path}": "备份已保留：{path}"
 }

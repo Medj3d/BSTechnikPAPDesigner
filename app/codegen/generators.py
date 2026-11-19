@@ -141,7 +141,7 @@ def _completes(stmt) -> bool:
     if isinstance(stmt, If):
         return _block_completes(stmt.then_block) or _block_completes(stmt.else_block)
     if isinstance(stmt, DoWhileLoop) or (isinstance(stmt, LimitLoop) and stmt.footer
-                                         and T.parse_loop_footer(stmt.footer) is not None
+                                         and T.loop_footer(stmt.header, stmt.footer) is not None
                                          and T.parse_loop_header(stmt.header).kind != "for"):
         return _block_completes(stmt.body) or _has_break(stmt.body)
     return True
@@ -168,7 +168,7 @@ def _always_repeats(stmt) -> bool:
         value = _constant(T.condition_expression(stmt.condition))
         return value is not None and value != stmt.negate
     if isinstance(stmt, LimitLoop):
-        footer = T.parse_loop_footer(stmt.footer) if stmt.footer else None
+        footer = T.loop_footer(stmt.header, stmt.footer)
         header = T.parse_loop_header(stmt.header)
         if footer is not None and header.kind != "for":
             value = _constant(footer[1])
@@ -460,6 +460,8 @@ class PythonGenerator:
                         one + _docstring(tr_code("Kaufmännisch runden: ab 5 wird aufgerundet (2,5 wird 3).")),
                         f"{one}if int(stellen) > 15:",
                         f"{one}{one}return x",
+                        f"{one}if int(stellen) < -308:",
+                        f"{one}{one}return 0",
                         f"{one}faktor = 10 ** int(stellen)",
                         f"{one}wert = int(abs(x) * faktor + 0.5) / faktor",
                         f"{one}wert = wert if x >= 0 else -wert",
@@ -488,7 +490,7 @@ class PythonGenerator:
                     if stmt.kind == "input":
                         assigned.update(T.input_variables(stmt.text))
                     elif stmt.kind == "process":
-                        for name, expr in T.parse_assignments(stmt.text) or []:
+                        for name, expr in T.recognized_assignments(stmt.text):
                             read(T.names_in(expr), assigned)
                             assigned.add(name)
                     elif stmt.kind == "output":
@@ -525,7 +527,7 @@ class PythonGenerator:
                     read(T.names_in(T.condition_expression(stmt.condition) or ""), assigned)
                 elif isinstance(stmt, LimitLoop):
                     header = T.parse_loop_header(stmt.header)
-                    footer = T.parse_loop_footer(stmt.footer) if stmt.footer else None
+                    footer = T.loop_footer(stmt.header, stmt.footer)
                     if header.kind == "for":
                         for expr in (header.start, header.end, header.step):
                             read(T.names_in(expr), assigned)
@@ -648,7 +650,7 @@ class PythonGenerator:
     def limit_loop(self, stmt: LimitLoop, depth: int) -> None:
         self.comments(depth, stmt.comments)
         header = T.parse_loop_header(stmt.header)
-        footer = T.parse_loop_footer(stmt.footer) if stmt.footer else None
+        footer = T.loop_footer(stmt.header, stmt.footer)
         start, end, step = (self.expr(e) for e in (header.start, header.end, header.step)) \
             if header.kind == "for" else (None, None, None)
         counting = header.kind == "for" and None not in (start, end, step)
@@ -726,9 +728,13 @@ class PythonGenerator:
             self.emit(depth, f'print("{_escape(text)}")')
 
     def action_process(self, stmt: Action, depth: int) -> None:
-        assignments = T.parse_assignments(stmt.text)
-        if assignments:
-            for name, expr in assignments:
+        items = T.assignment_items(stmt.text)
+        if any(not isinstance(item, str) for item in items):
+            for item in items:
+                if isinstance(item, str):   # einzelne Zeile ohne Zuweisung: die übrigen gelten trotzdem
+                    self.emit(depth, f"# TODO: {item}")
+                    continue
+                name, expr = item
                 code = self.expr(expr)
                 if code is not None:
                     self.emit(depth, f"{self.var(name)} = {code}")
@@ -1259,6 +1265,7 @@ class JavaGenerator:
                         f"{one}}}", "",
                         f"{one}static double runden(double x, double stellen) {{",
                         f"{two}if (stellen > 15) return x;",
+                        f"{two}if (stellen < -308) return 0.0;",
                         f"{two}double faktor = Math.pow(10, (long) stellen);",
                         f"{two}return Math.signum(x) * Math.floor(Math.abs(x) * faktor + 0.5) / faktor + 0.0;",
                         f"{one}}}", ""]
@@ -1341,7 +1348,7 @@ class JavaGenerator:
     def limit_loop(self, stmt: LimitLoop, depth: int) -> None:
         self.comments(depth, stmt.comments)
         header = T.parse_loop_header(stmt.header)
-        footer = T.parse_loop_footer(stmt.footer) if stmt.footer else None
+        footer = T.loop_footer(stmt.header, stmt.footer)
         self.emit(depth, f"// {_java_comment(stmt.header)}")
         start = end = step = None
         if header.kind == "for" and self.types.get(header.variable) == DOUBLE:
@@ -1444,12 +1451,16 @@ class JavaGenerator:
             self.emit(depth, f'System.out.println("{_escape(spec.value)}");')
 
     def action_process(self, stmt: Action, depth: int) -> None:
-        assignments = T.parse_assignments(stmt.text)
-        if not assignments:
+        items = T.assignment_items(stmt.text)
+        if all(isinstance(item, str) for item in items):
             for line in [line for line in stmt.text.splitlines() if line.strip()] or [tr_code("(leer)")]:
                 self.emit(depth, f"// TODO: {_java_comment(line)}")
             return
-        for name, expr in assignments:
+        for item in items:
+            if isinstance(item, str):   # einzelne Zeile ohne Zuweisung: die übrigen gelten trotzdem
+                self.emit(depth, f"// TODO: {_java_comment(item)}")
+                continue
+            name, expr = item
             target, wanted = java_name(name), self.types.get(name, DOUBLE)
             result = self.typed(expr)
             code = None

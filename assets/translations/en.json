@@ -1130,5 +1130,10 @@
  "passt nicht mehr hinein?": "does it no longer fit?",
  "zurück zu Bank 0": "back to bank 0",
  "{expr} lässt sich nicht ausgeben (nur Zahlen 0 bis 255)": "{expr} cannot be output (only numbers 0 to 255)",
- "{name} = {expr} (nur ganze Zahlen 0 bis 255)": "{name} = {expr} (only whole numbers 0 to 255)"
+ "{name} = {expr} (nur ganze Zahlen 0 bis 255)": "{name} = {expr} (only whole numbers 0 to 255)",
+ "Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.": "Parts that cannot be translated are marked as TODO in the code. Conditions made only of words become a bit test on PORTB – please adjust.",
+ "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "The pseudocode takes over the texts of the blocks unchanged.",
+ "Das Hauptprogramm hat kein Start-Element.": "The main program has no Start symbol.",
+ "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Remove password – anyone can then change the task",
+ "Die Sicherung wurde aufbewahrt: {path}": "The backup was kept: {path}"
 }

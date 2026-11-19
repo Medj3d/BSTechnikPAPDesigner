@@ -734,9 +734,17 @@ def test_change_type_keeps_the_line_when_ports_stay(scene):
     a = add(scene, T.PROCESS, 0, 0)
     b = add(scene, T.PROCESS, 400, 300)
     link = connect(scene, a, "right", b, "top")
-    link.data.routing = {"mode": "manual", "axis": "x", "value": 300.0}
-    scene.reset_routing(link)  # nur damit der Verlauf neu berechnet ist
+    # ein übernommener Verlauf (wie aus einer PapDesigner-Datei), den die automatische Führung anders legen würde
+    (sx, sy), (tx, ty) = link.points()[0], link.points()[-1]
+    custom = [(sx, sy), (sx + 40, sy), (sx + 40, sy - 80), (tx, sy - 80), (tx, ty)]
+    assert link.adopt_path(custom)
     before = link.points()
-    # gleiche Form (Rechteck), gleiche Anschlüsse: der Linienverlauf bleibt genau erhalten
+    assert before == custom
+    # gleiche Form (Rechteck), gleiche Anschlüsse: der Linienverlauf bleibt genau erhalten – auch nach
+    # Rückgängig und Wiederholen
     assert scene.change_element_type(a, T.SUBPROGRAM)
+    assert scene.connection(link.connection_id).points() == before
+    scene.undo_stack.undo()
+    assert scene.connection(link.connection_id).points() == before
+    scene.undo_stack.redo()
     assert scene.connection(link.connection_id).points() == before

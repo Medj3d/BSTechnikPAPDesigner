@@ -1045,5 +1045,10 @@
  "Den Plan drucken": "Imprimir o diagrama",
  "Knöpfe in der Werkzeugleiste": "Botões da barra de ferramentas",
  "Assembler (PIC16F887)": "Assembly (PIC16F887)",
- "Assembler-Datei ({pattern})": "Arquivo assembly ({pattern})"
+ "Assembler-Datei ({pattern})": "Arquivo assembly ({pattern})",
+ "Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.": "Trechos que não podem ser traduzidos são marcados como TODO no código. Condições formadas só por palavras viram um teste de bit em PORTB – ajuste-as.",
+ "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "O pseudocódigo usa os textos dos blocos sem alterações.",
+ "Das Hauptprogramm hat kein Start-Element.": "O programa principal não tem símbolo Início.",
+ "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Remover a senha – qualquer pessoa poderá alterar a tarefa",
+ "Die Sicherung wurde aufbewahrt: {path}": "A cópia de segurança foi mantida: {path}"
 }

@@ -18,6 +18,7 @@ from app.i18n import tr
 
 MAX_POWER = 10_000
 MAX_ROUND_DIGITS = 15
+MAX_FLOAT_EXPONENT = 308
 MAX_STRING = 100_000
 MAX_INT_BITS = 10_000  # ca. 3000 Dezimalstellen
 
@@ -49,9 +50,12 @@ def runden(x, stellen=0):
     """Kaufmännisch runden: ab 5 wird aufgerundet (2,5 → 3; -2,5 → -3).
 
     Mehr als 15 Nachkommastellen kann eine Kommazahl nicht darstellen – dann bleibt der Wert, wie er ist (sonst
-    rechnete ``10 ** 100000000`` minutenlang)."""
+    rechnete ``10 ** 100000000`` minutenlang). Auf mehr als 308 Stellen vor dem Komma gerundet ist jede Kommazahl
+    0 (die größte ist etwa 1,8 · 10^308) – ``10 ** -400`` wäre sonst 0 und die Division schlüge fehl."""
     if int(stellen) > MAX_ROUND_DIGITS:
         return x
+    if int(stellen) < -MAX_FLOAT_EXPONENT:
+        return 0
     faktor = 10 ** int(stellen)
     wert = math.floor(abs(x) * faktor + 0.5) / faktor
     wert = wert if x >= 0 else -wert
@@ -197,7 +201,7 @@ def _eval(node, variables):
         args = [_eval(arg, variables) for arg in node.args]
         try:
             return _limited(_FUNCTIONS[node.func.id](*args))
-        except (TypeError, ValueError, OverflowError) as exc:
+        except (TypeError, ValueError, OverflowError, ZeroDivisionError) as exc:
             raise EvaluationError(tr("Funktion „{name}“: {error}", name=node.func.id, error=exc)) from exc
     if isinstance(node, ast.IfExp):
         return _eval(node.body, variables) if _eval(node.test, variables) else _eval(node.orelse, variables)

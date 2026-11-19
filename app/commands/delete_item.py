@@ -39,6 +39,9 @@ class DeleteCommand(QUndoCommand):
 
     def redo(self) -> None:
         scene = self._scene
+        # Linienverlauf merken: Rückgängig stellt ihn genau so wieder her (auch übernommene Verläufe, etwa aus
+        # PapDesigner-Dateien, die die automatische Führung anders legen würde)
+        self._paths = {conn.connection_id: conn.points() for conn in self._connections}
         rects = [item.scene_rect() for item in self._items]
         with scene.batch_routing():
             for conn in self._connections:
@@ -56,4 +59,8 @@ class DeleteCommand(QUndoCommand):
             for conn in self._connections:
                 scene.add_connection_item(conn)
             scene.refresh_routes_around([item.scene_rect() for item in self._items])
+        for conn in self._connections:
+            points = getattr(self, "_paths", {}).get(conn.connection_id)
+            if points and conn.scene() is scene:
+                conn.adopt_path(points)
         scene.select_items(self._items + self._connections)

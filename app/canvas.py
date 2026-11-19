@@ -336,6 +336,13 @@ class DiagramView(QGraphicsView):
             self.context_menu_requested.emit(scene_pos, self.viewport().mapToGlobal(view_pos))
         event.accept()
 
+    def focusNextPrevChild(self, forward: bool) -> bool:
+        # Tab / Umschalt+Tab wandern im Plan von Baustein zu Baustein (siehe DiagramScene.select_neighbour),
+        # statt den Fokus aus der Arbeitsfläche zu nehmen – außer während einer Texteingabe
+        if not self.document.scene.is_editing and self.document.scene.elements():
+            return False
+        return super().focusNextPrevChild(forward)
+
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Space and not event.isAutoRepeat() and not self.document.scene.is_editing:
             self._space_pressed = True

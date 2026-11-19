@@ -201,8 +201,8 @@ def test_splash_screen_shows_the_logo_at_once_and_the_text_right_after():
     screen.complete()
     assert has_text(screen.pixmap())
     screen.deleteLater()
-    # der Ladebildschirm bleibt 5 bis 7 Sekunden stehen
-    assert 5000 <= config.SPLASH_MIN_DURATION_MS <= 7000
+    # der Ladebildschirm bleibt 4 Sekunden stehen (Wunsch des Nutzers, vorher 6)
+    assert config.SPLASH_MIN_DURATION_MS == 4000
 
 
 def test_start_shows_the_splash_before_loading_the_program():

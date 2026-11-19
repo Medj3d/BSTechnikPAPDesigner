@@ -141,6 +141,8 @@ class DiagramDocument(QObject):
         # False: Die geöffnete Datei enthielt keine gespeicherte Anordnung
         # (z. B. direkt aus dem PapDesigner) – sie wurde aus dem Raster abgeleitet.
         self.native_file = True
+        # aus einer Sicherung nach einem Absturz: erst nach einem bewussten Speichern automatisch speichern
+        self.restored_from_backup = False
         self.undo_stack = QUndoStack(self)
         self.undo_stack.setUndoLimit(0)
         self.pages: list[DiagramPage] = []
@@ -163,6 +165,35 @@ class DiagramDocument(QObject):
         self.undo_stack.cleanChanged.connect(self._on_clean_changed)
         # liefert (zoom, center_x, center_y) der Ansicht der angezeigten Seite für das Speichern
         self.view_state_provider: Callable[[], tuple] | None = None
+
+    def rename_from_start(self, scene, item, text: str) -> bool:
+        """Neuer Text im ersten Start-Element einer Unterprogramm-Seite: Er ist der Name des Unterprogramms – Seite
+        und Aufrufe werden mit umbenannt (sonst hieße der Ablauf weiter wie die Seite). ``False``: normal ändern."""
+        from app import subprograms
+
+        page = self.page_of_scene(scene)
+        if page is None or page.is_main or not " ".join(text.split()):
+            return False
+        starts = page.start_items()
+        if not starts or starts[0] is not item:
+            return False
+        from app.commands.edit_text import EditTextCommand
+
+        clean = subprograms.clean_name(text)
+        if clean == page.display_name:
+            return False   # gleicher Name (nur anders geschrieben): ein normaler Textschritt
+        error = subprograms.name_error(self, clean, page=page)
+        if error is not None:
+            # Name schon vergeben oder ungültig: nichts ändern – sonst hießen zwei Abläufe gleich
+            scene.status_message.emit(error)
+            return True
+        self.undo_stack.beginMacro(tr("Text ändern"))
+        subprograms.rename_subprogram(self, page, clean)
+        if " ".join(item.data.text.split()) != " ".join(text.split()):
+            # Start hieß anders als die Seite (z. B. „Start“ aus dem PapDesigner)
+            self.undo_stack.push(EditTextCommand(scene, item.element_id, item.data.text, text))
+        self.undo_stack.endMacro()
+        return True
 
     # ---------------------------------------------------------------- Seiten
     def new_page(self, name: str = "", view: tuple = (1.0, 0.0, 0.0)) -> DiagramPage:
@@ -364,8 +395,10 @@ class DiagramDocument(QObject):
             and len(elements) <= 2 and len({item.element_type for item in elements}) == len(elements) \
             and len(self.main_scene.connections()) <= 1
 
-    def command_page(self, command) -> DiagramPage | None:
-        """Seite, die ein Undo-Befehl ändert (bei zusammengesetzten Befehlen: die des ersten Teils)."""
+    def command_page(self, command, last: bool = False) -> DiagramPage | None:
+        """Seite, die ein Undo-Befehl ändert. Bei zusammengesetzten Befehlen die des ersten Teils – mit ``last`` die
+        des letzten: Nach „Wiederholen“ steht man dort, wo man nach dem Ausführen stand (z. B. auf dem neu
+        angelegten Unterprogramm), nach „Rückgängig“ dort, wo man vorher war."""
         if command is None:
             return None
         if isinstance(getattr(command, "page", None), DiagramPage):
@@ -373,8 +406,9 @@ class DiagramDocument(QObject):
         scene = getattr(command, "_scene", None)
         if scene is not None:
             return self.page_of_scene(scene)
-        for i in range(command.childCount()):
-            page = self.command_page(command.child(i))
+        children = range(command.childCount())
+        for i in reversed(children) if last else children:
+            page = self.command_page(command.child(i), last)
             if page is not None:
                 return page
         return None
@@ -442,6 +476,7 @@ class DiagramDocument(QObject):
         self._name_is_default = False
         self.file_path = path
         self.native_file = True
+        self.restored_from_backup = False
         self.undo_stack.setClean()
         self.title_changed.emit()
 

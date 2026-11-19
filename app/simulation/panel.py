@@ -277,7 +277,7 @@ class SimulationPanel(QWidget):
 
     def refresh_theme(self) -> None:
         for button in (self.restart_button, self.back_button, self.step_button, self.run_button, self.play_button,
-                       self.stop_button, self.copy_button, self.save_button):
+                       self.stop_button, self.copy_button, self.save_button, self.breakpoint_button):
             button.setIcon(icons.icon(button.property("icon_name")))
         if self._highlight is not None:
             self._highlight.update()
@@ -657,6 +657,12 @@ class SimulationPanel(QWidget):
                 continue
             reachable.add(node_id)
             todo.extend(graph.successors(node_id))
+            node = graph.nodes[node_id]
+            if node.type is ElementType.SUBPROGRAM:
+                # aufgerufene Unterprogramme gehören von Anfang an dazu – sonst wüchse die Gesamtzahl unterwegs
+                called = graph.start_for_call(node.text, exclude=simulator.start_id)
+                if called:
+                    todo.append(called)
         visited = {row.element_id for row in simulator.trace if row.element_id in graph.nodes}
         counted = {nid for nid in reachable | visited if graph.nodes[nid].type is not ElementType.JUNCTION}
         return len(visited & counted), len(counted)

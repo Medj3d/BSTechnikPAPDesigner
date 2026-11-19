@@ -253,12 +253,16 @@ class Simulator:
         return self._advance(nid, start, tr("Unterprogramm „{name}“ aufgerufen.", name=name))
 
     def _process(self, nid, node):
-        assignments = T.parse_assignments(node.text)
-        if not assignments:
+        items = T.assignment_items(node.text)
+        if all(isinstance(item, str) for item in items):
             return self._advance(nid, self._next(nid),
                                  tr("Nicht ausgewertet: {text}", text=' '.join(node.text.split())))
         parts = []
-        for name, expr in assignments:
+        for item in items:
+            if isinstance(item, str):   # die übrigen Zeilen gelten trotzdem
+                parts.append(tr("Nicht ausgewertet: {text}", text=item))
+                continue
+            name, expr = item
             try:
                 value = evaluate(expr, self._scope())
             except EvaluationError as exc:
@@ -436,7 +440,7 @@ class Simulator:
     def _loop_begin(self, nid, node):
         header = T.parse_loop_header(node.text)
         end_id = self.loop_end_of.get(nid)
-        footer = T.parse_loop_footer(self.node(end_id).text) if end_id else None
+        footer = T.loop_footer(node.text, self.node(end_id).text) if end_id else None
         reentering = nid in self._reentering
         self._reentering.discard(nid)
         body = self._next(nid)
@@ -496,7 +500,7 @@ class Simulator:
         begin_id = self.loop_begin_of.get(nid)
         if begin_id is None:
             return self._advance(nid, self._next(nid), tr("Schleifenende (ohne Schleifenbeginn)"))
-        footer = T.parse_loop_footer(node.text)
+        footer = T.loop_footer(self.node(begin_id).text, node.text)
         if footer is not None:
             kind, cond = footer
             try:

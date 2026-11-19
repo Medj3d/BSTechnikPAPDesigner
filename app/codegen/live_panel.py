@@ -152,6 +152,9 @@ class CodePanel(QWidget):
         self._selected = set(element_ids or ())
         self._highlight()
         rows = [row for row, eid in enumerate(self._line_ids) if eid in self._selected]
+        clicked, self._clicked = getattr(self, "_clicked", None), None
+        if clicked is not None and clicked in self._selected:
+            return   # Auswahl kam aus einem Klick in den Code: die Zeile ist schon zu sehen, nicht wegscrollen
         if rows:
             block = self.editor.document().findBlockByNumber(rows[0])
             if block.isValid():
@@ -185,8 +188,12 @@ class CodePanel(QWidget):
     def _on_cursor_moved(self) -> None:
         if self._updating:
             return
-        row = self.editor.textCursor().blockNumber()
+        cursor = self.editor.textCursor()
+        if cursor.hasSelection():
+            return   # Text markieren (zum Kopieren) wählt keine Bausteine aus
+        row = cursor.blockNumber()
         if 0 <= row < len(self._line_ids) and self._line_ids[row]:
+            self._clicked = self._line_ids[row]
             self.element_requested.emit(self._line_ids[row])
 
     def click_row(self, row: int) -> None:

@@ -535,6 +535,7 @@ class DiagramScene(QGraphicsScene):
         if self._drag_move_active:
             self._drag_move_active = False
             if cancel:
+                self._drag_copy = False   # abgebrochenes Strg+Ziehen: es entsteht keine Kopie
                 starts, self._move_start = self._move_start, {}
                 with self.batch_routing():
                     for eid, (x, y) in starts.items():
@@ -1564,6 +1565,13 @@ class DiagramScene(QGraphicsScene):
         dx, dy = PORT_DIRECTIONS[port]
         entry = next((p for p, direction in PORT_DIRECTIONS.items() if direction == (-dx, -dy)), PORT_TOP)
         center = QPointF(pos.x() + dx * spec.default_width / 2, pos.y() + dy * spec.default_height / 2)
+        if element_type is ElementType.LOOP and entry != PORT_TOP:
+            # Eine Schleife hat ihren Eingang oben am Schleifenbeginn; unten geht der Rumpf zum Schleifenende ab.
+            # Zeigt der Pfeil nach oben (oder zur Seite), kommt das ganze Paar über bzw. neben das Pfeilende
+            entry = PORT_TOP
+            if dy < 0:
+                pair = spec.default_height + VERTICAL_GAP + spec.default_height
+                center = QPointF(pos.x(), pos.y() - pair + spec.default_height / 2)
         name = display_name_for(element_type)
         self.undo_stack.beginMacro(tr("„{name}“ einfügen", name=name))
         element_id = self.insert_element(element_type, center)
@@ -1774,7 +1782,9 @@ class DiagramScene(QGraphicsScene):
             item.set_editing(False)
             item.set_preview_text(None)
             if commit and text != state["original"] and item.scene() is self:
-                self.undo_stack.push(EditTextCommand(self, item.element_id, state["original"], text))
+                rename = getattr(self.parent(), "rename_from_start", None)
+                if not (item.element_type is ElementType.START and rename is not None and rename(self, item, text)):
+                    self.undo_stack.push(EditTextCommand(self, item.element_id, state["original"], text))
         else:
             conn = state["connection"]
             conn.label.set_editing(False)
@@ -1823,12 +1833,13 @@ class DiagramScene(QGraphicsScene):
             data.text = default_text_for(element_type, data.properties)
         spec = spec_for(element_type)
         data.width, data.height = float(spec.default_width), float(spec.default_height)
-        connections, paths = [], {}
+        connections = []
         for conn in item.connections:
             self._inherit_order(conn, conn.connection_id)  # die Markierung bleibt an derselben Verbindung
             copy = conn.data.copy()
             copy.path = None
             ports = (copy.source_port, copy.target_port)
+            points = conn.points()
             if copy.source_id == item.element_id and copy.source_port not in spec.ports:
                 copy.source_port = next(p for p in (PORT_BOTTOM, PORT_RIGHT, PORT_LEFT, PORT_TOP) if p in spec.ports)
             if copy.target_id == item.element_id and copy.target_port not in spec.ports:
@@ -1839,18 +1850,14 @@ class DiagramScene(QGraphicsScene):
                 copy.target_port = choices[0]
             if copy.source_id == copy.target_id and copy.source_port == copy.target_port:
                 return False  # ließe sich nur als Verbindung ohne Länge übernehmen – dann nicht umwandeln
-            if (copy.source_port, copy.target_port) == ports:
-                paths[copy.id] = conn.points()  # gleiche Anschlüsse: der Linienverlauf bleibt
+            if (copy.source_port, copy.target_port) == ports and points:
+                copy.path = points  # gleiche Anschlüsse: der Linienverlauf bleibt (auch nach Rückgängig/Wiederholen)
             connections.append(copy)
         name = display_name_for(element_type)
         self.undo_stack.beginMacro(tr("In {name} umwandeln", name=name))
         self.undo_stack.push(DeleteCommand(self, [item.element_id], [], text=tr("In {name} umwandeln", name=name)))
         self.undo_stack.push(AddElementsCommand(self, [data], connections, text=tr("In {name} umwandeln", name=name)))
         self.undo_stack.endMacro()
-        for connection_id, points in paths.items():
-            conn = self.connection(connection_id)
-            if conn is not None and points:
-                conn.adopt_path(points)
         return True
 
     def insert_junction(self, conn: ConnectionItem, pos: QPointF) -> str | None:
@@ -2025,6 +2032,36 @@ class DiagramScene(QGraphicsScene):
         self._show_edge_marker(marker)
 
     # ============================================================== Tastatur
+    def select_neighbour(self, forward: bool = True) -> FlowItem | None:
+        """Tastatur: wählt den nächsten (bzw. mit ``forward=False`` den vorigen) Baustein im Ablauf aus –
+        ohne Auswahl den Start. Verbindungspunkte werden übersprungen, an Verzweigungen geht es über „ja“."""
+        flow = [item for item in self.elements() if not item.is_junction and not item.is_comment]
+        if not flow:
+            return None
+        current = self.single_selected
+        if current is None or current.is_junction or current.is_comment:
+            starts = [item for item in flow if item.element_type is ElementType.START] or flow
+            target = min(starts, key=lambda item: (item.data.y, item.data.x))
+        else:
+            target, seen = current, set()
+            while True:
+                links = [conn for conn in target.connections
+                         if (conn.source is target if forward else conn.target is target)
+                         and not conn.is_annotation and conn.source is not conn.target]
+                if not links:
+                    return None   # Ende des Ablaufs: Auswahl bleibt
+                # „ja“ zuerst, sonst die zuerst gezeichnete Verbindung
+                links.sort(key=lambda conn: (not labels.is_yes(conn.data.label),
+                                             conn.order or 0))
+                target = links[0].target if forward else links[0].source
+                if not target.is_junction or target.element_id in seen:
+                    break
+                seen.add(target.element_id)
+        self.select_items([target])
+        for view in self.views():
+            view.ensureVisible(target, 60, 60)
+        return target
+
     def keyPressEvent(self, event) -> None:
         if self._editor is not None or self.focusItem() is not None:
             super().keyPressEvent(event)
@@ -2046,6 +2083,12 @@ class DiagramScene(QGraphicsScene):
                 step *= 5
             dx, dy = arrows[key]
             self.move_selection_by(dx * step, dy * step)
+            event.accept()
+            return
+
+        if key in (Qt.Key.Key_Tab, Qt.Key.Key_Backtab) and not ctrl_alt:
+            forward = key == Qt.Key.Key_Tab and not mods & Qt.KeyboardModifier.ShiftModifier
+            self.select_neighbour(forward)
             event.accept()
             return
 

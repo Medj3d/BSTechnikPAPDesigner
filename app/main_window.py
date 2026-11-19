@@ -1463,6 +1463,7 @@ class MainWindow(QMainWindow):
     def _auto_save_applies(self, document: DiagramDocument) -> bool:
         """Nur Projekte, die schon einmal mit diesem Programm als .pap gespeichert wurden."""
         return bool(self._auto_save_enabled and document.file_path and document.native_file
+                    and not getattr(document, "restored_from_backup", False)
                     and _has_project_extension(document.file_path))
 
     def _schedule_auto_save(self, document: DiagramDocument) -> None:
@@ -1542,6 +1543,8 @@ class MainWindow(QMainWindow):
             # das erste Programm werden.
             self.instance_server.close()
         if self._restart_files is not None:
+            # erst jetzt: auch Projekte, die eben im Schließen-Dialog zum ersten Mal gespeichert wurden
+            self._restart_files = [view.document.file_path for view in self.views() if view.document.file_path]
             restart.launch_after_quit(QApplication.instance(), self._restart_files)
             self._restart_files = None
         event.accept()
@@ -1567,8 +1570,11 @@ class MainWindow(QMainWindow):
                 try:
                     document = self.autosave.restore(entry)
                 except ProjectFileError as exc:
-                    self._error(tr("Wiederherstellung nicht möglich"), exc.message)
-                    self.autosave.discard(entry)
+                    # nicht löschen: beiseitegelegt bleibt die Datei für einen Rettungsversuch erhalten
+                    kept = self.autosave.set_aside(entry)
+                    message = exc.message if kept is None else exc.message + "\n\n" + tr(
+                        "Die Sicherung wurde aufbewahrt: {path}", path=kept)
+                    self._error(tr("Wiederherstellung nicht möglich"), message)
                     continue
                 self.add_document(document)
                 self.autosave.adopt(document, entry)
@@ -1705,7 +1711,7 @@ class MainWindow(QMainWindow):
             return
         document.scene.prepare_for_command()
         stack = document.undo_stack
-        page = document.command_page(stack.command(stack.index() - 1 if undo else stack.index()))
+        page = document.command_page(stack.command(stack.index() - 1 if undo else stack.index()), last=not undo)
         stack.undo() if undo else stack.redo()
         if page is not None and page in document.pages:
             document.show_page(page)

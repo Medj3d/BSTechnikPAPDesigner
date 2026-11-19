@@ -333,6 +333,15 @@ class _Structurer:
                 stmts.append(stmt)
                 continue
 
+            if node.type is ElementType.DECISION:
+                # Verzweigung ohne Ausgang: bleibt eine (leere) Verzweigung – keine Zuweisung, wie der
+                # Schreibtischtest sie auch als Bedingung auswertet; danach endet der Ablauf hier
+                self.emitted.add(cur)
+                stmts.append(If(condition=node.text, element_id=cur, then_block=Block([]), else_block=Block([]),
+                                comments=self.comments(cur)))
+                stmts.append(EndStmt("kein Nachfolger", cur, repeated=True))
+                return Block(stmts), None
+
             # einfache Anweisung
             self.emitted.add(cur)
             kind = ACTION_KINDS.get(node.type, "process")

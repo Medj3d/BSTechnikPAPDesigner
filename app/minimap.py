@@ -56,7 +56,10 @@ class Minimap(QWidget):
         if watched is self._view and event.type() in (QEvent.Type.Resize, QEvent.Type.Show,
                                                       QEvent.Type.LayoutRequest):
             self.place()
-            self._pixmap = None
+            if event.type() is QEvent.Type.LayoutRequest:
+                self._schedule()   # nur die Lage – neu gezeichnet wird gebündelt über den Zeitgeber
+            else:
+                self._pixmap = None
         return False
 
     # ------------------------------------------------------------ Inhalt
@@ -136,8 +139,14 @@ class Minimap(QWidget):
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        scene.render(painter, QRectF(0, 0, width / ratio, height / ratio), self._source,
-                     Qt.AspectRatioMode.KeepAspectRatio)
+        # wie beim Export: ohne Auswahl, Hover und Anschlusspunkte (nur der Schalter – „export_mode“ würde die
+        # Szene danach neu zeichnen lassen und damit die Karte erneut anstoßen)
+        exporting, scene.exporting = scene.exporting, True
+        try:
+            scene.render(painter, QRectF(0, 0, width / ratio, height / ratio), self._source,
+                         Qt.AspectRatioMode.KeepAspectRatio)
+        finally:
+            scene.exporting = exporting
         painter.end()
         self._pixmap = pixmap
 

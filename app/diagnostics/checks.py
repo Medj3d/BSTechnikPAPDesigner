@@ -72,9 +72,14 @@ def run_checks(target) -> list[Issue]:
         ends = [n for n in flow_nodes.values() if n.type is ElementType.END]
         if not starts:
             issues.append(Issue(WARNING, tr("Der Plan hat kein Start-Element.")))
+        elif len(pages) > 1 and pages[0].scene.elements() and not pages[0].start_items():
+            # nur Unterprogramme haben einen Start: das Hauptprogramm läuft dann nie
+            issues.append(Issue(WARNING, tr("Das Hauptprogramm hat kein Start-Element."),
+                                [pages[0].scene.elements()[0].element_id]))
         if not ends:
             issues.append(Issue(WARNING, tr("Der Plan hat kein Ende-Element.")))
 
+        dead_ends: list = []   # schon als Sackgasse gemeldet – die Strukturanalyse sagt dasselbe noch einmal
         reachable: set[str] = set()
         for start in starts:
             reachable |= graph.reachable_from(start.id)
@@ -89,9 +94,12 @@ def run_checks(target) -> list[Issue]:
             if starts and node.id not in reachable and node.type is not ElementType.START:
                 issues.append(Issue(WARNING, tr("{name} wird vom Start aus nie erreicht.", name=_name(node)),
                                     [node.id]))
-            if node.type not in (ElementType.END,) and not outs and node.type is not ElementType.START:
-                issues.append(Issue(WARNING, tr("{name} hat keinen Nachfolger (Sackgasse).", name=_name(node)),
-                                    [node.id]))
+            if not outs and node.type not in (ElementType.END, ElementType.START):
+                dead_ends.append(node)
+                # bei einer Verzweigung sagt „weniger als zwei Ausgänge“ schon alles
+                if node.type is not ElementType.DECISION:
+                    issues.append(Issue(WARNING, tr("{name} hat keinen Nachfolger (Sackgasse).", name=_name(node)),
+                                        [node.id]))
             if node.type is ElementType.DECISION:
                 if len(outs) < 2:
                     issues.append(Issue(WARNING, tr("{name} hat weniger als zwei Ausgänge.", name=_name(node)),
@@ -106,7 +114,8 @@ def run_checks(target) -> list[Issue]:
                                                     name=_name(node), label=sorted(duplicates)[0]), [node.id],
                                         [e.id for e in outs if e.label.strip().lower() in duplicates]))
 
-        _structure_issues(graph, issues)
+        _structure_issues(graph, issues, {tr("„{name}“ hat keinen Nachfolger.", name=node.text or node.type.value)
+                                          for node in dead_ends})
 
     # Texte
     for e in elements:
@@ -145,7 +154,7 @@ def _subprogram_issues(pages: list, graph: FlowGraph, issues: list[Issue]) -> No
                                 [node.id]))
 
 
-def _structure_issues(graph: FlowGraph, issues: list[Issue]) -> None:
+def _structure_issues(graph: FlowGraph, issues: list[Issue], known: set[str] = frozenset()) -> None:
     """Schleifenpaare und nicht strukturierbare Teile über den Strukturbaum prüfen."""
     try:
         programs = structure_diagram(graph)
@@ -174,7 +183,8 @@ def _structure_issues(graph: FlowGraph, issues: list[Issue]) -> None:
         walk(program.body)
         for warning in program.warnings:
             # alles, was dem Benutzer sagt, dass Code/Struktogramm vom Plan abweichen können
-            issues.append(Issue(INFO, warning))
+            if warning not in known:
+                issues.append(Issue(INFO, warning))
     for node in graph.nodes.values():
         if node.is_loop_begin and node.id not in paired_begins and _reached(graph, node.id):
             issues.append(Issue(WARNING, tr("{name} hat kein passendes Schleifenende.", name=_name(node)),

@@ -1045,5 +1045,10 @@
  "Den Plan drucken": "طباعة المخطط",
  "Knöpfe in der Werkzeugleiste": "أزرار شريط الأدوات",
  "Assembler (PIC16F887)": "لغة التجميع (PIC16F887)",
- "Assembler-Datei ({pattern})": "ملف لغة التجميع ({pattern})"
+ "Assembler-Datei ({pattern})": "ملف لغة التجميع ({pattern})",
+ "Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.": "الأجزاء التي لا يمكن ترجمتها مُعلَّمة في الشيفرة بـ TODO. الشروط المكوّنة من كلمات فقط تصبح اختبار بت على PORTB – يُرجى تعديلها.",
+ "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "تأخذ الشيفرة الزائفة نصوص الكتل كما هي.",
+ "Das Hauptprogramm hat kein Start-Element.": "لا يوجد عنصر بداية في البرنامج الرئيسي.",
+ "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "إزالة كلمة المرور – عندها يمكن لأي شخص تغيير المهمة",
+ "Die Sicherung wurde aufbewahrt: {path}": "تم الاحتفاظ بالنسخة الاحتياطية: {path}"
 }

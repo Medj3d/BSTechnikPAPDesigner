@@ -1045,5 +1045,10 @@
  "Den Plan drucken": "Imprimer le plan",
  "Knöpfe in der Werkzeugleiste": "Boutons de la barre d'outils",
  "Assembler (PIC16F887)": "Assembleur (PIC16F887)",
- "Assembler-Datei ({pattern})": "Fichier assembleur ({pattern})"
+ "Assembler-Datei ({pattern})": "Fichier assembleur ({pattern})",
+ "Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.": "Les parties non traduisibles sont marquées TODO dans le code. Les conditions formulées uniquement avec des mots deviennent un test de bit sur PORTB – à adapter.",
+ "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "Le pseudo-code reprend les textes des blocs tels quels.",
+ "Das Hauptprogramm hat kein Start-Element.": "Le programme principal n'a pas de symbole Début.",
+ "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Supprimer le mot de passe – tout le monde pourra alors modifier la tâche",
+ "Die Sicherung wurde aufbewahrt: {path}": "La sauvegarde a été conservée : {path}"
 }

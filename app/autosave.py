@@ -274,6 +274,8 @@ class AutosaveManager(QObject):
             document.meta.name = entry.display_name
         # als ungespeichert markieren, damit der Benutzer bewusst speichert
         document.undo_stack.resetClean()
+        # nicht still in die Originaldatei schreiben: Sie kann inzwischen anders aussehen
+        document.restored_from_backup = True
         document.title_changed.emit()
         return document
 
@@ -284,6 +286,19 @@ class AutosaveManager(QObject):
         self.save_now()
         if os.path.exists(self._backup_path(document)):
             self.discard(entry)
+
+    def set_aside(self, entry: RecoveryEntry) -> str | None:
+        """Eine Sicherung, die sich nicht laden ließ, nicht löschen, sondern umbenennen (``….defekt``): Sie wird nicht
+        mehr angeboten, bleibt aber für einen Rettungsversuch erhalten. Gibt den neuen Pfad zurück."""
+        target = entry.backup_path + ".defekt"
+        try:
+            os.replace(entry.backup_path, target)
+        except OSError:
+            log.warning("Sicherung konnte nicht beiseitegelegt werden: %s", entry.backup_path)
+            return None
+        _remove(entry.meta_path)
+        self._cleanup_dead_sessions()
+        return target
 
     def discard(self, entry: RecoveryEntry) -> None:
         _remove(entry.backup_path)

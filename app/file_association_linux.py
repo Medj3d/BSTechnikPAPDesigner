@@ -106,7 +106,7 @@ def desktop_entry(program: list[str] | None = None, hidden: bool = False) -> str
     if hidden:
         lines.append("NoDisplay=true")
     elif os.path.isabs(program[0]):
-        lines.append(f"TryExec={exec_argument(program[0])}")
+        lines.append(f"TryExec={_value(program[0])}")   # ein Pfad, keine Befehlszeile: ohne Anführungszeichen
     lines += [
         f"Icon={config.LINUX_DESKTOP_ID}",
         "Terminal=false",

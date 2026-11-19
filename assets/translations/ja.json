@@ -1045,5 +1045,10 @@
  "Den Plan drucken": "図を印刷",
  "Knöpfe in der Werkzeugleiste": "ツールバーのボタン",
  "Assembler (PIC16F887)": "アセンブリ (PIC16F887)",
- "Assembler-Datei ({pattern})": "アセンブリファイル ({pattern})"
+ "Assembler-Datei ({pattern})": "アセンブリファイル ({pattern})",
+ "Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.": "変換できない部分はコード内で TODO と示されます。言葉だけの条件は PORTB のビットテストになります – 調整してください。",
+ "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "疑似コードはブロックのテキストをそのまま使います。",
+ "Das Hauptprogramm hat kein Start-Element.": "メインプログラムに開始シンボルがありません。",
+ "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "パスワードを削除 – 課題はだれでも変更できるようになります",
+ "Die Sicherung wurde aufbewahrt: {path}": "バックアップは保存されています: {path}"
 }

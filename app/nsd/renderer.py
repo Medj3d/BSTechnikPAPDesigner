@@ -34,6 +34,9 @@ PAD_Y = 6.0
 BAR = 26.0             # Breite des Schleifenbalkens
 MIN_WIDTH = 120.0
 MAX_TEXT_WIDTH = 260.0
+# Obergrenzen für Bilder des Struktogramms (Pixel insgesamt und je Seite), wie beim Export des Plans
+MAX_IMAGE_PIXELS = 200_000_000
+MAX_IMAGE_SIDE = 32_000
 LABEL_ROW = 16.0       # Platz für „ja“/„nein“ im Verzweigungskopf
 TITLE_HEIGHT = 30.0
 PROGRAM_GAP = 36.0
@@ -394,6 +397,9 @@ def total_size(programs: list[Program], theme, margin: float = 20.0) -> QSizeF:
 def render_image(programs: list[Program], theme=None, scale: float = 2.0, transparent: bool = False) -> QImage:
     theme = theme or styles.current_theme()
     size = total_size(programs, theme)
+    # sehr große Struktogramme: lieber etwas kleiner als gar kein Bild (Qt liefert sonst ein leeres QImage)
+    area = max(1.0, size.width() * size.height())
+    scale = min(scale, (MAX_IMAGE_PIXELS / area) ** 0.5, MAX_IMAGE_SIDE / max(1.0, size.width(), size.height()))
     pixels = QSize(max(1, int(size.width() * scale)), max(1, int(size.height() * scale)))
     # RGBA8888: Qt glättet Text hier in Graustufen. Bei ARGB32/RGB32 nutzt es unter
     # Windows ClearType → farbige Säume im Bild (auch mit NoSubpixelAntialias).

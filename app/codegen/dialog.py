@@ -105,8 +105,15 @@ class CodeDialog(QDialog):
             return
         self.editor.setPlainText(code)
         warnings = [w for program in self.programs for w in program.warnings]
-        note = tr("Nicht erkannte Texte sind im Code als TODO markiert; nicht auswertbare Bedingungen "
-                  "werden zur Laufzeit als Frage gestellt.")
+        # was mit Unbekanntem geschieht, hängt von der Sprache ab
+        if self.current_language == "asm":
+            note = tr("Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten "
+                      "bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.")
+        elif self.current_language == "pseudo":
+            note = tr("Der Pseudocode übernimmt die Texte der Bausteine unverändert.")
+        else:
+            note = tr("Nicht erkannte Texte sind im Code als TODO markiert; nicht auswertbare Bedingungen "
+                      "werden zur Laufzeit als Frage gestellt.")
         if warnings:
             note = tr("Hinweise: {warnings}", warnings=" ".join(dict.fromkeys(warnings))) + "\n" + note
         self.notes.setText(note)

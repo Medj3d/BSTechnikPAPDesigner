@@ -114,7 +114,7 @@ class Variables:
                     self._add(name)
                     self.inputs.add(name)
             elif stmt.kind == "process":
-                for name, expr in T.parse_assignments(stmt.text) or []:
+                for name, expr in T.recognized_assignments(stmt.text):
                     self._add(name)
                     tree = T.parse_expression(expr)
                     if tree is not None:
@@ -149,7 +149,7 @@ class Variables:
                 self._read(header.condition)
             elif header.kind == "times":
                 self._read(header.count, numeric=True)
-            footer = T.parse_loop_footer(stmt.footer) if stmt.footer else None
+            footer = T.loop_footer(stmt.header, stmt.footer)
             if footer is not None:
                 self._read(footer[1])
 

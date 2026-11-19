@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QInputDialog, QLabel,
+from PySide6.QtWidgets import (QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QInputDialog, QLabel,
                                QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QTextBrowser, QVBoxLayout,
                                QWidget)
 
 from app import task as T
+from app.fileformat.serializer import storable_text
 from app.i18n import tr
 
 
@@ -60,6 +61,12 @@ class TaskDialog(QDialog):
         form.addRow(tr("Musterlösung"), self.solution_edit)
         form.addRow(tr("Passwort"), self.password_edit)
         form.addRow(tr("Wiederholen"), self.repeat_edit)
+        # ein vergebenes Passwort lässt sich auch wieder entfernen (dann ist die Aufgabe für alle änderbar)
+        self.remove_password = QCheckBox(tr("Passwort entfernen – die Aufgabe ist dann für alle änderbar"))
+        self.remove_password.setVisible(current.locked)
+        self.remove_password.toggled.connect(lambda on: (self.password_edit.setEnabled(not on),
+                                                         self.repeat_edit.setEnabled(not on)))
+        form.addRow("", self.remove_password)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr("Übernehmen"))
@@ -89,6 +96,13 @@ class TaskDialog(QDialog):
         self.accept()
 
     def _accept(self) -> None:
+        if self.remove_password.isChecked():
+            if self.solution_edit.toPlainText().strip():
+                QMessageBox.warning(self, tr("Aufgabe stellen"), tr("Für eine Musterlösung ist ein Passwort nötig – "
+                                                                     "sonst könnte sie jeder lesen."))
+                return
+            self.accept()
+            return
         password, repeat = self.password_edit.text(), self.repeat_edit.text()
         if password != repeat:
             QMessageBox.warning(self, tr("Aufgabe stellen"), tr("Die beiden Passwörter stimmen nicht überein."))
@@ -106,9 +120,11 @@ class TaskDialog(QDialog):
     def result_task(self) -> T.Task:
         if self._removed:
             return T.Task()
-        password = self.password_edit.text() or self._previous_password
+        password = "" if self.remove_password.isChecked() else self.password_edit.text() or self._previous_password
         solution = self.solution_edit.toPlainText().strip()
-        return T.Task(title=self.title_edit.text().strip(), text=self.text_edit.toPlainText().strip(),
+        # wie in der Datei gespeichert (ohne Steuerzeichen) – sonst zeigte das Feld bis zum Neuladen etwas anderes
+        return T.Task(title=storable_text(self.title_edit.text()).strip(),
+                      text=storable_text(self.text_edit.toPlainText()).strip(),
                       solution=T.encrypt(solution, password) if solution else "",
                       lock=T.make_lock(password) if password else "")
 

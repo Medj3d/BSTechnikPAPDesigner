@@ -27,6 +27,10 @@ class AddElementsCommand(QUndoCommand):
         self._scene = scene
         self._element_data = [e.copy() for e in elements]
         self._connection_data = [c.copy() for c in connections]
+        # mitgegebener Linienverlauf (z. B. beim Umwandeln eines Bausteins): bei jedem Wiederholen übernehmen
+        self._paths = {c.id: c.path for c in self._connection_data if c.path}
+        for data in self._connection_data:
+            data.path = None
         self._select = select
         # None = alle neuen Bausteine auswählen
         self._select_ids = set(select_ids) if select_ids is not None else None
@@ -59,6 +63,9 @@ class AddElementsCommand(QUndoCommand):
                 scene.add_connection_item(conn)
             # bestehende Linien, die jetzt einen neuen Baustein kreuzen, neu führen
             scene.refresh_routes_around([item.scene_rect() for item in self._items])
+        for conn in self._connections:
+            if conn.connection_id in self._paths and conn.scene() is scene:
+                conn.adopt_path(self._paths[conn.connection_id])
         if self._select:
             scene.select_items([item for item in self._items
                                 if self._select_ids is None or item.element_id in self._select_ids])

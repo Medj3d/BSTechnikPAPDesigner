@@ -295,6 +295,21 @@ def parse_assignments(text: str) -> list[tuple[str, str]] | None:
     return result
 
 
+def assignment_items(text: str) -> list:
+    """Wie ``parse_assignments``, aber Zeile für Zeile: erkannte Zuweisungen als (Name, Ausdruck), alles andere
+    als Text. So zählen in einem Vorgang mit „x = 1“, „Zähler erhöhen“, „y = 2“ die beiden Zuweisungen trotzdem."""
+    items = []
+    for part in [p.strip() for p in re.split(r"[\n;]", text) if p.strip()]:
+        found = parse_assignments(part)
+        items.append(found[0] if found else part)
+    return items
+
+
+def recognized_assignments(text: str) -> list[tuple[str, str]]:
+    """Alle erkannten Zuweisungen eines Vorgangs (auch wenn andere Zeilen keine sind)."""
+    return [item for item in assignment_items(text) if not isinstance(item, str)]
+
+
 # ------------------------------------------------------------ Ein-/Ausgabe
 _QUOTED = re.compile(r'("[^"]*"|„[^“”"]*[“”"]|“[^“”"]*[”"])')
 _CHOICE_HINT = re.compile(r"\([^()]*/[^()]*\)")       # „(ja/nein)“, „(j/n)“
@@ -539,16 +554,22 @@ def parse_loop_header(text: str) -> LoopHeader:
 
 
 def parse_loop_footer(text: str) -> tuple[str, str] | None:
-    """Fuß einer Schleifenbegrenzung: („until“|„while“, Python-Bedingung) oder ``None``."""
+    """Fuß einer Schleifenbegrenzung: („until“|„while“, Python-Bedingung) oder ``None``.
+
+    Ist die Bedingung Freitext („bis Taster gedrückt“), bleibt die Art erhalten und die Bedingung ist leer: Die
+    Schleife ist trotzdem fußgesteuert, Schreibtischtest und erzeugte Programme fragen an ihrem Ende nach."""
     text = " ".join(text.split())
-    match = UNTIL_PATTERN.match(text)
-    if match:
-        cond = condition_expression(match.group(1))
-        if cond:
-            return "until", cond
-    match = WHILE_PATTERN.match(text)
-    if match:
-        cond = condition_expression(match.group(1))
-        if cond:
-            return "while", cond
+    for kind, pattern in (("until", UNTIL_PATTERN), ("while", WHILE_PATTERN)):
+        match = pattern.match(text)
+        if match:
+            return kind, condition_expression(match.group(1)) or ""
     return None
+
+
+def loop_footer(header_text: str, footer_text: str | None) -> tuple[str, str] | None:
+    """Fuß einer Schleife, so wie er gilt: Ein Freitext-Fuß steuert die Schleife nur, wenn der Kopf selbst nichts
+    Auswertbares enthält – „solange x < 10“, „5-mal“ oder eine Zählschleife behalten sonst ihre Bedeutung."""
+    footer = parse_loop_footer(footer_text) if footer_text else None
+    if footer is not None and not footer[1] and parse_loop_header(header_text).kind in ("for", "while", "times"):
+        return None
+    return footer

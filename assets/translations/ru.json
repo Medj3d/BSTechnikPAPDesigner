@@ -1045,5 +1045,10 @@
  "Den Plan drucken": "Напечатать схему",
  "Knöpfe in der Werkzeugleiste": "Кнопки панели инструментов",
  "Assembler (PIC16F887)": "Ассемблер (PIC16F887)",
- "Assembler-Datei ({pattern})": "Файл ассемблера ({pattern})"
+ "Assembler-Datei ({pattern})": "Файл ассемблера ({pattern})",
+ "Nicht übersetzbare Stellen sind im Code als TODO markiert. Bedingungen, die nur aus Worten bestehen, werden zu einem Bit-Test an PORTB – bitte anpassen.": "Непереводимые места помечены в коде как TODO. Условия, состоящие только из слов, становятся проверкой бита на PORTB – исправьте их.",
+ "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "Псевдокод переносит тексты блоков без изменений.",
+ "Das Hauptprogramm hat kein Start-Element.": "В основной программе нет блока «Начало».",
+ "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Удалить пароль – тогда задание сможет изменить любой",
+ "Die Sicherung wurde aufbewahrt: {path}": "Резервная копия сохранена: {path}"
 }
