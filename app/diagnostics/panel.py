@@ -6,6 +6,8 @@ Ein Klick auf einen Eintrag wählt die betroffenen Elemente im Plan aus.
 
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QSizePolicy, QToolButton,
@@ -14,6 +16,8 @@ from PySide6.QtWidgets import (QHBoxLayout, QLabel, QListWidget, QListWidgetItem
 from app import icons, styles
 from app.diagnostics.checks import WARNING, Issue, run_checks
 from app.i18n import tr
+
+log = logging.getLogger(__name__)
 
 
 def severity_icon(severity: str) -> QIcon:
@@ -147,13 +151,17 @@ class DiagnosticsPanel(QWidget):
             self.summary.setText(tr("Kein Projekt geöffnet."))
             self.issues_changed.emit(0, 0)
             return
+        failed = False
         try:
             self._issues = run_checks(document)
-        except Exception:  # Hinweise dürfen die Bedienung nie stören
-            self._issues = []
+        except Exception:  # Hinweise dürfen die Bedienung nie stören – aber auch nicht „alles gut“ vortäuschen
+            log.exception("Prüfung des Plans fehlgeschlagen")
+            self._issues, failed = [], True
         warnings = sum(1 for issue in self._issues if issue.severity == WARNING)
         infos = len(self._issues) - warnings
-        if not self._issues:
+        if failed:
+            self.summary.setText(tr("Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll)."))
+        elif not self._issues:
             self.summary.setText(tr("Keine Auffälligkeiten."))
         else:
             parts = []

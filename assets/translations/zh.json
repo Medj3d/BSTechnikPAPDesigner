@@ -1050,5 +1050,10 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "伪代码按原样采用各模块的文字。",
  "Das Hauptprogramm hat kein Start-Element.": "主程序中没有开始符号。",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "删除密码 – 之后任何人都可以修改任务",
- "Die Sicherung wurde aufbewahrt: {path}": "备份已保留：{path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "备份已保留：{path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "程序没有关闭，因此未安装更新。下次启动时会再次提供。",
+ "„{name}“ wurde außerhalb des Programms geändert.": "“{name}”已在程序之外被更改。",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "自打开以来，另一个程序（或同步，例如 OneDrive）更改了该文件。覆盖后这些更改将丢失。\n\n仍要覆盖该文件吗？",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "“{name}”已在程序之外被更改 – 自动保存已暂停。请手动保存。",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "无法检查流程图（程序出错，请查看日志）。"
 }

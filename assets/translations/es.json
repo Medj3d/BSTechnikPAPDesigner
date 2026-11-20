@@ -1050,5 +1050,10 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "El pseudocódigo toma los textos de los bloques sin cambios.",
  "Das Hauptprogramm hat kein Start-Element.": "El programa principal no tiene ningún símbolo de inicio.",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Quitar la contraseña – entonces cualquiera podrá cambiar la tarea",
- "Die Sicherung wurde aufbewahrt: {path}": "La copia de seguridad se ha conservado: {path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "La copia de seguridad se ha conservado: {path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "El programa no se cerró, por lo que la actualización no se instaló. Se volverá a ofrecer en el próximo inicio.",
+ "„{name}“ wurde außerhalb des Programms geändert.": "«{name}» se ha modificado fuera del programa.",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "Desde que se abrió, otro programa (o la sincronización, p. ej. OneDrive) ha modificado el archivo. Al sobrescribirlo se perderán esos cambios.\n\n¿Sobrescribir el archivo de todos modos?",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "«{name}» se ha modificado fuera del programa – el guardado automático está en pausa. Guárdelo usted mismo.",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "No se pudo comprobar el diagrama (error del programa, consulte el registro)."
 }

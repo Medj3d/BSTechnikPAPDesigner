@@ -1050,5 +1050,10 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "疑似コードはブロックのテキストをそのまま使います。",
  "Das Hauptprogramm hat kein Start-Element.": "メインプログラムに開始シンボルがありません。",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "パスワードを削除 – 課題はだれでも変更できるようになります",
- "Die Sicherung wurde aufbewahrt: {path}": "バックアップは保存されています: {path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "バックアップは保存されています: {path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "プログラムが終了しなかったため、更新はインストールされませんでした。次回の起動時に再び案内されます。",
+ "„{name}“ wurde außerhalb des Programms geändert.": "「{name}」はプログラムの外で変更されました。",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "開いた後に別のプログラム（または OneDrive などの同期）がファイルを変更しました。上書きするとその変更は失われます。\n\nそれでもファイルを上書きしますか？",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "「{name}」はプログラムの外で変更されました – 自動保存は一時停止中です。ご自身で保存してください。",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "フローチャートを確認できませんでした（プログラムのエラー、ログを参照）。"
 }

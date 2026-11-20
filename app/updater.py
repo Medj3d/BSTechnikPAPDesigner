@@ -67,6 +67,8 @@ BLOCKED_MARKER = "gesperrt.txt"
 # (verhindert, dass es von dort noch einmal weiterverweist)
 STARTED_FROM_UPDATE_ENV = "BSTECHNIK_PAP_STARTED_FROM_UPDATE"
 BACKUP_SUFFIX = ".alt"
+# Liste der Sicherungen (….alt), die ein Update im Programmordner angelegt hat: nur diese räumt der nächste Start weg
+BACKUP_RECORD = "_update-alt.txt"
 MANIFEST_MAX_BYTES = 64 * 1024
 PACKAGE_MAX_BYTES = 600 * 1024 * 1024
 UNPACKED_MAX_BYTES = 2 * 1024 * 1024 * 1024
@@ -445,9 +447,35 @@ def cleanup_staging(app_dir: str) -> None:
         names = os.listdir(app_dir)
     except OSError:
         return
-    for name in names:
-        if name.endswith(BACKUP_SUFFIX) and os.path.lexists(os.path.join(app_dir, name[: -len(BACKUP_SUFFIX)])):
-            _remove(os.path.join(app_dir, name))
+    # nur, was ein Update selbst beiseitegelegt und vermerkt hat – nie andere Dateien, die zufällig auf .alt enden
+    if BACKUP_RECORD not in names:
+        return
+    record = os.path.join(app_dir, BACKUP_RECORD)
+    try:
+        with open(record, encoding="utf-8") as handle:
+            listed = [line.strip() for line in handle if line.strip()]
+    except OSError:
+        return
+    remaining = []
+    for name in listed:
+        if not name.endswith(BACKUP_SUFFIX) or os.path.basename(name) != name or name not in names:
+            continue
+        _remove(os.path.join(app_dir, name))
+        if os.path.lexists(os.path.join(app_dir, name)):
+            remaining.append(name)
+    _write_backup_record(app_dir, remaining)
+
+
+def _write_backup_record(app_dir: str, names: list[str]) -> None:
+    record = os.path.join(app_dir, BACKUP_RECORD)
+    if not names:
+        _remove(record)
+        return
+    try:
+        with open(record, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(names) + "\n")
+    except OSError:
+        log.warning("Liste der Update-Sicherungen konnte nicht geschrieben werden: %s", record)
 
 
 # ------------------------------------------------------- Laden und Entpacken
@@ -672,6 +700,7 @@ def apply_update(source_dir: str, app_dir: str, retry_seconds: float = 15.0) -> 
                 _remove(backup)
                 _rename_with_retry(target, backup, retry_seconds)
                 backups.append((target, backup))
+                _write_backup_record(app_dir, [os.path.basename(b) for _t, b in backups])
             created.append(target)
             source = os.path.join(source_dir, name)
             if os.path.isdir(source):
@@ -687,10 +716,13 @@ def apply_update(source_dir: str, app_dir: str, retry_seconds: float = 15.0) -> 
                 os.rename(backup, target)
             except OSError:
                 log.exception("Alter Stand konnte nicht zurückgeholt werden: %s", target)
+        _write_backup_record(app_dir, [os.path.basename(b) for _t, b in backups if os.path.lexists(b)])
         raise UpdateError(tr("Das Update konnte nicht installiert werden (fehlen Schreibrechte im "
                              "Programmordner?). Die bisherige Version bleibt erhalten."), str(exc)) from exc
     for _target, backup in backups:
         _remove(backup)
+    # was Windows noch festhält, räumt der nächste Start weg
+    _write_backup_record(app_dir, [os.path.basename(b) for _t, b in backups if os.path.lexists(b)])
 
 
 def write_manifest(path: str, package: str, notes: str = "") -> dict:

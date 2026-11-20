@@ -79,7 +79,7 @@ def test_restored_backup_survives_until_new_backup(tmp_path, monkeypatch):
     entry = survivor.find_orphans()[0]
     restored = survivor.restore(entry)
     # Schreiben schlägt fehl (z. B. Datenträger voll): die alte Sicherung darf nicht verschwinden
-    monkeypatch.setattr(autosave_module, "save_diagram", lambda *_a: (_ for _ in ()).throw(OSError("voll")))
+    monkeypatch.setattr(autosave_module, "save_diagram", lambda *_a, **_k: (_ for _ in ()).throw(OSError("voll")))
     survivor.adopt(restored, entry)
     assert os.path.exists(entry.backup_path)
     monkeypatch.undo()

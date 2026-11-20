@@ -180,11 +180,12 @@ class AutosaveManager(QObject):
                 # neuen Änderung ist sie dieselbe, und zusammengelegte Schritte (Verschieben mit Pfeiltasten) ändern
                 # sie gar nicht
                 diagram = document.to_diagram()
-                index = hashlib.sha256(diagram_to_xml(diagram).encode("utf-8")).hexdigest()
+                payload = diagram_to_xml(diagram).encode("utf-8")
+                index = hashlib.sha256(payload).hexdigest()
                 path = self._backup_path(document)
                 if info["index"] == index and os.path.exists(path):
                     continue  # seit der letzten Sicherung unverändert
-                save_diagram(diagram, path)
+                save_diagram(diagram, path, payload=payload)   # derselbe Inhalt, nicht noch einmal umwandeln
                 _write_json(path + META_SUFFIX, {
                     "original_path": document.file_path,
                     "display_name": document.display_name,
@@ -276,6 +277,15 @@ class AutosaveManager(QObject):
         document.undo_stack.resetClean()
         # nicht still in die Originaldatei schreiben: Sie kann inzwischen anders aussehen
         document.restored_from_backup = True
+        if entry.original_path:
+            from app.document import file_stamp
+
+            # Ist die Originaldatei jünger als die Sicherung, hat sie danach jemand geändert: beim Speichern fragen
+            try:
+                newer = os.path.getmtime(entry.original_path) > os.path.getmtime(entry.backup_path)
+            except OSError:
+                newer = False
+            document.disk_stamp = (-1, -1) if newer else file_stamp(entry.original_path)
         document.title_changed.emit()
         return document
 

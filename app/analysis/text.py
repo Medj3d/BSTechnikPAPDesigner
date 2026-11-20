@@ -131,14 +131,15 @@ def normalize_expression(text: str, condition: bool = False) -> str:
 
     Zeichenketten in Anführungszeichen bleiben unverändert.
     """
-    expr = " ".join(text.replace("\n", " ").split())
+    expr = text.replace("\n", " ").strip()
     if condition:
         expr = expr.rstrip("?").strip()
     for old, new in _QUOTES:
         expr = expr.replace(old, new)
     parens: list = []
     parts = _STRING_LITERAL.split(expr)
-    result = [part if index % 2 else _normalize_code(part, condition, parens)
+    # Leerzeichen nur außerhalb von Zeichenketten zusammenfassen: „"a  b"“ bleibt mit zwei Leerzeichen
+    result = [part if index % 2 else _normalize_code(re.sub(r"\s+", " ", part), condition, parens)
               for index, part in enumerate(parts)]
     return "".join(result).strip()
 
@@ -275,12 +276,29 @@ def unknown_names(expr: str, known) -> list[str]:
 ASSIGN = re.compile(rf"^\s*({IDENT_PATTERN})\s*(?::=|←|<-|=(?!=))\s*(.+?)\s*;?\s*$")
 
 
+_STATEMENT_PARTS = re.compile(r'("[^"\n]*"|„[^“”"\n]*[“”"]|“[^“”"\n]*[”"]|\'[^\'\n]*\'|;|\n)')
+
+
+def split_statements(text: str) -> list[str]:
+    """Anweisungen eines Bausteins: je Zeile oder durch „;“ getrennt – ein „;“ in Anführungszeichen trennt nicht
+    („x = "A;B"“ ist eine Anweisung)."""
+    parts, current = [], []
+    for piece in _STATEMENT_PARTS.split(text or ""):
+        if piece in (";", "\n"):
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(piece)
+    parts.append("".join(current))
+    return [part.strip() for part in parts if part.strip()]
+
+
 def parse_assignments(text: str) -> list[tuple[str, str]] | None:
     """„x = x + 1“, „summe := 0“, „i ← i + 1“ (mehrere Zeilen oder durch ; getrennt).
 
     Gibt ``None`` zurück, wenn nicht alle Teile als Zuweisung erkannt werden.
     """
-    parts = [p.strip() for p in re.split(r"[\n;]", text) if p.strip()]
+    parts = split_statements(text)
     if not parts:
         return None
     result = []
@@ -299,7 +317,7 @@ def assignment_items(text: str) -> list:
     """Wie ``parse_assignments``, aber Zeile für Zeile: erkannte Zuweisungen als (Name, Ausdruck), alles andere
     als Text. So zählen in einem Vorgang mit „x = 1“, „Zähler erhöhen“, „y = 2“ die beiden Zuweisungen trotzdem."""
     items = []
-    for part in [p.strip() for p in re.split(r"[\n;]", text) if p.strip()]:
+    for part in split_statements(text):
         found = parse_assignments(part)
         items.append(found[0] if found else part)
     return items

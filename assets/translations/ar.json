@@ -1050,5 +1050,10 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "تأخذ الشيفرة الزائفة نصوص الكتل كما هي.",
  "Das Hauptprogramm hat kein Start-Element.": "لا يوجد عنصر بداية في البرنامج الرئيسي.",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "إزالة كلمة المرور – عندها يمكن لأي شخص تغيير المهمة",
- "Die Sicherung wurde aufbewahrt: {path}": "تم الاحتفاظ بالنسخة الاحتياطية: {path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "تم الاحتفاظ بالنسخة الاحتياطية: {path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "لم يتم إغلاق البرنامج، لذلك لم يتم تثبيت التحديث. سيُعرض مرة أخرى عند التشغيل التالي.",
+ "„{name}“ wurde außerhalb des Programms geändert.": "تم تغيير „{name}“ خارج البرنامج.",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "منذ فتحه، قام برنامج آخر (أو المزامنة، مثل OneDrive) بتغيير الملف. ستفقد هذه التغييرات عند الكتابة فوقه.\n\nهل تريد الكتابة فوق الملف على أي حال؟",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "تم تغيير „{name}“ خارج البرنامج – الحفظ التلقائي متوقف. يُرجى الحفظ بنفسك.",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "تعذر فحص المخطط (خطأ في البرنامج، انظر السجل)."
 }

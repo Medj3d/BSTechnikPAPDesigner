@@ -41,6 +41,7 @@ from app.i18n import tr_code
 
 INDENT = "\t"
 INPUT_PORT = "PORTB"
+FREE_CELLS = 0x80 - 0x20   # freie Speicherzellen in Bank 0 ab 0x20 (die letzten 16 in allen Bänken gleich)
 OUTPUT_PORT = "PORTD"
 # Register des PIC16F887, die im Plan direkt vorkommen dürfen (keine Variablen)
 REGISTERS = {
@@ -135,6 +136,7 @@ class PicAsmGenerator:
         self.port_out: dict[str, int] = {}
         self.labels_of: list[str] = []
         self.variable_names: list[str] = []
+        self._symbols: dict[str, str] = {}   # Variable → Name im Assembler (eindeutig: „ärger“ und „aerger“)
         self.extra_vars: list[str] = []
         self.called: dict[str, str] = {}
 
@@ -162,8 +164,17 @@ class PicAsmGenerator:
     def var(self, name: str) -> str:
         if name.upper() in REGISTERS:
             return name.upper()
+        if name in self._symbols:
+            return self._symbols[name]
         sym = symbol(name)
-        return "v_" + sym if taken_name(sym) or sym in self.labels_of else sym
+        if taken_name(sym) or sym in self.labels_of:
+            sym = "v_" + sym
+        base, number = sym, 2
+        used = set(self._symbols.values())
+        while sym in used:   # zwei Variablen mit demselben Namen im Assembler bekämen dieselbe Speicherzelle
+            sym, number = f"{base[:27]}_{number}", number + 1
+        self._symbols[name] = sym
+        return sym
 
     def use_port(self, port: str, output: bool, mask: int = 0xFF) -> None:
         if port in PORTS:
@@ -508,6 +519,11 @@ class PicAsmGenerator:
         lines = [";" + "-" * 97, "; " + tr_code("Variablen und Definitionen - (ab 0x20 -> freier Speicher auf Bank 0)"),
                  ";" + "-" * 97]
         names = list(dict.fromkeys(names))
+        if len(names) > FREE_CELLS:
+            # 0x20 bis 0x7F: dahinter liegen in Bank 0 keine freien Zellen mehr – der Code würde Register überschreiben
+            lines.append("; TODO: " + tr_code("Zu viele Variablen ({count}): Der PIC16F887 hat in Bank 0 nur {free} "
+                                              "freie Speicherzellen (0x20 bis 0x7F). Bitte Variablen sparen.",
+                                              count=len(names), free=FREE_CELLS))
         if names:
             lines += ["\tcblock\t0x20"] + [f"\t{name}" for name in names] + ["\tendc"]
         return lines + ["", "\torg\t0x00", ""]
@@ -791,7 +807,7 @@ class PicAsmGenerator:
     def action_process(self, stmt: Action) -> None:
         self.note(stmt.text)
         # wie überall im Programm: mehrere Anweisungen je Zeile oder durch „;“ getrennt
-        for line in [part.strip() for part in re.split(r"[\n;]", stmt.text) if part.strip()]:
+        for line in T.split_statements(stmt.text):
             bit = _BIT_ASSIGN.match(line)
             if bit:
                 register, command = self.var(bit.group(1)), "BSF" if bit.group(3) == "1" else "BCF"

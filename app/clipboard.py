@@ -16,7 +16,7 @@ from __future__ import annotations
 from PySide6.QtCore import QEventLoop, QMimeData, QPointF, QRectF, QThread
 from PySide6.QtWidgets import QApplication
 
-from app.commands import AddElementsCommand, DeleteCommand
+from app.commands import AddElementsCommand
 from app.connections import routing
 from app.fileformat.project import ProjectFileError
 from app.fileformat.serializer import diagram_from_xml, diagram_to_xml
@@ -112,8 +112,9 @@ def copy_image(scene) -> bool:
         mime.setImageData(image)
         return mime
 
-    set_clipboard(mime_data, lambda data: data is not None and data.hasImage() and not data.hasFormat(MIME_TYPE))
-    return True
+    # Erfolg nur melden, wenn das Bild wirklich in der Zwischenablage angekommen ist
+    return set_clipboard(mime_data,
+                         lambda data: data is not None and data.hasImage() and not data.hasFormat(MIME_TYPE))
 
 
 def cut_selection(scene) -> bool:
@@ -123,7 +124,8 @@ def cut_selection(scene) -> bool:
     connection_ids = [conn.connection_id for conn in scene.selected_connections()]
     if not copy_selection(scene):
         return False
-    scene.undo_stack.push(DeleteCommand(scene, element_ids, connection_ids, text=tr("Ausschneiden")))
+    # wie Löschen: lose Pfeilenden fallen mit weg, die Lücke im Ablauf wird wieder verbunden
+    scene.delete_items(element_ids, connection_ids, text=tr("Ausschneiden"))
     return True
 
 

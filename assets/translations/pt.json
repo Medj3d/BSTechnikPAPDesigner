@@ -1050,5 +1050,10 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "O pseudocódigo usa os textos dos blocos sem alterações.",
  "Das Hauptprogramm hat kein Start-Element.": "O programa principal não tem símbolo Início.",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Remover a senha – qualquer pessoa poderá alterar a tarefa",
- "Die Sicherung wurde aufbewahrt: {path}": "A cópia de segurança foi mantida: {path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "A cópia de segurança foi mantida: {path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "O programa não foi fechado, por isso a atualização não foi instalada. Ela será oferecida novamente na próxima inicialização.",
+ "„{name}“ wurde außerhalb des Programms geändert.": "“{name}” foi alterado fora do programa.",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "Desde que foi aberto, outro programa (ou a sincronização, p. ex. OneDrive) alterou o arquivo. Ao sobrescrever, essas alterações serão perdidas.\n\nSobrescrever o arquivo mesmo assim?",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "“{name}” foi alterado fora do programa – o salvamento automático está pausado. Salve você mesmo.",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "Não foi possível verificar o fluxograma (erro no programa, veja o registro)."
 }

@@ -492,14 +492,22 @@ class _Structurer:
         blocked = stop | {cur} | self._open_heads()
         merge = self._usable_merge(self._merge_point(cur, list(groups), blocked))
         inner_stop = stop | ({merge} if merge else set())
-        built = []
-        for target, edges in groups.items():
-            block, stopped = self._branch(target, merge, inner_stop, stop_at_loop_end)
-            built.append((edges, block, stopped))
+        blocks = {}
+        for target in groups:
+            blocks[target] = self._branch(target, merge, inner_stop, stop_at_loop_end)
+        # Die Bedingungen werden in der Reihenfolge der Ausgänge geprüft – wie im Schreibtischtest. Aufeinander
+        # folgende Ausgänge zum selben Ziel teilen sich eine Bedingung („6“ oder „7“ → Wochenende); taucht ein Ziel
+        # später noch einmal auf (z. B. „>= 0“ → A, „> 1“ → B, „sonst“ → A), steht es dort noch einmal, sonst würde
+        # die frühere Bedingung übersprungen.
+        runs: list[tuple[list[Edge], str]] = []
+        for edge in outs:
+            if runs and runs[-1][1] == edge.target:
+                runs[-1][0].append(edge)
+            else:
+                runs.append(([edge], edge.target))
         # der letzte Ausgang (bzw. „sonst“) ist der Sonst-Zweig
-        else_index = next(i for i, (edges, _, _) in enumerate(built) if outs[-1] in edges)
-        else_block = built[else_index][1]
-        chain = [entry for i, entry in enumerate(built) if i != else_index]
+        else_block = blocks[runs[-1][1]][0]
+        chain = [(edges, blocks[target][0], blocks[target][1]) for edges, target in runs[:-1]]
         for edges, block, _ in reversed(chain):
             conditions = []
             for edge in edges:
@@ -512,7 +520,7 @@ class _Structurer:
         if not chain:
             # alle Ausgänge führen zum selben Baustein
             else_block = Block([If(node.text, cur, Block(), Block(), yes_label(), no_label(), self.comments(cur))])
-        continuation = self._continuation(merge, [(block, stopped) for _, block, stopped in built])
+        continuation = self._continuation(merge, list(blocks.values()))
         return else_block.statements[0], continuation
 
     def _merge_point(self, cur: str, starts: list[str], blocked: frozenset) -> str | None:

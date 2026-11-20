@@ -99,7 +99,13 @@ def _install_update(arguments: list[str]) -> int:
     from app import config, updater
 
     _apply_look(app)
-    updater.wait_for_exit(pid)
+    if not updater.wait_for_exit(pid):
+        # Das alte Programm läuft noch (z. B. Schließen abgebrochen): nichts ersetzen, was gerade benutzt wird
+        splash.close()
+        QMessageBox.warning(None, config.APP_NAME, tr("Das Programm wurde nicht beendet, deshalb wurde das Update "
+                                                      "nicht installiert. Es wird beim nächsten Start wieder "
+                                                      "angeboten."))
+        return 1
     try:
         updater.apply_update(os.path.dirname(os.path.abspath(sys.executable)), app_dir)
     except updater.UpdateError as exc:

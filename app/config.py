@@ -9,7 +9,7 @@ import sys as _sys
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.15.2"
+APP_VERSION = "1.15.3"
 APP_RELEASE_DATE = "November 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Kontakt und Website (im Dialog „Über das Programm“)
@@ -17,7 +17,7 @@ AUTHOR_WEBSITE = "https://medjed.net"
 # Text auf dem Ladebildschirm
 SPLASH_CREDIT = "A product for BS Technik from Are Schäfer and Linus Twardzik"
 # So lange bleibt der Ladebildschirm mindestens sichtbar (Millisekunden)
-SPLASH_MIN_DURATION_MS = 4000
+SPLASH_MIN_DURATION_MS = 2500
 ORGANIZATION_NAME = "BS Technik"
 ORGANIZATION_DOMAIN = "bstechnik.local"
 # Kennung für QSettings (Registry-Schlüssel unter HKCU\Software\<ORG>\<SETTINGS_APP>)

@@ -1050,5 +1050,10 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "Le pseudo-code reprend les textes des blocs tels quels.",
  "Das Hauptprogramm hat kein Start-Element.": "Le programme principal n'a pas de symbole Début.",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Supprimer le mot de passe – tout le monde pourra alors modifier la tâche",
- "Die Sicherung wurde aufbewahrt: {path}": "La sauvegarde a été conservée : {path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "La sauvegarde a été conservée : {path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "Le programme n'a pas été fermé, la mise à jour n'a donc pas été installée. Elle sera proposée à nouveau au prochain démarrage.",
+ "„{name}“ wurde außerhalb des Programms geändert.": "« {name} » a été modifié en dehors du programme.",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "Depuis son ouverture, un autre programme (ou la synchronisation, p. ex. OneDrive) a modifié le fichier. En l'écrasant, ces modifications seront perdues.\n\nÉcraser le fichier quand même ?",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "« {name} » a été modifié en dehors du programme – l'enregistrement automatique est suspendu. Veuillez enregistrer vous-même.",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "L'organigramme n'a pas pu être vérifié (erreur du programme, voir le journal)."
 }

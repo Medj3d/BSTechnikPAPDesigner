@@ -815,10 +815,17 @@ class DiagramScene(QGraphicsScene):
         self.prepare_for_command()
         element_ids = [it.element_id for it in self.selected_elements()]
         connection_ids = [c.connection_id for c in self.selected_connections()]
+        self.delete_items(element_ids, connection_ids)
+
+    def delete_items(self, element_ids: list[str], connection_ids: list[str], text: str | None = None) -> None:
+        """Löscht Bausteine und Pfeile wie „Entfernen“: lose Pfeilenden fallen mit weg, eine Lücke im Ablauf wird
+        wieder verbunden (auch für „Ausschneiden“)."""
+        element_ids, connection_ids = list(element_ids), list(connection_ids)
         if not element_ids and not connection_ids:
             return
         count = len(element_ids) + len(connection_ids)
-        text = tr("Löschen") if count == 1 else tr("{count} Objekte löschen", count=count)
+        if text is None:
+            text = tr("Löschen") if count == 1 else tr("{count} Objekte löschen", count=count)
         element_ids += self._loose_ends_of(element_ids, connection_ids)
         self._pending_heal_updates = []
         extra_junctions, heals = self._plan_junction_healing(set(element_ids), set(connection_ids))

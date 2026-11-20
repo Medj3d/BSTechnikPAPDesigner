@@ -114,6 +114,15 @@ class DiagramPage:
         return "" if self.is_main else flow_name(self.display_name)
 
 
+def file_stamp(path: str | None) -> tuple | None:
+    """(Änderungszeit, Größe) einer Datei – oder ``None``, wenn es sie nicht gibt."""
+    try:
+        info = os.stat(path) if path else None
+    except OSError:
+        return None
+    return (info.st_mtime_ns, info.st_size) if info is not None else None
+
+
 class DiagramDocument(QObject):
     title_changed = Signal()
     modified_changed = Signal(bool)
@@ -143,6 +152,9 @@ class DiagramDocument(QObject):
         self.native_file = True
         # aus einer Sicherung nach einem Absturz: erst nach einem bewussten Speichern automatisch speichern
         self.restored_from_backup = False
+        # Stand der Datei beim Öffnen bzw. letzten Speichern (Zeitstempel, Größe): Hat ihn jemand anderes geändert
+        # (zweites Programm, Synchronisieren, Netzlaufwerk), wird nicht still überschrieben
+        self.disk_stamp: tuple | None = None
         self.undo_stack = QUndoStack(self)
         self.undo_stack.setUndoLimit(0)
         self.pages: list[DiagramPage] = []
@@ -436,10 +448,18 @@ class DiagramDocument(QObject):
         document = cls(result.diagram, os.path.abspath(path), parent)
         document.load_warnings = result.warnings + document.load_warnings
         document.native_file = result.native
+        document.disk_stamp = file_stamp(document.file_path)
         if not result.native:
             for page in document.pages[1:]:
                 page.fit_on_show = True
         return document
+
+    def changed_on_disk(self) -> bool:
+        """Wurde die eigene Datei seit dem Öffnen bzw. letzten Speichern außerhalb des Programms geändert?"""
+        if not self.file_path or self.disk_stamp is None:
+            return False
+        current = file_stamp(self.file_path)
+        return current is not None and current != self.disk_stamp
 
     def to_diagram(self) -> Diagram:
         if self.view_state_provider is not None:
@@ -477,6 +497,7 @@ class DiagramDocument(QObject):
         self.file_path = path
         self.native_file = True
         self.restored_from_backup = False
+        self.disk_stamp = file_stamp(path)
         self.undo_stack.setClean()
         self.title_changed.emit()
 
@@ -486,11 +507,20 @@ class DiagramDocument(QObject):
         key = os.path.normcase(path)
         if key in self._backed_up or not os.path.isfile(path):
             return
-        self._backed_up.add(key)
+        target = config.backup_path_for(path)
+        temp = target + ".tmp"
         try:
-            shutil.copy2(path, config.backup_path_for(path))
+            # erst vollständig kopieren, dann ersetzen: eine halb geschriebene Sicherungskopie gibt es so nie
+            shutil.copy2(path, temp)
+            os.replace(temp, target)
         except OSError as exc:  # eine fehlende Sicherungskopie verhindert das Speichern nicht
             log.warning("Sicherungskopie von %s nicht möglich: %s", path, exc)
+            try:
+                os.remove(temp)
+            except OSError:
+                pass
+            return   # beim nächsten Speichern wird es noch einmal versucht
+        self._backed_up.add(key)
 
     # -------------------------------------------------------- Eigenschaften
     def apply_properties(self, meta: ProjectMeta, grid_size: int) -> None:

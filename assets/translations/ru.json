@@ -1050,5 +1050,10 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "Псевдокод переносит тексты блоков без изменений.",
  "Das Hauptprogramm hat kein Start-Element.": "В основной программе нет блока «Начало».",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Удалить пароль – тогда задание сможет изменить любой",
- "Die Sicherung wurde aufbewahrt: {path}": "Резервная копия сохранена: {path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "Резервная копия сохранена: {path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "Программа не была закрыта, поэтому обновление не установлено. Оно будет предложено снова при следующем запуске.",
+ "„{name}“ wurde außerhalb des Programms geändert.": "«{name}» был изменён вне программы.",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "С момента открытия файл изменила другая программа (или синхронизация, например OneDrive). При перезаписи эти изменения будут потеряны.\n\nВсё равно перезаписать файл?",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "«{name}» был изменён вне программы – автосохранение приостановлено. Сохраните файл вручную.",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "Не удалось проверить блок-схему (ошибка программы, см. журнал)."
 }

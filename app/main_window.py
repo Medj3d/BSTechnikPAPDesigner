@@ -145,6 +145,8 @@ class MainWindow(QMainWindow):
         self.updates = UpdateController(self)
         self.instance_server = None  # lauscht auf Dateien weiterer Programmstarts (siehe app/single_instance.py)
         self._restart_files: list[str] | None = None  # gesetzt, solange ein Neustart (z. B. Sprachwechsel) läuft
+        # Projekte, deren Änderungen der Benutzer schon verworfen hat (Update): beim Schließen nicht noch einmal fragen
+        self.close_without_asking: set = set()
         # Automatisches Speichern bereits gespeicherter Projekte (kurz nach der letzten Änderung)
         self._auto_save_enabled = self.settings_store.auto_save()
         self._auto_save_pending: set = set()
@@ -1290,7 +1292,34 @@ class MainWindow(QMainWindow):
                 return self.save_document_as(document)
             if choice != "overwrite":
                 return False
+        if document.changed_on_disk():
+            choice = self._ask_disk_conflict(document)
+            if choice == "save_as":
+                return self.save_document_as(document)
+            if choice != "overwrite":
+                return False
         return self._save_to(document, document.file_path)
+
+    def _ask_disk_conflict(self, document: DiagramDocument) -> str:
+        """Die Datei wurde seit dem Öffnen außerhalb des Programms geändert. ``"overwrite"``, ``"save_as"`` oder
+        ``"cancel"``."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(config.APP_NAME)
+        box.setText(tr("„{name}“ wurde außerhalb des Programms geändert.", name=os.path.basename(document.file_path)))
+        box.setInformativeText(tr("Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. "
+                                  "OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen "
+                                  "verloren.\n\nSoll die Datei trotzdem überschrieben werden?"))
+        overwrite = box.addButton(tr("Überschreiben"), QMessageBox.ButtonRole.AcceptRole)
+        save_as = box.addButton(tr("Speichern unter …"), QMessageBox.ButtonRole.ActionRole)
+        cancel = box.addButton(tr("Abbrechen"), QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(save_as)
+        box.setEscapeButton(cancel)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is overwrite:
+            return "overwrite"
+        return "save_as" if clicked is save_as else "cancel"
 
     def _ask_foreign_overwrite(self, document: DiagramDocument) -> str:
         """Erstes Speichern einer Datei, die nicht mit diesem Programm geschrieben wurde.
@@ -1345,6 +1374,12 @@ class MainWindow(QMainWindow):
 
     def _save_to(self, document: DiagramDocument, path: str, automatic: bool = False) -> bool:
         """Speichert das Projekt. ``automatic``: ohne Meldungsfenster (automatisches Speichern)."""
+        if automatic and path == document.file_path and document.changed_on_disk():
+            # nicht still über fremde Änderungen schreiben – beim Speichern von Hand wird gefragt
+            self.statusBar().showMessage(tr("„{name}“ wurde außerhalb des Programms geändert – automatisches "
+                                            "Speichern ist angehalten. Bitte selbst speichern.",
+                                            name=os.path.basename(path)), 8000)
+            return False
         try:
             document.save(path, backup=self.actions["backup_on_save"].isChecked())
         except ProjectFileError as exc:
@@ -1527,7 +1562,8 @@ class MainWindow(QMainWindow):
             view.document.scene.prepare_for_command()
         for i in range(self.tabs.count()):
             view = self.tabs.widget(i)
-            if isinstance(view, DiagramView) and view.document.is_modified:
+            if isinstance(view, DiagramView) and view.document.is_modified \
+                    and view.document not in self.close_without_asking:
                 self.tabs.setCurrentIndex(i)
                 if not self.maybe_save(view.document):
                     self._restart_files = None  # Schließen abgebrochen: auch kein Neustart
@@ -1753,6 +1789,8 @@ class MainWindow(QMainWindow):
                                          if selected else
                                          tr("Seite als Bild kopiert – in Word oder OneNote mit Strg+V einfügen."),
                                          4000)
+        else:
+            self._error(clean_text(self.actions["copy_image"].text()), CLIPBOARD_BUSY())
 
     def cut(self) -> None:
         scene = self.current_scene()

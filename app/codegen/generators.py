@@ -340,6 +340,7 @@ class PythonGenerator:
         self.uses_eingabe = False
         self.uses_runden = False
         self.used: set[str] = set()              # gelesene Namen und Funktionen (für Importe)
+        self.calls: set[str] = set()             # aufgerufene Funktionen (auch wenn eine Variable so heißt)
         self.called: dict[str, str] = {}         # Funktionsname → Beschriftung (noch fehlende Abläufe)
         self.known: set[str] = set()
         self.types: dict[str, str] = {}
@@ -421,7 +422,8 @@ class PythonGenerator:
         return "\n".join(header + self._imports() + [""] + self._helpers() + stubs + body + footer) + "\n"
 
     def _imports(self) -> list[str]:
-        used = self.used - self.known
+        # Eine Variable „sqrt“ wird zu „sqrt_“ umbenannt – ein Aufruf sqrt(9) braucht den Import trotzdem
+        used = (self.used - self.known) | self.calls
         names = sorted({name for name in _PY_MATH if name in used} | ({"sqrt"} if "wurzel" in used else set())
                        | ({"pi"} if "pi" in used else set()))
         lines = [f"from math import {', '.join(names)}"] if names else []
@@ -564,6 +566,8 @@ class PythonGenerator:
         if tree is None or T.unknown_names(expr, self.known):
             return None
         self.used.update(node.id for node in ast.walk(tree) if isinstance(node, ast.Name))
+        self.calls.update(node.func.id for node in ast.walk(tree)
+                          if isinstance(node, ast.Call) and isinstance(node.func, ast.Name))
         concat = _TextConcat(self.types, self.dynamic)
         tree = concat.visit(tree)
         if concat.changed:
@@ -809,9 +813,19 @@ def _java_comment(text: str) -> str:
     return _one_line(text).replace("\\", "\\\\")
 
 
+# Variablen des gerade erzeugten Plans: ein umbenanntes Schlüsselwort darf keine andere Variable treffen
+_java_plan_variables: set = set()
+
+
 def java_name(name: str) -> str:
-    """Variablenname für Java: Schlüsselwörter wie „int“ oder „new“ bekommen einen Unterstrich."""
-    return name + "_" if name in _JAVA_RESERVED else name
+    """Variablenname für Java: Schlüsselwörter wie „int“ oder „new“ bekommen einen Unterstrich – so viele, bis der
+    Name frei ist (gibt es im Plan auch „double_“, wird aus „double“ „double__“)."""
+    if name not in _JAVA_RESERVED:
+        return name
+    candidate = name + "_"
+    while candidate in _JAVA_RESERVED or candidate in _java_plan_variables:
+        candidate += "_"
+    return candidate
 
 
 class _JavaExpr:
@@ -1162,6 +1176,8 @@ class JavaGenerator:
         variables = Variables(self.programs)
         self.known = set(variables.names)
         self.types, self.dynamic = variables.types, variables.dynamic
+        _java_plan_variables.clear()
+        _java_plan_variables.update(self.known)
         self._name_methods()
         methods: list[str] = []
         for index, program in enumerate(self.programs):

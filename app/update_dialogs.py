@@ -199,6 +199,9 @@ class UpdateController(QObject):
         for view in self._window.views():
             if not self._window.maybe_save(view.document):
                 return
+        # noch geändert = „Verwerfen“ gewählt: beim Schließen für das Update nicht noch einmal fragen (ein Abbruch dort
+        # ließe das Update auf ein laufendes Programm warten)
+        self._discarded = {view.document for view in self._window.views() if view.document.is_modified}
         self._cancel.clear()
         dialog = QProgressDialog(tr("Update wird heruntergeladen …"), tr("Abbrechen"), 0, 0, self._window)
         dialog.setWindowTitle(tr("Update"))
@@ -268,6 +271,7 @@ class UpdateController(QObject):
         except updater.UpdateError as exc:
             QMessageBox.warning(self._window, tr("Update nicht möglich"), exc.message)
             return
+        self._window.close_without_asking = set(getattr(self, "_discarded", set()))
         QTimer.singleShot(0, self._window.close)
 
     def _launch_appimage_after_quit(self, appimage: str) -> None:

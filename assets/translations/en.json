@@ -1135,5 +1135,11 @@
  "Der Pseudocode übernimmt die Texte der Bausteine unverändert.": "The pseudocode takes over the texts of the blocks unchanged.",
  "Das Hauptprogramm hat kein Start-Element.": "The main program has no Start symbol.",
  "Passwort entfernen – die Aufgabe ist dann für alle änderbar": "Remove password – anyone can then change the task",
- "Die Sicherung wurde aufbewahrt: {path}": "The backup was kept: {path}"
+ "Die Sicherung wurde aufbewahrt: {path}": "The backup was kept: {path}",
+ "Das Programm wurde nicht beendet, deshalb wurde das Update nicht installiert. Es wird beim nächsten Start wieder angeboten.": "The program was not closed, so the update was not installed. It will be offered again at the next start.",
+ "„{name}“ wurde außerhalb des Programms geändert.": "“{name}” was changed outside the program.",
+ "Seit dem Öffnen hat ein anderes Programm (oder das Synchronisieren, z. B. OneDrive) die Datei verändert. Beim Überschreiben gehen diese Änderungen verloren.\n\nSoll die Datei trotzdem überschrieben werden?": "Since it was opened, another program (or syncing, e.g. OneDrive) has changed the file. Overwriting will lose these changes.\n\nOverwrite the file anyway?",
+ "„{name}“ wurde außerhalb des Programms geändert – automatisches Speichern ist angehalten. Bitte selbst speichern.": "“{name}” was changed outside the program – automatic saving is paused. Please save it yourself.",
+ "Der Plan konnte nicht geprüft werden (Fehler im Programm, siehe Protokoll).": "The flowchart could not be checked (error in the program, see log).",
+ "Zu viele Variablen ({count}): Der PIC16F887 hat in Bank 0 nur {free} freie Speicherzellen (0x20 bis 0x7F). Bitte Variablen sparen.": "Too many variables ({count}): the PIC16F887 has only {free} free memory cells in bank 0 (0x20 to 0x7F). Please use fewer variables."
 }

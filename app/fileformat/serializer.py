@@ -1239,10 +1239,13 @@ def _file_mode(path: str) -> int:
         return 0o666 & ~umask
 
 
-def save_diagram(diagram: Diagram, path: str) -> None:
-    """Speichert atomar. Wirft ``ProjectFileError`` mit verständlicher Meldung."""
+def save_diagram(diagram: Diagram, path: str, payload: bytes | None = None) -> None:
+    """Speichert atomar. Wirft ``ProjectFileError`` mit verständlicher Meldung.
+
+    ``payload``: der schon erzeugte Dateiinhalt (``diagram_to_xml`` als UTF-8), damit er nicht zweimal entsteht."""
     try:
-        payload = diagram_to_xml(diagram).encode("utf-8")
+        if payload is None:
+            payload = diagram_to_xml(diagram).encode("utf-8")
     except (TypeError, ValueError) as exc:
         raise ProjectFileError(tr("Das Projekt konnte nicht in das Dateiformat umgewandelt werden."),
                                str(exc)) from exc

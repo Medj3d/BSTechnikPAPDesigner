@@ -99,7 +99,10 @@ class Minimap(QWidget):
     def scale(self) -> float:
         if self._source.isEmpty():
             return 1.0
-        return min(MAX_SCALE, (self.width() - 2 * CONTENT_PADDING) / self._source.width())
+        # sehr hohe Pläne: das Bild ist höchstens MAX_PIXMAP_HEIGHT Pixel hoch – Zeichnung, Schieber und Klicks
+        # rechnen deshalb alle mit derselben (dann kleineren) Skalierung
+        by_height = MAX_PIXMAP_HEIGHT / (self._source.height() * max(1.0, self.devicePixelRatioF()))
+        return min(MAX_SCALE, (self.width() - 2 * CONTENT_PADDING) / self._source.width(), by_height)
 
     def content_height(self) -> float:
         return self._source.height() * self.scale()
