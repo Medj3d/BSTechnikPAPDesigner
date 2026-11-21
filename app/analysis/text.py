@@ -67,7 +67,8 @@ def is_identifier(name: str) -> bool:
 _QUOTES = [("„", '"'), ("“", '"'), ("”", '"'), ("’", "'"), ("‘", "'")]
 _OPERATORS = [("≠", "!="), ("<>", "!="), ("≤", "<="), ("≥", ">="), ("×", "*"), ("·", "*"), ("÷", "/"),
               ("²", "**2"), ("³", "**3"), ("^", "**"), ("&&", " and "), ("||", " or ")]
-_STRING_LITERAL = re.compile(r"(\"[^\"]*\"|'[^']*')")
+# Zeichenketten; ein maskiertes Anführungszeichen („"A\"B"“) beendet sie nicht – wie in Python und Java
+_STRING_LITERAL = re.compile(r"(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')")
 _NOT_CALLS = {"and", "or", "not", "in", "if", "else", "is"}
 
 # Funktionen, die Schreibtischtest und Code-Erzeugung kennen: Name → erlaubte Anzahl
@@ -203,6 +204,23 @@ def call_parts(text: str) -> tuple[str, list[str]] | None:
     return body.func.id, [ast.unparse(arg) for arg in body.args]
 
 
+_CALL_ASSIGNMENT = re.compile(r"(?::=|←|<-|(?<![<>!=])=(?!=))")
+
+
+def call_passes_values(text: str) -> bool:
+    """Aufruf mit Werten oder Ergebnis: „doppelt(x)“, „y := doppelt(x)“.
+
+    Abläufe haben keine Parameter und keinen Rückgabewert – sie arbeiten mit den gemeinsamen Variablen. Das
+    melden Schreibtischtest und Code-Erzeugung, statt still mit 0 weiterzurechnen."""
+    text = " ".join(str(text or "").split())
+    head, bracket, rest = text.partition("(")
+    if not bracket or not head.strip():
+        return False
+    if _CALL_ASSIGNMENT.search(head):
+        return True
+    return bool(rest.rpartition(")")[0].strip() if ")" in rest else rest.strip())
+
+
 def condition_expression(text: str) -> str | None:
     """Bedingung als Python-Ausdruck oder ``None``, wenn sie nicht erkannt wird."""
     expr = normalize_expression(text, condition=True)
@@ -276,7 +294,7 @@ def unknown_names(expr: str, known) -> list[str]:
 ASSIGN = re.compile(rf"^\s*({IDENT_PATTERN})\s*(?::=|←|<-|=(?!=))\s*(.+?)\s*;?\s*$")
 
 
-_STATEMENT_PARTS = re.compile(r'("[^"\n]*"|„[^“”"\n]*[“”"]|“[^“”"\n]*[”"]|\'[^\'\n]*\'|;|\n)')
+_STATEMENT_PARTS = re.compile(r'("(?:[^"\\\n]|\\.)*"|„[^“”"\n]*[“”"]|“[^“”"\n]*[”"]|\'(?:[^\'\\\n]|\\.)*\'|;|\n)')
 
 
 def split_statements(text: str) -> list[str]:
@@ -329,7 +347,12 @@ def recognized_assignments(text: str) -> list[tuple[str, str]]:
 
 
 # ------------------------------------------------------------ Ein-/Ausgabe
-_QUOTED = re.compile(r'("[^"]*"|„[^“”"]*[“”"]|“[^“”"]*[”"])')
+_QUOTED = re.compile(r'("(?:[^"\\]|\\.)*"|„[^“”"]*[“”"]|“[^“”"]*[”"])')
+
+
+def _quoted_text(literal: str) -> str:
+    """Inhalt eines Textes in Anführungszeichen; „\\"“ ist ein Anführungszeichen im Text."""
+    return literal[1:-1].replace('\\"', '"')
 _CHOICE_HINT = re.compile(r"\([^()]*/[^()]*\)")       # „(ja/nein)“, „(j/n)“
 # Substantive aus den Füllwörtern, die selbst der Variablenname sein können
 _INPUT_NOUNS = {"zahl", "zahlen", "wert", "werte", "anzahl"}
@@ -465,7 +488,7 @@ def _mixed_output(text: str, known: set) -> OutputSpec | None:
     parts: list[tuple[str, str]] = []
     for index, segment in enumerate(segments):
         if index % 2:
-            parts.append(("string", " ".join(segment[1:-1].split())))  # ohne Rand-Leerzeichen, wie im Code
+            parts.append(("string", " ".join(_quoted_text(segment).split())))  # ohne Rand-Leerzeichen, wie im Code
             continue
         core = segment
         if index == 0:
@@ -495,7 +518,7 @@ def output_spec(text: str, known_variables: set[str] | None = None) -> OutputSpe
         mixed = _mixed_output(stripped, exact)
         if mixed is not None:
             return mixed
-        return OutputSpec("string", " ".join(quoted.group(0)[1:-1].split()))
+        return OutputSpec("string", " ".join(_quoted_text(quoted.group(0)).split()))
     core = _OUTPUT_PREFIX.sub("", stripped)
     core = _OUTPUT_SUFFIX.sub("", core).strip()
     expr = normalize_expression(core)

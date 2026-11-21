@@ -255,7 +255,7 @@ def test_java_expressions_use_variable_types():
     assert _java_expr("s != t", types) == "!s.equals(t)"
     assert _java_expr('s + "!"', types) == 's + "!"'
     assert _java_expr('"-" * x', types) == '"-".repeat(Math.max(0, (int) (x)))'
-    assert _java_expr("len(s)", types) == "(double) s.length()"
+    assert _java_expr("len(s)", types) == "(double) s.codePoints().count()"
     assert _java_expr("str(x)", types) == "text(x)"                   # 5 statt 5.0
     assert _java_expr("s < t", types) == "s.compareTo(t) < 0"
     assert _java_expr("x + s", types) == "text(x) + s"

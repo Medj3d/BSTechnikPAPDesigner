@@ -37,6 +37,7 @@ from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndSt
                               Unstructured, WhileLoop)
 from app.analysis.graph import resolve_routine, routine_label, routine_name
 from app.analysis.variables import STRING, Variables
+from app.codegen.generators import ZERO_STEP_MESSAGE
 from app.i18n import tr_code
 
 INDENT = "\t"
@@ -657,6 +658,11 @@ class PicAsmGenerator:
                 self.note("TODO: " + tr_code("Startwert {expr}", expr=header.start))
             descending = header.step.strip().startswith("-")
             step = header.step.strip().lstrip("-").strip() or "1"
+            if re.fullmatch(r"0+(?:\.0*)?", step):
+                # Schrittweite 0: Wie Schreibtischtest, Python und Java nicht endlos zählen, sondern anhalten
+                self.note("TODO: " + tr_code(ZERO_STEP_MESSAGE))
+                self.emit(0, "GOTO\tende")
+                return
             # Erst prüfen, ob die Schleife überhaupt läuft …
             comparison = f"{header.variable} {'>=' if descending else '<='} ({header.end})"
             self.condition_jump(comparison, False, end, comparison)

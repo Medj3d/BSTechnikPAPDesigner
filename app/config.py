@@ -9,7 +9,7 @@ import sys as _sys
 APP_NAME = "BS Technik PAP Designer"
 # Version und Erscheinungsmonat: bei jeder neuen Veröffentlichung beide anpassen.
 # Die Versionsnummer muss dabei steigen – daran erkennt das Programm ein Update.
-APP_VERSION = "1.15.3"
+APP_VERSION = "1.15.4"
 APP_RELEASE_DATE = "November 2026"
 APP_AUTHORS = ("Are Schäfer", "Linus Twardzik")
 # Kontakt und Website (im Dialog „Über das Programm“)
@@ -130,6 +130,8 @@ DEFAULT_SNAP_TO_GRID = True
 
 # Zoom
 MIN_ZOOM = 0.25
+# „Diagramm einpassen“ darf weiter verkleinern, damit auch sehr große Pläne ganz zu sehen sind
+FIT_MIN_ZOOM = 0.05
 MAX_ZOOM = 4.0
 ZOOM_STEP = 1.15  # Faktor pro Mausrad-Raste
 # Die Lupen-Knöpfe (und Strg +/−) springen auf runde Werte: Zehnerschritte, ab 200 % 25er-Schritte

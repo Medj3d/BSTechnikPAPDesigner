@@ -21,10 +21,12 @@ from app.analysis.structure import is_choice_decision, structure_program
 from app.i18n import N_, tr
 from app.model.element_types import ElementType, default_text_for, display_name_for
 from app.analysis.variables import BOOLEAN, DEFAULTS, STRING, Variables
-from app.simulation.evaluator import (EvaluationError, Scope, display, evaluate, evaluate_condition, format_value,
-                                      parse_number, parse_value)
+from app.simulation.evaluator import (CalculationError, EvaluationError, Scope, display, evaluate,
+                                      evaluate_condition, format_value, parse_number, parse_value)
 
 MAX_STEPS = 10_000
+# Schleifenköpfe, die selbst geprüft werden – auch wenn am Schleifenende eine Bedingung steht
+HEAD_CHECKED = ("for", "while", "times")
 MAX_CALL_DEPTH = 100
 NEEDS_INPUT = "input"
 NEEDS_DECISION = "decision"
@@ -141,10 +143,23 @@ class Simulator:
                  decision: str = "") -> StepResult:
         self._record(nid, decision, output)
         self.current = target
+        while target is None and self._call_stack:
+            # Sackgasse in einem Unterprogramm: Wie im erzeugten Programm endet nur das Unterprogramm,
+            # es geht beim Aufrufer weiter
+            target, name = self._call_stack.pop()
+            self.current = target
+            message = tr("{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer",
+                         message=message, name=name)
         if target is None:
             self.finished = True
             message = tr("{message} – Ablauf endet hier (kein Nachfolger).", message=message)
         return StepResult(nid, message, output=output, finished=self.finished)
+
+    def _abort(self, nid: str, message: str) -> StepResult:
+        """Bricht den Ablauf an diesem Baustein ab (Rechenfehler – wie das erzeugte Programm)."""
+        self._record(nid)
+        self.finished = True
+        return StepResult(nid, tr("Abbruch: {message}", message=message), finished=True)
 
     # ------------------------------------------------------- Schritt zurück
     def snapshot(self) -> tuple:
@@ -250,7 +265,12 @@ class Simulator:
             return StepResult(nid, tr("Abbruch: zu viele verschachtelte Aufrufe von „{name}“ (Rekursion?).",
                                       name=name), finished=True)
         self._call_stack.append((self._next(nid), name))
-        return self._advance(nid, start, tr("Unterprogramm „{name}“ aufgerufen.", name=name))
+        message = tr("Unterprogramm „{name}“ aufgerufen.", name=name)
+        if T.call_passes_values(node.text):
+            # „y := doppelt(x)“: Werte und Ergebnis werden nicht übergeben – lieber deutlich sagen als still 0
+            message = tr("{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die "
+                         "Abläufe arbeiten mit den gemeinsamen Variablen.", message=message)
+        return self._advance(nid, start, message)
 
     def _process(self, nid, node):
         items = T.assignment_items(node.text)
@@ -265,6 +285,10 @@ class Simulator:
             name, expr = item
             try:
                 value = evaluate(expr, self._scope())
+            except CalculationError as exc:
+                # wie im erzeugten Programm (z. B. Division durch null): der Ablauf bricht hier ab
+                return self._abort(nid, tr("Fehler bei „{assignment}“: {error}", assignment=f"{name} = {expr}",
+                                           error=exc))
             except EvaluationError as exc:
                 return self._advance(nid, self._next(nid),
                                      tr("Fehler bei „{assignment}“: {error}", assignment=f"{name} = {expr}",
@@ -289,6 +313,10 @@ class Simulator:
                 text = f"{spec.value}: {values}"
             else:
                 text = spec.value  # Freitext: genau das, was auch die erzeugten Programme ausgeben
+        except CalculationError as exc:
+            # wie im erzeugten Programm: Die Ausgabe kommt nicht mehr, der Ablauf bricht ab
+            return self._abort(nid, tr("Fehler bei „{assignment}“: {error}", assignment=' '.join(node.text.split()),
+                                       error=exc))
         except (EvaluationError, KeyError) as exc:
             text = f"{spec.value} ({exc})"
         self.outputs.append(text)
@@ -372,10 +400,16 @@ class Simulator:
         return self._take_branch(nid, bool(result), HOW_AUTOMATIC)
 
     def _multi_decision(self, nid, node, outs):
-        """Mehrfachverzweigung: Ausgänge der Reihe nach prüfen (wie die Code-Erzeugung),
-        der letzte Ausgang ist der Sonst-Zweig."""
+        """Mehrfachverzweigung: Ausgänge der Reihe nach prüfen (wie die Code-Erzeugung).
+
+        Der letzte Ausgang ist der Sonst-Zweig, wenn er „sonst“ heißt oder unbeschriftet ist; trägt er einen Wert,
+        gilt er nur für diesen – passt dann kein Ausgang, bricht der Ablauf mit einer Meldung ab."""
         subject = " ".join(node.text.split())
-        for index, edge in enumerate(outs[:-1]):
+        last = outs[-1] if outs else None
+        # (führen alle Ausgänge zum selben Baustein, gibt es nichts zu prüfen – wie in der Code-Erzeugung)
+        checked = outs if last is not None and last.label.strip() and not last.is_else \
+            and len({edge.target for edge in outs}) > 1 else outs[:-1]
+        for index, edge in enumerate(checked):
             condition = T.branch_condition(node.text, edge.label)
             try:
                 if condition is None:
@@ -391,6 +425,14 @@ class Simulator:
                 return self.pending
             if matched:
                 return self._take_exit(nid, index, HOW_AUTOMATIC)
+        if len(checked) == len(outs):
+            # kein „sonst“-Ausgang und kein Wert passt – wie im erzeugten Programm anhalten
+            self._record(nid)
+            self.finished = True
+            exit_labels = ", ".join(tr("„{name}“", name=" ".join(e.label.split())) for e in outs)
+            return StepResult(nid, tr("Abbruch: Bei der Verzweigung „{text}“ passt kein Ausgang ({labels}) und es "
+                                      "gibt keinen Ausgang „sonst“.", text=subject, labels=exit_labels),
+                              finished=True)
         return self._take_exit(nid, len(outs) - 1, HOW_AUTOMATIC)
 
     def _take_exit(self, nid, index: int, how: str) -> StepResult:
@@ -445,13 +487,20 @@ class Simulator:
         self._reentering.discard(nid)
         body = self._next(nid)
         try:
-            if footer is not None and header.kind != "for":
-                # fußgesteuert: Kopf wird nicht geprüft
+            if footer is not None and header.kind not in HEAD_CHECKED:
+                # nur fußgesteuert: Der Kopf enthält nichts Auswertbares
                 return self._advance(nid, body, tr("Schleife: Rumpf wird ausgeführt"))
             if header.kind == "for":
                 scope = self._scope()
                 # Ende und Schrittweite gelten – wie im erzeugten Programm – mit ihren aktuellen Werten
                 end, step = evaluate(header.end, scope), evaluate(header.step, scope)
+                if step == 0:
+                    # wie im erzeugten Programm: lieber deutlich anhalten als endlos zählen
+                    self._record(nid)
+                    self.finished = True
+                    return StepResult(nid, tr("Abbruch: Die Schrittweite der Zählschleife „{text}“ ist 0 – "
+                                              "die Schleife endete nie.", text=' '.join(node.text.split())),
+                                      finished=True)
                 if not reentering or nid not in self._loop_state:
                     value = evaluate(header.start, scope)
                 else:
@@ -529,8 +578,9 @@ class Simulator:
         # Spalte „Bedingung“: das Ergebnis der Bedingung am Schleifenende
         answer = labels.yes_label() if result else labels.no_label()
         if (not result) if kind == "until" else result:
-            if T.parse_loop_header(self.node(begin_id).text).kind == "for":
-                # Zählschleife mit zusätzlicher Bedingung am Ende: weiterzählen
+            if T.parse_loop_header(self.node(begin_id).text).kind in HEAD_CHECKED:
+                # Kopf mit eigener Bedingung („3-mal“, „solange …“, Zählschleife) und zusätzlicher
+                # Bedingung am Ende: Beide gelten – zurück zum Kopf, der weiterzählt bzw. erneut prüft
                 self._reentering.add(begin_id)
                 return self._advance(nid, begin_id, tr("Schleifenende „{text}“: nächster Durchlauf ({how})",
                                                        text=text, how=how), decision=answer)

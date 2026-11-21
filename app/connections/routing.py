@@ -161,7 +161,17 @@ def score_path(points: list[Point], source_rect: Rect | None, target_rect: Rect 
     score = base_cost(points)
     segments = list(zip(points[:-1], points[1:]))
     if lines:
-        score += sum(line_penalty(a, b, lines) for a, b in segments)
+        # Nur Linien in der Nähe dieses Wegs können eine Strafe ergeben (Abstand < LINE_CLEARANCE oder Kreuzung):
+        # vorher aussortieren – sonst wird jedes Stück gegen alle Linien der Seite geprüft (große Pläne froren ein)
+        x0 = min(p[0] for p in points) - LINE_CLEARANCE
+        x1 = max(p[0] for p in points) + LINE_CLEARANCE
+        y0 = min(p[1] for p in points) - LINE_CLEARANCE
+        y1 = max(p[1] for p in points) + LINE_CLEARANCE
+        near = [(c, d) for c, d in lines
+                if (c[0] if c[0] > d[0] else d[0]) >= x0 and (c[0] if c[0] < d[0] else d[0]) <= x1
+                and (c[1] if c[1] > d[1] else d[1]) >= y0 and (c[1] if c[1] < d[1] else d[1]) <= y1]
+        if near:
+            score += sum(line_penalty(a, b, near) for a, b in segments)
     last = len(segments) - 1
     if near_obstacles is None:
         near_obstacles = [r.inflated(CLEARANCE) for r in obstacles]

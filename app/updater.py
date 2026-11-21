@@ -319,6 +319,23 @@ def newer_user_program() -> tuple[str, str] | None:
     return None
 
 
+def _absolute_file_arguments(arguments: list[str]) -> list[str]:
+    """Die Startargumente mit absoluten Pfaden für vorhandene Dateien.
+
+    Die Kopie startet in ihrem eigenen Ordner (``cwd``): Ein relativer Dateiname wie ``"aufgabe 1.pap"`` zeigte dort
+    ins Leere. Schalter und ihre Werte (Prozessnummer, Sprachcode) bleiben unverändert."""
+    result, skip = [], False
+    for argument in arguments:
+        if skip:
+            skip = False
+        elif argument in (config.WAIT_FOR_FLAG, config.LANGUAGE_FLAG):
+            skip = True  # der nächste Wert gehört zum Schalter
+        elif not argument.startswith("-") and os.path.isfile(argument):
+            argument = os.path.abspath(argument)
+        result.append(argument)
+    return result
+
+
 def redirect_to_user_program(arguments: list[str]) -> bool:
     """Startet eine neuere Kopie aus dem Benutzerordner anstelle dieses Programms.
 
@@ -336,8 +353,8 @@ def redirect_to_user_program(arguments: list[str]) -> bool:
         # Die Kopie erfährt, wo die installierte Version liegt: dort gilt auch die policy.ini des Administrators
         environment = dict(os.environ, **{STARTED_FROM_UPDATE_ENV: version,
                                           policy.INSTALLATION_ENV: application_directory() or ""})
-        subprocess.Popen([os.path.join(folder, config.EXECUTABLE_NAME), *arguments], cwd=folder, close_fds=True,
-                         env=environment)
+        subprocess.Popen([os.path.join(folder, config.EXECUTABLE_NAME), *_absolute_file_arguments(arguments)],
+                         cwd=folder, close_fds=True, env=environment)
     except OSError as exc:
         log.warning("Neuere Version aus dem Benutzerordner konnte nicht gestartet werden: %s", exc)
         mark_user_updates_blocked()
@@ -609,11 +626,13 @@ def cleanup_appimage_download() -> None:
         _remove(appimage_download_path(appimage))
 
 
-def launch_appimage(appimage: str, wait_pid: int | None = None) -> None:
-    """Startet das (neue) AppImage; es wartet auf das Ende von ``wait_pid`` (siehe ``launch_program``)."""
+def launch_appimage(appimage: str, wait_pid: int | None = None, files: list[str] | tuple[str, ...] = ()) -> None:
+    """Startet das (neue) AppImage; es wartet auf das Ende von ``wait_pid`` und öffnet ``files``
+    (siehe ``launch_program``)."""
     command = [appimage]
     if wait_pid:
         command += [config.WAIT_FOR_FLAG, str(wait_pid)]
+    command += [str(path) for path in files]
     try:
         subprocess.Popen(command, cwd=os.path.dirname(appimage), close_fds=True, start_new_session=True,
                          env=platforms.host_environment())
@@ -622,17 +641,21 @@ def launch_appimage(appimage: str, wait_pid: int | None = None) -> None:
 
 
 # -------------------------------------------------------------- Installieren
-def start_installer(new_dir: str, app_dir: str) -> None:
-    """Startet die neue Version im Installationsmodus; danach beendet sich das laufende Programm."""
+def start_installer(new_dir: str, app_dir: str, *files: str) -> None:
+    """Startet die neue Version im Installationsmodus; danach beendet sich das laufende Programm.
+
+    ``files``: Projektdateien, die das neu gestartete Programm nach dem Update öffnen soll (z. B. während des
+    Downloads doppelgeklickt)."""
     executable = os.path.join(new_dir, config.EXECUTABLE_NAME)
     try:
-        subprocess.Popen([executable, APPLY_FLAG, app_dir, str(os.getpid())], cwd=new_dir, close_fds=True)
+        subprocess.Popen([executable, APPLY_FLAG, app_dir, str(os.getpid()), *[str(path) for path in files]],
+                         cwd=new_dir, close_fds=True)
     except OSError as exc:
         raise UpdateError(tr("Die neue Version konnte nicht gestartet werden."), str(exc)) from exc
 
 
-def launch_program(app_dir: str, wait_pid: int | None = None) -> None:
-    """Startet das Programm aus ``app_dir``.
+def launch_program(app_dir: str, wait_pid: int | None = None, files: list[str] | tuple[str, ...] = ()) -> None:
+    """Startet das Programm aus ``app_dir`` und lässt es ``files`` öffnen.
 
     ``wait_pid``: Der neue Start wartet, bis dieser Prozess beendet ist (das laufende Programm, das sich gerade
     schließt) – sonst übergäbe er seine Arbeit noch an dieses (siehe ``app.single_instance``).
@@ -640,6 +663,7 @@ def launch_program(app_dir: str, wait_pid: int | None = None) -> None:
     command = [os.path.join(app_dir, config.EXECUTABLE_NAME)]
     if wait_pid:
         command += [config.WAIT_FOR_FLAG, str(wait_pid)]
+    command += [str(path) for path in files]
     environment = dict(os.environ)
     installed = installation_directory()
     if installed and _is_inside(app_dir, user_update_root()):
@@ -676,6 +700,42 @@ def _rename_with_retry(source: str, target: str, seconds: float = 15.0) -> None:
             time.sleep(0.3)
 
 
+def _remove_with_retry(path: str, seconds: float) -> bool:
+    """Entfernt eine Datei oder einen Ordner; wartet kurz, falls Windows noch etwas festhält. ``True`` = weg."""
+    deadline = time.monotonic() + seconds
+    while True:
+        try:
+            if os.path.isdir(path) and not os.path.islink(path):
+                shutil.rmtree(path)
+            elif os.path.lexists(path):
+                os.remove(path)
+        except OSError:
+            pass
+        if not os.path.lexists(path):
+            return True
+        if time.monotonic() > deadline:
+            log.warning("Konnte nicht entfernt werden: %s", path)
+            return False
+        time.sleep(0.3)
+
+
+def _roll_back(created: list[str], backups: list[tuple[str, str]], seconds: float) -> list[str]:
+    """Holt den beiseitegelegten alten Stand zurück. Gibt die Namen der Sicherungen zurück, die nicht zurückgeholt
+    werden konnten (leer = der alte Stand ist vollständig wieder da)."""
+    for target in created:
+        _remove_with_retry(target, seconds)
+    missing = []
+    for target, backup in reversed(backups):
+        try:
+            if os.path.lexists(target):
+                raise OSError(f"die neue Datei ließ sich nicht entfernen: {target}")
+            _rename_with_retry(backup, target, seconds)
+        except OSError:
+            log.exception("Alter Stand konnte nicht zurückgeholt werden: %s", target)
+            missing.append(os.path.basename(backup))
+    return missing
+
+
 def apply_update(source_dir: str, app_dir: str, retry_seconds: float = 15.0) -> None:
     """Ersetzt im Programmordner alles, was die neue Version mitbringt.
 
@@ -708,15 +768,17 @@ def apply_update(source_dir: str, app_dir: str, retry_seconds: float = 15.0) -> 
             else:
                 shutil.copy2(source, target)
     except Exception as exc:
-        # alles zurück auf den alten Stand
-        for target in created:
-            _remove(target)
-        for target, backup in reversed(backups):
-            try:
-                os.rename(backup, target)
-            except OSError:
-                log.exception("Alter Stand konnte nicht zurückgeholt werden: %s", target)
-        _write_backup_record(app_dir, [os.path.basename(b) for _t, b in backups if os.path.lexists(b)])
+        # alles zurück auf den alten Stand – mit derselben Geduld wie auf dem Hinweg (Virenscanner, Explorer)
+        missing = _roll_back(created, backups, retry_seconds)
+        # Was nicht zurückgeholt werden konnte, ist jetzt die einzige Kopie des alten Stands: nicht vermerken, sonst
+        # löschte der nächste Start (``cleanup_staging``) sie
+        _write_backup_record(app_dir, [])
+        if missing:
+            log.error("Update-Rückweg unvollständig, Sicherungen bleiben liegen: %s", ", ".join(missing))
+            raise UpdateError(tr("Das Update konnte nicht installiert werden, und die bisherige Version ließ sich "
+                                 "nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der "
+                                 "alte Stand liegt noch im Programmordner (Endung „.alt“): {names}",
+                                 names=", ".join(missing)), str(exc)) from exc
         raise UpdateError(tr("Das Update konnte nicht installiert werden (fehlen Schreibrechte im "
                              "Programmordner?). Die bisherige Version bleibt erhalten."), str(exc)) from exc
     for _target, backup in backups:

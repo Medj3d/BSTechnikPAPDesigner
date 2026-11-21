@@ -299,7 +299,9 @@ def test_auto_save_failure_is_quiet_and_keeps_the_project_modified(window, tmp_p
     shutil.rmtree(folder)  # z. B. USB-Stick abgezogen
     window._run_auto_save()  # kein Meldungsfenster (die Tests sperren echte Dialoge)
     assert document.is_modified
-    assert "Automatisches Speichern nicht möglich" in window.statusBar().currentMessage()
+    message = window.statusBar().currentMessage()
+    # Ordner weg (USB-Stick abgezogen): automatisches Speichern hält an, statt die Datei woanders neu anzulegen
+    assert "Automatisches Speichern nicht möglich" in message or "automatisches Speichern ist angehalten" in message
 
 
 def test_closing_saves_silently_when_auto_save_is_on(window, tmp_path, monkeypatch):

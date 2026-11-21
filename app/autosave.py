@@ -79,6 +79,51 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
+def process_start_time(pid: int) -> float | None:
+    """Startzeitpunkt des Prozesses (Sekunden, nur zum Vergleich) – ``None``, wenn er sich nicht ermitteln lässt.
+
+    Prozessnummern werden wiederverwendet: Erst zusammen mit der Startzeit erkennt man denselben Prozess wieder."""
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return None
+    if sys.platform.startswith("win"):
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.OpenProcess.restype = wintypes.HANDLE
+            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+            kernel32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if not handle:
+                return None
+            try:
+                times = [wintypes.FILETIME() for _ in range(4)]
+                if not kernel32.GetProcessTimes(handle, *[ctypes.byref(t) for t in times]):
+                    return None
+                created = times[0]
+                # FILETIME: 100-ns-Schritte
+                return ((created.dwHighDateTime << 32) | created.dwLowDateTime) / 1e7
+            finally:
+                kernel32.CloseHandle(handle)
+        except Exception:  # pragma: no cover - Absicherung
+            return None
+    try:
+        # Linux: Feld 22 von /proc/<pid>/stat (Takte seit dem Systemstart); der Name in Klammern kann Leerzeichen
+        # enthalten, deshalb erst nach der letzten Klammer zerlegen
+        with open(f"/proc/{pid}/stat", encoding="utf-8", errors="replace") as handle:
+            fields = handle.read().rsplit(")", 1)[1].split()
+        return int(fields[19]) / os.sysconf("SC_CLK_TCK")
+    except (OSError, ValueError, IndexError, AttributeError):
+        return None
+
+
+# Startzeiten gelten als gleich, wenn sie so nah beieinanderliegen (Rundung beim Speichern)
+START_TIME_TOLERANCE = 2.0
+
+
 @dataclass
 class RecoveryEntry:
     backup_path: str
@@ -115,11 +160,13 @@ def _remove(path: str) -> None:
 
 class AutosaveManager(QObject):
     def __init__(self, directory: str | None = None, interval_ms: int = 60000, parent=None,
-                 pid_alive_func=pid_alive):
+                 pid_alive_func=pid_alive, process_start_func=process_start_time):
         super().__init__(parent)
         self.directory = directory or default_directory()
         self.session_id = uuid.uuid4().hex[:12]
         self._pid_alive = pid_alive_func
+        self._process_start = process_start_func
+        self._own_start = process_start_func(os.getpid())
         self._documents: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()
         self._started = now_iso()
         self._active = True
@@ -200,9 +247,11 @@ class AutosaveManager(QObject):
         return written
 
     def _write_session(self) -> None:
+        data = {"pid": os.getpid(), "started": self._started, "heartbeat": now_iso()}
+        if self._own_start is not None:
+            data["process_start"] = self._own_start  # erkennt den Prozess auch bei wiederverwendeter Nummer
         try:
-            _write_json(self._session_path(), {"pid": os.getpid(), "started": self._started,
-                                               "heartbeat": now_iso()})
+            _write_json(self._session_path(), data)
         except OSError:
             log.warning("Sitzungsdatei konnte nicht geschrieben werden")
 
@@ -235,7 +284,15 @@ class AutosaveManager(QObject):
         except (TypeError, ValueError):
             return False
         pid = data.get("pid")
-        return self._pid_alive(pid) if isinstance(pid, int) else False
+        if not isinstance(pid, int) or not self._pid_alive(pid):
+            return False
+        # Läuft unter der Nummer ein anderer, später gestarteter Prozess (Nummer nach Absturz neu vergeben)?
+        recorded = data.get("process_start")
+        if isinstance(recorded, (int, float)) and not isinstance(recorded, bool):
+            current = self._process_start(pid)
+            if current is not None and abs(current - recorded) > START_TIME_TOLERANCE:
+                return False
+        return True
 
     def find_orphans(self) -> list[RecoveryEntry]:
         """Sicherungen aus Sitzungen, die nicht mehr laufen."""

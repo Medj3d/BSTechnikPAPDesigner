@@ -62,6 +62,17 @@ class Minimap(QWidget):
                 self._pixmap = None
         return False
 
+    def release(self) -> None:
+        """Beim Schließen des Reiters: Verbindung zur Szene lösen, damit das Projekt freigegeben werden kann."""
+        self._timer.stop()
+        if self._scene is not None:
+            try:
+                self._scene.changed.disconnect(self._schedule)
+            except (RuntimeError, TypeError):
+                pass
+        self._scene = None
+        self._pixmap = None
+
     # ------------------------------------------------------------ Inhalt
     def _watch_scene(self) -> None:
         scene = self._view.scene()

@@ -9,7 +9,7 @@ import threading
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QMessageBox, QProgressDialog
 
-from app import config, platforms, policy, updater
+from app import config, platforms, policy, single_instance, updater
 from app.i18n import tr
 
 log = logging.getLogger(__name__)
@@ -261,7 +261,14 @@ class UpdateController(QObject):
                 # die neue Datei startet, sobald dieses Programm beendet ist
                 self._launch_appimage_after_quit(appimage)
             elif self._mode == "in_place":
-                updater.start_installer(new_dir, app_dir)
+                # Dateien, die während des Downloads übergeben und noch nicht geöffnet wurden, öffnet die neue Version
+                handed = single_instance.take_pending()
+                try:
+                    updater.start_installer(new_dir, app_dir, *handed)
+                except updater.UpdateError:
+                    single_instance.add_pending(handed)
+                    raise
+                single_instance.plan_restart()
                 # Das Programm beenden; die neue Version wartet darauf und ersetzt dann den Programmordner
             else:
                 folder = updater.install_user_program(new_dir, self._pending_info.version)
@@ -278,10 +285,14 @@ class UpdateController(QObject):
         """Linux: Startet das ersetzte AppImage, sobald dieses Programm beendet ist."""
         application = QApplication.instance()
         if application is not None:
-            application.aboutToQuit.connect(lambda: updater.launch_appimage(appimage, wait_pid=os.getpid()))
+            single_instance.plan_restart()  # die neue Datei öffnet auch noch nicht geöffnete, übergebene Dateien
+            application.aboutToQuit.connect(lambda: updater.launch_appimage(
+                appimage, wait_pid=os.getpid(), files=single_instance.take_pending()))
 
     def _launch_after_quit(self, folder: str) -> None:
         """Startet das Programm aus ``folder``, sobald dieses Programm beendet ist."""
         application = QApplication.instance()
         if application is not None:
-            application.aboutToQuit.connect(lambda: updater.launch_program(folder, wait_pid=os.getpid()))
+            single_instance.plan_restart()  # die neue Kopie öffnet auch noch nicht geöffnete, übergebene Dateien
+            application.aboutToQuit.connect(lambda: updater.launch_program(
+                folder, wait_pid=os.getpid(), files=single_instance.take_pending()))

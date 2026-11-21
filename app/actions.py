@@ -112,7 +112,7 @@ _DEFINITIONS = {
                         N_("Das angezeigte Unterprogramm in der Seitenleiste eine Stelle nach rechts verschieben")),
     # Extras
     "generate_code": (N_("&Code erzeugen …"), "code", ["Ctrl+Shift+C"],
-                      N_("Pseudocode, Python oder Java aus dem PAP erzeugen")),
+                      N_("PIC-Assembler, Pseudocode, Python oder Java aus dem PAP erzeugen")),
     "structogram": (N_("&Struktogramm …"), "structogram", ["Ctrl+Shift+N"],
                     N_("Ablauf als Struktogramm (Nassi-Shneiderman)")),
     "auto_layout": (N_("&Automatisch anordnen"), "layout", ["Ctrl+L"], N_("Bausteine übersichtlich neu anordnen")),
@@ -256,6 +256,7 @@ class ActionRegistry:
         action.setShortcuts(sequences)
         self._actions[name] = action
         self._default_shortcuts[name] = sequences
+        self._refresh_tooltip(name)   # Kurzinfo mit Kürzel wie bei allen anderen Knöpfen („Schreibtischtest (Strg+T)“)
 
     def bindable(self) -> list[str]:
         """Namen aller Funktionen, die auf einer Taste liegen können (Menüreihenfolge)."""
@@ -267,6 +268,12 @@ class ActionRegistry:
     def assign(self, name: str, sequences: list[QKeySequence]) -> list[tuple[QKeySequence, str]]:
         """Legt eine Funktion auf bis zu zwei Tasten. Gibt zurück, welche Tasten woanders weichen mussten."""
         moved = []
+        # dieselbe Taste in beiden Feldern nur einmal (doppelt belegt wäre sie für Qt mehrdeutig und wirkungslos)
+        unique = []
+        for sequence in sequences:
+            if not sequence.isEmpty() and sequence not in unique:
+                unique.append(sequence)
+        sequences = unique
         for sequence in sequences:
             for other, action in self._actions.items():
                 if other != name and sequence in action.shortcuts():

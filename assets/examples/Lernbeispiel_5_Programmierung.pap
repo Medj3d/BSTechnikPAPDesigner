@@ -72,16 +72,12 @@
             </ENTRY>
             <ENTRY COLUMN="0" ROW="6" bst:X="-390" bst:Y="530" bst:WIDTH="280" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="8664643e262a4438b67cf440a5ca08a4">
-                <TEXT><![CDATA[„prim“ ist wahr oder falsch –
-gesetzt im Unterprogramm.]]></TEXT>
+                <TEXT><![CDATA[„prim“ ist wahr oder falsch – gesetzt im Unterprogramm.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="200" bst:WIDTH="280" bst:HEIGHT="160">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="14" bst:UID="f90576cc1b914163bbab20026cb7536a">
-                <TEXT><![CDATA[Extras → Code erzeugen macht aus dem
-Plan Pseudocode, Python oder Java;
-Extras → Struktogramm zeigt ihn als
-Nassi-Shneiderman-Diagramm.]]></TEXT>
+                <TEXT><![CDATA[Extras → Code erzeugen macht aus dem Plan Pseudocode, Python oder Java; Extras → Struktogramm zeigt ihn als Nassi-Shneiderman-Diagramm.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="6" bst:X="364" bst:Y="530" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">
@@ -168,8 +164,7 @@ t = 2]]></TEXT>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="3" bst:X="-390" bst:Y="200" bst:WIDTH="280" bst:HEIGHT="100">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="f91f55cdbd5b4ae4a35c2eed408aa72d">
-                <TEXT><![CDATA[Teiler bis zur Wurzel von z prüfen;
-der erste Teiler beendet die Suche.]]></TEXT>
+                <TEXT><![CDATA[Teiler bis zur Wurzel von z prüfen; der erste Teiler beendet die Suche.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="4" bst:X="240" bst:Y="330" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">

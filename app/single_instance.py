@@ -63,6 +63,42 @@ NO_SERVER = "no_server"   # es läuft kein anderes Programm
 NO_REPLY = "no_reply"     # es läuft eins, antwortet aber nicht
 
 
+# Übergebene Dateien, die noch nicht geöffnet sind (z. B. weil gerade der Update-Download oder eine Nachfrage offen
+# ist). Der Absender hat seine Bestätigung schon bekommen und sich beendet: Endet dieses Programm vorher, gibt der
+# Neustart sie weiter (``take_pending``) – sonst gingen sie verloren.
+_pending_files: list[str] = []
+# Ein Neustart (Update, Sprachwechsel) ist vorgesehen und übernimmt die offenen Dateien selbst
+_restart_planned = False
+
+
+def add_pending(files: list[str]) -> None:
+    for path in files:
+        if path not in _pending_files:
+            _pending_files.append(path)
+
+
+def mark_opened(files: list[str]) -> None:
+    for path in files:
+        if path in _pending_files:
+            _pending_files.remove(path)
+
+
+def take_pending() -> list[str]:
+    """Die noch nicht geöffneten Dateien – sie gehören ab jetzt dem Aufrufer (für den Neustart)."""
+    files = list(_pending_files)
+    _pending_files.clear()
+    return files
+
+
+def plan_restart(planned: bool = True) -> None:
+    global _restart_planned
+    _restart_planned = planned
+
+
+def restart_planned() -> bool:
+    return _restart_planned
+
+
 def _session_id() -> int:
     """Windows-Sitzung (z. B. bei mehreren angemeldeten Benutzern an einem Rechner)."""
     if sys.platform.startswith("win"):

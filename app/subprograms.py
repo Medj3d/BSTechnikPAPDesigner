@@ -53,6 +53,9 @@ def name_error(document, name: str, page=None) -> str | None:
     if not wanted:
         return tr("Der Name muss mindestens einen Buchstaben oder eine Ziffer enthalten.")
     main_start = document.main_start_id()
+    if flow_name(document.pages[0].display_name) == wanted if document.pages else False:
+        # „Hauptprogramm“ ist der feste Name der Hauptseite (z. B. beim Einfügen einer kopierten Hauptseite)
+        return tr("So heißt schon das Hauptprogramm. Bitte einen anderen Namen wählen.")
     for other in document.pages:
         if other is page:
             continue
@@ -148,12 +151,17 @@ def renamed_call(text: str, new_name: str) -> str:
     Rückgabetyp bleiben: „berechne(x, y)“ → „summe(x, y)“, „ok := isLeapYear(j)“ → „ok := istSchaltjahr(j)“.
     Ohne Klammer ist der Aufruf einfach der neue Name."""
     new_label = routine_label(new_name)
-    head, bracket, rest = " ".join(text.split()).partition("(")
     old_label = routine_label(text)
+    name = new_label if T.is_identifier(new_label) else T.slug(new_label)
+    # zuerst im unveränderten Text tauschen – Zeilenumbrüche und Leerzeichen des Schülers bleiben erhalten
+    head, bracket, rest = text.partition("(")
+    position = head.rfind(old_label) if bracket and head.strip() else -1
+    if position >= 0:
+        return f"{head[:position]}{name}{head[position + len(old_label):]}({rest}"
+    head, bracket, rest = " ".join(text.split()).partition("(")
     position = head.rfind(old_label) if bracket and head.strip() else -1
     if position < 0:
         return new_label
-    name = new_label if T.is_identifier(new_label) else T.slug(new_label)
     return f"{head[:position]}{name}{head[position + len(old_label):]}({rest}"
 
 

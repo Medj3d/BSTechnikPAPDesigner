@@ -62,22 +62,17 @@
             </ENTRY>
             <ENTRY COLUMN="0" ROW="3" bst:X="-390" bst:Y="229.99999999999997" bst:WIDTH="320" bst:HEIGHT="100">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="11" bst:UID="df4e40fd29ec4d4396c86d613c97ff48">
-                <TEXT><![CDATA[Verzweigung (Raute): Die Bedingung
-entscheidet, welcher Pfeil gilt –
-beschriftet mit „ja“ und „nein“.]]></TEXT>
+                <TEXT><![CDATA[Verzweigung (Raute): Die Bedingung entscheidet, welcher Pfeil gilt – beschriftet mit „ja“ und „nein“.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="4" bst:X="-390" bst:Y="390" bst:WIDTH="240" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="12" bst:UID="a9a63dd3f7cf4a798bd2566dc504844e">
-                <TEXT><![CDATA[Verzweigungen lassen sich
-verschachteln.]]></TEXT>
+                <TEXT><![CDATA[Verzweigungen lassen sich verschachteln.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="7" bst:X="-390" bst:Y="670" bst:WIDTH="320" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="1ecb6cded744413eb0d98b2a15d80956">
-                <TEXT><![CDATA[Verbindungspunkte führen die Wege
-wieder zusammen (Rechtsklick auf
-einen Pfeil → Verbindungspunkt).]]></TEXT>
+                <TEXT><![CDATA[Verbindungspunkte führen die Wege wieder zusammen (Rechtsklick auf einen Pfeil → Verbindungspunkt).]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="3" ROW="3" bst:X="520" bst:Y="229.99999999999997" bst:WIDTH="12" bst:HEIGHT="12" bst:CORNER="True">

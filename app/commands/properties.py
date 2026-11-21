@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 
 from PySide6.QtGui import QUndoCommand
 
@@ -51,9 +52,16 @@ class ProjectPropertiesCommand(QUndoCommand):
         self._new_meta = new_meta.copy()
         self._old_grid = old_grid
         self._new_grid = new_grid
+        # Nur die geänderten Angaben gehören zu diesem Schritt: Was das Programm später selbst setzt (z. B. den Namen
+        # aus dem Dateinamen beim ersten Speichern), bleibt bei Rückgängig/Wiederholen erhalten.
+        self._fields = [f.name for f in dataclasses.fields(new_meta)
+                        if getattr(old_meta, f.name) != getattr(new_meta, f.name)]
 
-    def _apply(self, meta, grid) -> None:
-        self._document.apply_properties(meta.copy(), grid)
+    def _apply(self, source, grid) -> None:
+        meta = self._document.meta.copy()
+        for name in self._fields:
+            setattr(meta, name, copy.deepcopy(getattr(source, name)))
+        self._document.apply_properties(meta, grid)
 
     def redo(self) -> None:
         self._apply(self._new_meta, self._new_grid)

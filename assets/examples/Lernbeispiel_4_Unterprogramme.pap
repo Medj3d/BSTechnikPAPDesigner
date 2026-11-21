@@ -47,24 +47,17 @@
             </ENTRY>
             <ENTRY COLUMN="0" ROW="2" bst:X="-390" bst:Y="100" bst:WIDTH="280" bst:HEIGHT="160">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="4dd5f9b1b4574eb1a0b6952192744b33">
-                <TEXT><![CDATA[Ein Unterprogramm-Baustein ruft den
-Ablauf auf, dessen Start so heißt.
-Jedes Unterprogramm hat eine eigene
-Seite (Reiter unten).]]></TEXT>
+                <TEXT><![CDATA[Ein Unterprogramm-Baustein ruft den Ablauf auf, dessen Start so heißt. Jedes Unterprogramm hat eine eigene Seite (Reiter unten).]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="6" bst:X="-390" bst:Y="400" bst:WIDTH="240" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="9" bst:UID="fe402bbc33c646ef95c88a2522e4e73e">
-                <TEXT><![CDATA[Strg+Doppelklick öffnet das
-Unterprogramm, Alt+← führt zurück.]]></TEXT>
+                <TEXT><![CDATA[Strg+Doppelklick öffnet das Unterprogramm, Alt+← führt zurück.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="4" bst:X="364" bst:Y="250" bst:WIDTH="320" bst:HEIGHT="120">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="84f3c2178a6246f69ee118ab0dfca271">
-                <TEXT><![CDATA[Mehrfach Benötigtes gehört in ein
-Unterprogramm: markieren, dann
-Bearbeiten → Auswahl in Unterprogramm
-auslagern (Strg+Alt+U).]]></TEXT>
+                <TEXT><![CDATA[Mehrfach Benötigtes gehört in ein Unterprogramm: markieren, dann Bearbeiten → Auswahl in Unterprogramm auslagern (Strg+Alt+U).]]></TEXT>
               </FIGURE>
             </ENTRY>
           </ENTRIES>
@@ -149,17 +142,12 @@ b = r]]></TEXT>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="1" bst:X="-390" bst:Y="0" bst:WIDTH="320" bst:HEIGHT="120">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="7" bst:UID="b8b0df5713d34960ad34ada13cb965ea">
-                <TEXT><![CDATA[Euklidischer Algorithmus: Am Ende
-steht der ggT in a. Unterprogramme
-arbeiten mit denselben Variablen
-wie das Hauptprogramm.]]></TEXT>
+                <TEXT><![CDATA[Euklidischer Algorithmus: Am Ende steht der ggT in a. Unterprogramme arbeiten mit denselben Variablen wie das Hauptprogramm.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="200" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="ffec5d588e12431faed3bcbf33b092fe">
-                <TEXT><![CDATA[„mod“ ist der Rest der Division;
-„≠“ gibt es unter Bearbeiten →
-Sonderzeichen.]]></TEXT>
+                <TEXT><![CDATA[„mod“ ist der Rest der Division; „≠“ gibt es unter Bearbeiten → Sonderzeichen.]]></TEXT>
               </FIGURE>
             </ENTRY>
           </ENTRIES>

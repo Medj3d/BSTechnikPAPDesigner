@@ -671,7 +671,7 @@ def diagram_to_xml(diagram: Diagram) -> str:
         # Aufgabe nur, wenn es eine gibt: Dateien ohne Aufgabe bleiben unverändert
         + [(_ext(key), value) for key, value in (("TASK_TITLE", meta.task_title), ("TASK_TEXT", meta.task_text),
                                                  ("TASK_SOLUTION", meta.task_solution),
-                                                 ("TASK_LOCK", meta.task_lock)) if value], 1))
+                                                 ("TASK_LOCK", meta.task_lock), ("TASK_COPY", meta.task_copy)) if value], 1))
     out.append(_tag("DIAGRAMS", [], 2))
     grid = [(_ext("GRID_SIZE"), int(settings.grid_size)),
             (_ext("GRID_VISIBLE"), _format_flag(settings.grid_visible)),
@@ -878,6 +878,7 @@ def _meta_from(project, native: bool, fallback_name: str) -> ProjectMeta:
         meta.task_text = project.get(_key("TASK_TEXT")) or ""
         meta.task_solution = project.get(_key("TASK_SOLUTION")) or ""
         meta.task_lock = project.get(_key("TASK_LOCK")) or ""
+        meta.task_copy = project.get(_key("TASK_COPY")) or ""
     return meta
 
 
@@ -1072,6 +1073,11 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
     if root.tag not in ("FRAME", "PROJECT") or project is None:
         raise ProjectFileError(tr("Die Datei ist keine PAP-Datei."))
     native = check_version(root.get(_key("VERSION")))
+    if native and project.find("./DIAGRAMS/DIAGRAM") is None:
+        # Dieses Programm schreibt immer mindestens ein Diagramm (auch für ein leeres Projekt). Fehlt es, ist die Datei
+        # beschädigt – nie als leeres Projekt öffnen, sonst überschreibt das automatische Speichern den Rest.
+        raise ProjectFileError(tr("Die Datei ist beschädigt: Sie enthält kein Diagramm. Bitte die Sicherungskopie "
+                                  "(.pap-backup) öffnen oder die Datei mit einem Texteditor prüfen."))
 
     warnings: list[str] = []
     layout = project.find("./DIAGRAMS/DIAGRAM/LAYOUT") if native else None

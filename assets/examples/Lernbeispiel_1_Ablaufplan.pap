@@ -37,34 +37,27 @@
             </ENTRY>
             <ENTRY COLUMN="0" ROW="1" bst:X="-364" bst:Y="0" bst:WIDTH="280" bst:HEIGHT="60">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="6" bst:UID="96d8a91191fc4d3db786f2a286bd4000">
-                <TEXT><![CDATA[Jeder Ablauf beginnt mit Start
-und endet mit Ende.]]></TEXT>
+                <TEXT><![CDATA[Jeder Ablauf beginnt mit Start und endet mit Ende.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="2" bst:X="-364" bst:Y="100" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="7" bst:UID="2b1718c256c24f24b65379ea3cf64f8b">
-                <TEXT><![CDATA[Eingabe (Parallelogramm):
-Der Wert landet in der Variablen r.]]></TEXT>
+                <TEXT><![CDATA[Eingabe (Parallelogramm): Der Wert landet in der Variablen r.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="4" bst:X="-364" bst:Y="200" bst:WIDTH="280" bst:HEIGHT="100">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="8" bst:UID="2d95a5b898f448b388e33932afcb6f13">
-                <TEXT><![CDATA[Verarbeitung (Rechteck): links die
-Variable, rechts die Rechnung –
-hier auf 2 Stellen gerundet.]]></TEXT>
+                <TEXT><![CDATA[Verarbeitung (Rechteck): links die Variable, rechts die Rechnung – hier auf 2 Stellen gerundet.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="5" bst:X="-364" bst:Y="300" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="9" bst:UID="3f367f4f2bb84339b0197b1aadc6e3c2">
-                <TEXT><![CDATA[Ausgabe: Text in „…“, danach
-die Variable, deren Wert erscheint.]]></TEXT>
+                <TEXT><![CDATA[Ausgabe: Text in „…“, danach die Variable, deren Wert erscheint.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="3" bst:X="364" bst:Y="150" bst:WIDTH="320" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="10" bst:UID="624bc86e14524bf6869d30578bc1f236">
-                <TEXT><![CDATA[Ausprobieren: F5 lässt den Plan im
-Schreibtischtest laufen. Mit F10 geht es
-Schritt für Schritt, mit Strg+F10 zurück.]]></TEXT>
+                <TEXT><![CDATA[Ausprobieren: F5 lässt den Plan im Schreibtischtest laufen. Mit F10 geht es Schritt für Schritt, mit Strg+F10 zurück.]]></TEXT>
               </FIGURE>
             </ENTRY>
           </ENTRIES>

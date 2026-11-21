@@ -619,7 +619,7 @@ class MainWindow(QMainWindow):
         a["duplicate"].triggered.connect(self.duplicate)
         a["delete"].triggered.connect(lambda: self._with_scene(lambda s: s.delete_selection()))
         a["select_all"].triggered.connect(lambda: self._with_scene(lambda s: s.select_all()))
-        a["deselect"].triggered.connect(lambda: self._with_scene(lambda s: s.handle_escape()))
+        a["deselect"].triggered.connect(self._on_escape)
         a["edit_text"].triggered.connect(self.edit_selected_text)
 
         a["zoom_in"].triggered.connect(lambda: self._with_view(lambda v: v.zoom_in()))
@@ -685,12 +685,8 @@ class MainWindow(QMainWindow):
         a["backup_on_save"].setChecked(self.settings_store.backup_on_save())
         a["backup_on_save"].triggered.connect(self._on_backup_triggered)
         a["presentation"].triggered.connect(self.set_presentation)
-        # Esc beendet die Präsentationsansicht – nur solange sie läuft (sonst gehört Esc der Arbeitsfläche)
-        self._exit_presentation = QAction(self)
-        self._exit_presentation.setShortcut(QKeySequence(Qt.Key.Key_Escape))
-        self._exit_presentation.setEnabled(False)
-        self._exit_presentation.triggered.connect(self._on_presentation_escape)
-        self.addAction(self._exit_presentation)
+        # Esc liegt nur auf „Auswahl aufheben“ (_on_escape): Ein zweiter Befehl auf derselben Taste wäre für Qt
+        # mehrdeutig, und keiner von beiden würde ausgeführt
         # Tastenkürzel wirken auch, wenn die Menüleiste ausgeblendet ist (Präsentationsansicht)
         self.addActions(list(a.all().values()))
         self.actions.apply_custom_shortcuts(self.settings_store.shortcuts())
@@ -900,6 +896,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, tr("Aufgabe stellen"), tr("Das Passwort ist falsch."))
                 return
             password = entered
+            document.task_unlocked = True
         dialog = TaskDialog(current, solution, self)
         dialog.set_previous_password(password)
         if dialog.exec() != TaskDialog.DialogCode.Accepted:
@@ -949,6 +946,9 @@ class MainWindow(QMainWindow):
         keys = self.actions["toggle_diagnostics"].shortcuts()
         tip = tr("Hinweisliste ein-/ausblenden")
         self.issues_button.setToolTip(f"{tip} ({sequence_text(keys[0])})" if keys else tip)
+        keys = self.actions["new_subprogram"].shortcuts()
+        tip = tr("Neues Unterprogramm auf einer eigenen Seite anlegen")
+        self.page_bar.add_button.setToolTip(f"{tip} ({sequence_text(keys[0])})" if keys else tip)
         search_keys = self.actions["search"].shortcuts()
         for bar in (self.search_bar, self.menu_search_bar):
             bar.setPlaceholderText(
@@ -1148,16 +1148,35 @@ class MainWindow(QMainWindow):
         self._auto_save_pending.discard(document)
         self.undo_group.removeStack(document.undo_stack)
         self.tabs.removeTab(index)
+        if getattr(view, "minimap", None) is not None:
+            view.minimap.release()   # sonst halten Minikarte und Szene das geschlossene Projekt im Speicher
+            view.minimap = None
+        document.view_state_provider = None   # gebundene Methode der Ansicht: hielte Ansicht und Projekt fest
+        # Die Szenen gehören keinem Qt-Elternobjekt: ausdrücklich leeren und abbauen, sonst bleiben sie samt
+        # aller Bausteine im Speicher
+        document.undo_stack.clear()
+        for page in document.pages:
+            page.scene.clear_diagram()
+            page.scene.deleteLater()
         view.deleteLater()
         document.deleteLater()
         self._update_ui()
         return True
 
     def _find_document_by_path(self, path: str) -> int:
-        target = os.path.normcase(os.path.abspath(path))
+        target = _path_key(path)
         for i, view in enumerate(self.views()):
-            if view.document.file_path and os.path.normcase(view.document.file_path) == target:
+            other = view.document.file_path
+            if not other:
+                continue
+            if _path_key(other) == target:
                 return i
+            try:
+                # dieselbe Datei auf anderem Weg: 8.3-Kurzname, Netzlaufwerk, subst, Verknüpfung
+                if os.path.exists(path) and os.path.exists(other) and os.path.samefile(path, other):
+                    return i
+            except OSError:
+                pass
         return -1
 
     # ============================================================ Datei
@@ -1236,6 +1255,10 @@ class MainWindow(QMainWindow):
                                        "wurden:\n\n{text}", text=text))
         if backup:
             self.statusBar().showMessage(tr("Sicherungskopie geöffnet – „Speichern“ legt eine neue Datei an."), 6000)
+        elif self._is_task_original(document):
+            self.statusBar().showMessage(tr("Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene "
+                                            "Datei angelegt, die Aufgabe bleibt unverändert.",
+                                            name=document.display_name), 8000)
         elif document.native_file:
             self.statusBar().showMessage(tr("„{name}“ geöffnet.", name=document.display_name), 4000)
         else:
@@ -1285,6 +1308,8 @@ class MainWindow(QMainWindow):
         # Gespeichert wird ausschließlich als .pap-Datei
         if not document.file_path or not _has_project_extension(document.file_path):
             return self.save_document_as(document)
+        if self._is_task_original(document):
+            return self._save_task_copy(document)
         if not document.native_file:
             # Die Datei stammt aus einem anderen Programm: nicht stillschweigend ersetzen
             choice = self._ask_foreign_overwrite(document)
@@ -1345,9 +1370,30 @@ class MainWindow(QMainWindow):
             return "overwrite"
         return "save_as" if clicked is save_as else "cancel"
 
-    def save_document_as(self, document: DiagramDocument) -> bool:
+    @staticmethod
+    def _is_task_original(document: DiagramDocument) -> bool:
+        """Aufgabe der Lehrkraft (mit Passwort), nicht die Kopie eines Schülers und nicht mit Passwort entsperrt:
+        Diese Datei wird nie still überschrieben – weder automatisch noch mit „Speichern“."""
+        meta = document.meta
+        return bool(meta.task_lock) and not meta.task_copy and not getattr(document, "task_unlocked", False)
+
+    def _save_task_copy(self, document: DiagramDocument) -> bool:
+        """Lösung zu einer Aufgabe als eigene Datei speichern (das Original der Lehrkraft bleibt unverändert)."""
+        self.statusBar().showMessage(tr("Das ist eine Aufgabe der Lehrkraft – Ihre Lösung wird als eigene Datei "
+                                        "gespeichert. (Lehrkraft: über „Aufgabe stellen“ mit Passwort entsperren.)"),
+                                     10000)
+        document.meta.task_copy = "1"
+        if self.save_document_as(document, task_copy=True):
+            return True
+        document.meta.task_copy = ""
+        return False
+
+    def save_document_as(self, document: DiagramDocument, task_copy: bool = False) -> bool:
         document.scene.commit_edit()
-        if document.file_path:
+        if document.file_path and task_copy:
+            stem = os.path.splitext(document.file_path)[0]
+            suggestion = tr("{name} – Lösung", name=stem) + config.FILE_EXTENSION
+        elif document.file_path:
             suggestion = export.ensure_extension(document.file_path, config.FILE_EXTENSION)
         else:
             name = export.ensure_extension(_safe_filename(document.display_name), config.FILE_EXTENSION)
@@ -1374,6 +1420,11 @@ class MainWindow(QMainWindow):
 
     def _save_to(self, document: DiagramDocument, path: str, automatic: bool = False) -> bool:
         """Speichert das Projekt. ``automatic``: ohne Meldungsfenster (automatisches Speichern)."""
+        if automatic and path == document.file_path and document.disk_stamp is not None and not os.path.exists(path):
+            # außerhalb gelöscht oder verschoben: nicht still neu anlegen – beim Speichern von Hand entscheidet man selbst
+            self.statusBar().showMessage(tr("„{name}“ wurde gelöscht oder verschoben – automatisches Speichern ist "
+                                            "angehalten. Bitte selbst speichern.", name=os.path.basename(path)), 8000)
+            return False
         if automatic and path == document.file_path and document.changed_on_disk():
             # nicht still über fremde Änderungen schreiben – beim Speichern von Hand wird gefragt
             self.statusBar().showMessage(tr("„{name}“ wurde außerhalb des Programms geändert – automatisches "
@@ -1465,19 +1516,25 @@ class MainWindow(QMainWindow):
             self.statusBar().hide()
             self.tabs.tabBar().hide()
             self.showFullScreen()
-            self._exit_presentation.setEnabled(True)
             view = self.current_view()
             if view is not None:
                 view.setFocus()
             return
         state, window_state = self._presentation
         self._presentation = None
-        self._exit_presentation.setEnabled(False)
         self.menuBar().show()
         self.statusBar().show()
         self.tabs.tabBar().show()
         self.restoreState(state, WINDOW_STATE_VERSION)
         self.setWindowState(window_state)
+
+    def _on_escape(self) -> None:
+        """Esc: in der Präsentationsansicht schrittweise abbrechen und zuletzt die Ansicht beenden, sonst wie bisher
+        Texteingabe bzw. Auswahl aufheben."""
+        if self.presenting:
+            self._on_presentation_escape()
+        else:
+            self._with_scene(lambda s: s.handle_escape())
 
     def _on_presentation_escape(self) -> None:
         """Esc: zuerst Texteingabe bzw. Auswahl aufheben, dann die Präsentationsansicht beenden."""
@@ -1499,9 +1556,13 @@ class MainWindow(QMainWindow):
         """Nur Projekte, die schon einmal mit diesem Programm als .pap gespeichert wurden."""
         return bool(self._auto_save_enabled and document.file_path and document.native_file
                     and not getattr(document, "restored_from_backup", False)
+                    and not self._is_task_original(document)
                     and _has_project_extension(document.file_path))
 
     def _schedule_auto_save(self, document: DiagramDocument) -> None:
+        # Beim Schließen eines Reiters meldet die Rückgängig-Liste während ihres Abbaus noch eine Änderung
+        if not shiboken6.isValid(document) or not shiboken6.isValid(document.undo_stack):
+            return
         if not self._auto_save_applies(document) or not document.is_modified:
             return
         self._auto_save_pending.add(document)
@@ -1814,6 +1875,9 @@ class MainWindow(QMainWindow):
             ids = clipboard.paste_payload(scene, payload, target_center=at)
         else:
             offset = self.paste_tracker.next_offset(payload, config.PASTE_OFFSET)
+            if offset.isNull() and _originals_in_place(scene, payload):
+                # Ausschneiden wurde rückgängig gemacht: nicht deckungsgleich auf das Original legen
+                offset = self.paste_tracker.next_offset(payload, config.PASTE_OFFSET)
             bounds = clipboard.payload_bounds(payload).translated(offset)
             if bounds.isValid() and not view.visible_scene_rect().intersects(bounds):
                 ids = clipboard.paste_payload(scene, payload, target_center=view.visible_center())
@@ -2353,7 +2417,16 @@ class MainWindow(QMainWindow):
                                               filters[fmt])
         if not path:
             return
+        chosen = path
         path = export.ensure_extension(path, extension)
+        if path != chosen and os.path.exists(path):
+            # Der Dialog hat nur den eingegebenen Namen geprüft, nicht den mit angehängter Endung
+            answer = QMessageBox.question(
+                self, tr("Als {format} exportieren", format=fmt),
+                tr("„{name}“ ist bereits vorhanden.\nSoll die Datei ersetzt werden?", name=os.path.basename(path)),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if answer != QMessageBox.StandardButton.Yes:
+                return
         exporter = {"PNG": export.export_png, "SVG": export.export_svg, "PDF": export.export_pdf}[fmt]
         source = _printable_scenes(document) if fmt == "PDF" else document.scene
         try:
@@ -2549,8 +2622,9 @@ class MainWindow(QMainWindow):
         settings = view.document.settings
         elements = len(scene.elements())
         connections = len(scene.connections())
-        self.count_label.setText(tr("{elements} Bausteine · {connections} Verbindungen",
-                                    elements=elements, connections=connections))
+        element_text = tr("1 Baustein") if elements == 1 else tr("{n} Bausteine", n=elements)
+        connection_text = tr("1 Verbindung") if connections == 1 else tr("{n} Verbindungen", n=connections)
+        self.count_label.setText(f"{element_text} · {connection_text}")
         selected = len(scene.selectedItems())
         self.selection_label.setText(tr("{n} ausgewählt", n=selected) if selected else "")
         size = settings.grid_size
@@ -2596,6 +2670,29 @@ def _has_project_extension(path: str) -> bool:
     return path.lower().endswith(config.FILE_EXTENSION.lower())
 
 
+def _path_key(path: str) -> str:
+    """Vergleichsschlüssel eines Pfads: Kurznamen und Verknüpfungen aufgelöst, Groß/Klein wie im System."""
+    try:
+        return os.path.normcase(os.path.realpath(os.path.abspath(path)))
+    except (OSError, ValueError):
+        return os.path.normcase(os.path.abspath(path))
+
+
+def _originals_in_place(scene, payload) -> bool:
+    """Liegen die ausgeschnittenen Bausteine wieder an ihrer Stelle (z. B. nach Rückgängig)?"""
+    for data in payload.elements:
+        item = scene.element(data.id)
+        if item is not None and abs(item.pos().x() - data.x) < 0.5 and abs(item.pos().y() - data.y) < 0.5:
+            return True
+    return False
+
+
 def _safe_filename(name: str) -> str:
     cleaned = "".join("_" if c in '<>:"/\\|?*' else c for c in name).strip().rstrip(".")
+    # Unter Windows 10 sind diese Namen (auch mit Endung) Gerätenamen und lassen sich nicht speichern
+    if cleaned.split(".")[0].strip().upper() in _RESERVED_NAMES:
+        cleaned += "_"
     return cleaned or config.DEFAULT_PROJECT_NAME
+
+
+_RESERVED_NAMES = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}

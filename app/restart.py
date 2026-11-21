@@ -29,12 +29,25 @@ def command(files: list[str] | tuple[str, ...] = (), pid: int | None = None, lan
     return program + arguments + [str(path) for path in files]
 
 
+def launch_now(files: list[str] | tuple[str, ...] = ()) -> None:
+    """Startet das Programm sofort neu; der neue Start wartet, bis dieses beendet ist."""
+    try:
+        subprocess.Popen(command(files), close_fds=True, env=platforms.host_environment())
+    except OSError:
+        log.exception("Das Programm konnte nicht neu gestartet werden")
+
+
 def launch_after_quit(application, files: list[str] | tuple[str, ...] = ()) -> None:
-    """Startet das Programm neu, sobald dieses beendet ist."""
+    """Startet das Programm neu, sobald dieses beendet ist.
+
+    Auch Dateien, die ein weiterer Programmstart übergeben hat und die noch nicht geöffnet sind, öffnet der
+    Neustart (siehe ``app.single_instance.take_pending``)."""
+    from app import single_instance
+
+    single_instance.plan_restart()
+
     def start() -> None:
-        try:
-            subprocess.Popen(command(files), close_fds=True, env=platforms.host_environment())
-        except OSError:
-            log.exception("Das Programm konnte nicht neu gestartet werden")
+        pending = [path for path in single_instance.take_pending() if path not in files]
+        launch_now(list(files) + pending)
 
     application.aboutToQuit.connect(start)

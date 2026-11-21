@@ -10,6 +10,7 @@ angewendet.
 from __future__ import annotations
 
 import ast
+import decimal
 import math
 import operator
 
@@ -25,6 +26,11 @@ MAX_INT_BITS = 10_000  # ca. 3000 Dezimalstellen
 
 class EvaluationError(Exception):
     pass
+
+
+class CalculationError(EvaluationError):
+    """Die Rechnung selbst schlägt fehl (Division durch null, Text minus Zahl …). Das erzeugte Programm bricht
+    dann ab – der Schreibtischtest bei Vorgängen und Ausgaben ebenso."""
 
 
 def _limited(value):
@@ -56,10 +62,15 @@ def runden(x, stellen=0):
         return x
     if int(stellen) < -MAX_FLOAT_EXPONENT:
         return 0
-    faktor = 10 ** int(stellen)
-    wert = math.floor(abs(x) * faktor + 0.5) / faktor
-    wert = wert if x >= 0 else -wert
-    return int(wert) if int(stellen) <= 0 else wert
+    abs(x)  # Text: TypeError wie bisher
+    x = int(x) if isinstance(x, bool) else x
+    if isinstance(x, float) and not math.isfinite(x):
+        return x
+    # Über den Text der Zahl runden (wie die erzeugten Programme): 1,005 wird 1,01 – mit Gleitkomma wäre es
+    # 1,00, weil 1,005 intern 1,00499… ist
+    wert = decimal.Decimal(str(x)).quantize(decimal.Decimal(1).scaleb(-int(stellen)), decimal.ROUND_HALF_UP,
+                                            decimal.Context(prec=4000))
+    return int(wert) if int(stellen) <= 0 else float(wert) + 0.0
 
 
 def _power(base, exponent):
@@ -135,7 +146,7 @@ def _eval(node, variables):
             if isinstance(node.op, ast.UAdd):
                 return +value
         except TypeError as exc:
-            raise EvaluationError(tr("Rechnung nicht möglich ({error}).", error=exc)) from exc
+            raise CalculationError(tr("Rechnung nicht möglich ({error}).", error=exc)) from exc
         if isinstance(node.op, ast.Not):
             return not value
         raise EvaluationError(tr("Dieser Operator wird nicht unterstützt."))
@@ -163,9 +174,9 @@ def _eval(node, variables):
         try:
             return _limited(op(left, right))
         except ZeroDivisionError as exc:
-            raise EvaluationError(tr("Division durch null.")) from exc
+            raise CalculationError(tr("Division durch null.")) from exc
         except (TypeError, ValueError, OverflowError) as exc:
-            raise EvaluationError(tr("Rechnung nicht möglich ({error}).", error=exc)) from exc
+            raise CalculationError(tr("Rechnung nicht möglich ({error}).", error=exc)) from exc
     if isinstance(node, ast.BoolOp):
         values = node.values
         if isinstance(node.op, ast.And):
@@ -202,7 +213,7 @@ def _eval(node, variables):
         try:
             return _limited(_FUNCTIONS[node.func.id](*args))
         except (TypeError, ValueError, OverflowError, ZeroDivisionError) as exc:
-            raise EvaluationError(tr("Funktion „{name}“: {error}", name=node.func.id, error=exc)) from exc
+            raise CalculationError(tr("Funktion „{name}“: {error}", name=node.func.id, error=exc)) from exc
     if isinstance(node, ast.IfExp):
         return _eval(node.body, variables) if _eval(node.test, variables) else _eval(node.orelse, variables)
     raise EvaluationError(tr("Dieser Ausdruck wird nicht unterstützt."))

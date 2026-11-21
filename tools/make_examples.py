@@ -41,8 +41,10 @@ class Plan:
         return element
 
     def comment(self, column: float, row: float, text: str, attach=None, port: str = "left"):
+        # Keine festen Zeilenumbrüche: Der Kommentar bricht selbst passend um (sonst doppelt umbrochene Zeilen)
+        text = " ".join(part.strip() for part in text.split("\n"))
         note = self.add(T.COMMENT, column, row, text)
-        lines = text.count("\n") + 1
+        lines = max(1, round(len(text) / 34))
         note.width, note.height = 300.0, max(60.0, 20.0 * lines + 20)
         if attach is not None:
             self.link(note, attach, "left" if port == "right" else "right", port)

@@ -508,7 +508,14 @@ class _Structurer:
         # der letzte Ausgang (bzw. „sonst“) ist der Sonst-Zweig
         else_block = blocks[runs[-1][1]][0]
         chain = [(edges, blocks[target][0], blocks[target][1]) for edges, target in runs[:-1]]
-        for edges, block, _ in reversed(chain):
+        # Ist der letzte Ausgang kein „sonst“, sondern ein Wert („1“, „2“, „3“), gilt er nur für diesen Wert:
+        # Passt kein Ausgang, melden Schreibtischtest und erzeugte Programme das, statt ihn trotzdem zu nehmen.
+        last_edges = runs[-1][0]
+        last_case = ""
+        if all(edge.label.strip() and not edge.is_else for edge in last_edges):
+            last_case = " oder ".join(branch_condition(node.text, edge.label) or f"{subject} = ?"
+                                      for edge in last_edges)
+        for position, (edges, block, _) in enumerate(reversed(chain)):
             conditions = []
             for edge in edges:
                 conditions.append(branch_condition(node.text, edge.label) or f"{subject} = ?")
@@ -516,7 +523,7 @@ class _Structurer:
                     self.warn(tr("Ein Ausgang der Verzweigung „{name}“ ist nicht beschriftet.", name=self.label(cur)))
             # „oder“ verbindet Bedingungen im Plantext: Schlüsselwort der Plansprache, wird vom Programm ausgewertet
             else_block = Block([If(" oder ".join(conditions), cur, block, else_block, yes_label(), no_label(),
-                                   self.comments(cur))])
+                                   self.comments(cur), last_case=last_case if position == 0 else "")])
         if not chain:
             # alle Ausgänge führen zum selben Baustein
             else_block = Block([If(node.text, cur, Block(), Block(), yes_label(), no_label(), self.comments(cur))])

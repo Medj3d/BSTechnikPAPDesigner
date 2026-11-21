@@ -132,7 +132,13 @@ class DiagramScene(QGraphicsScene):
             self.addItem(item)
         self._elements[item.element_id] = item
         item.apply_z()
+        self._revalidate_extended()
         self.content_changed.emit()
+
+    def _revalidate_extended(self) -> None:
+        """Die erweiterte Prüfung hängt auch an Bausteinen ohne Pfeil (z. B. ein weiterer Start): neu prüfen."""
+        if preferences.enabled(preferences.EXTENDED_CHECKS):
+            self.request_validation()
 
     def remove_element_item(self, item: FlowItem) -> None:
         if self._edit_state and self._edit_state.get("item") is item:
@@ -153,6 +159,7 @@ class DiagramScene(QGraphicsScene):
             self.removeItem(item)
         self._elements.pop(item.element_id, None)
         self._move_start.pop(item.element_id, None)
+        self._revalidate_extended()
         self.content_changed.emit()
 
     def add_connection_item(self, conn: ConnectionItem) -> None:
@@ -1336,6 +1343,11 @@ class DiagramScene(QGraphicsScene):
     def _endpoint_at(self, pos: QPointF, source: ConnectionEndpoint) -> ConnectionEndpoint | None:
         """Ziel unter dem Mauszeiger: Block/Knoten haben Vorrang vor Pfeilen."""
         exclude_item = source.item if not source.is_edge else None
+        if exclude_item is not None and not exclude_item.is_junction:
+            # genau auf einem anderen Anschluss desselben Bausteins losgelassen: Rückpfeil zu sich selbst (erlaubt)
+            own_port = exclude_item.port_at(pos)
+            if own_port and own_port != source.port:
+                return ConnectionEndpoint(item=exclude_item, port=own_port)
         item = self._element_at(pos, exclude=exclude_item)
         if item is not None and item.data.properties.get(LOOSE_END_KEY):
             return None  # ein loses Ende ist kein Ziel, auch nicht das gerade gezogene
@@ -2069,6 +2081,14 @@ class DiagramScene(QGraphicsScene):
             view.ensureVisible(target, 60, 60)
         return target
 
+    def focusNextPrevChild(self, next: bool) -> bool:
+        """Tab / Umschalt+Tab: QGraphicsScene.event fängt diese Tasten vor ``keyPressEvent`` ab – hier wandern sie von
+        Baustein zu Baustein (statt den Fokus aus der Arbeitsfläche in die Werkzeugleiste zu geben)."""
+        if self.is_editing or not self.elements():
+            return super().focusNextPrevChild(next)
+        self.select_neighbour(next)
+        return True
+
     def keyPressEvent(self, event) -> None:
         if self._editor is not None or self.focusItem() is not None:
             super().keyPressEvent(event)
@@ -2099,7 +2119,8 @@ class DiagramScene(QGraphicsScene):
             event.accept()
             return
 
-        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_F2) and not ctrl_alt:
+        # F2 gehört dem frei belegbaren Befehl „Text bearbeiten“ (Fenster-Tastenkürzel), Enter bleibt fest
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and not ctrl_alt:
             if self.single_selected is not None:
                 self.begin_element_edit(self.single_selected, select_all=True)
                 event.accept()

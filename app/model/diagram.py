@@ -41,6 +41,9 @@ class ProjectMeta:
     task_text: str = ""
     task_solution: str = ""
     task_lock: str = ""
+    # "1": Kopie einer Aufgabe (z. B. Lösung eines Schülers) – wird normal gespeichert, das Original der
+    # Lehrkraft dagegen nie still überschrieben (siehe MainWindow.save_document)
+    task_copy: str = ""
 
     def copy(self) -> "ProjectMeta":
         return copy.deepcopy(self)

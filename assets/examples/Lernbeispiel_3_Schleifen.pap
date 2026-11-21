@@ -68,32 +68,22 @@ i = 1]]></TEXT>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="3" bst:X="-390" bst:Y="200" bst:WIDTH="320" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="12" bst:UID="4f11e4d99dbd4221aaecdaaa66210709">
-                <TEXT><![CDATA[Schleife mit Fußbedingung: Der Inhalt
-läuft mindestens einmal; geprüft wird
-am Ende („bis …“). Hier: so lange
-fragen, bis n positiv ist.]]></TEXT>
+                <TEXT><![CDATA[Schleife mit Fußbedingung: Der Inhalt läuft mindestens einmal; geprüft wird am Ende („bis …“). Hier: so lange fragen, bis n positiv ist.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="0" ROW="7" bst:X="-390" bst:Y="600" bst:WIDTH="280" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="13" bst:UID="fe9591af7a19453baa20a1573df5403d">
-                <TEXT><![CDATA[Schleife mit Kopfbedingung: geprüft
-wird vorher („solange …“) – ist sie
-falsch, läuft der Inhalt gar nicht.]]></TEXT>
+                <TEXT><![CDATA[Schleife mit Kopfbedingung: geprüft wird vorher („solange …“) – ist sie falsch, läuft der Inhalt gar nicht.]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="5" bst:X="364" bst:Y="400" bst:WIDTH="280" bst:HEIGHT="80">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="14" bst:UID="2ddfe8ae86334c36be9e332e3c694567">
-                <TEXT><![CDATA[Mehrere Zuweisungen in einem
-Baustein: je Zeile eine
-(Zeilenumbruch mit Strg+Enter).]]></TEXT>
+                <TEXT><![CDATA[Mehrere Zuweisungen in einem Baustein: je Zeile eine (Zeilenumbruch mit Strg+Enter).]]></TEXT>
               </FIGURE>
             </ENTRY>
             <ENTRY COLUMN="2" ROW="9" bst:X="364" bst:Y="750" bst:WIDTH="320" bst:HEIGHT="140">
               <FIGURE SUBTYPE="PapComment" FORMAT="1.00" ID="15" bst:UID="fefbf0ccaeba4fc2a41d3dc964f690f4">
-                <TEXT><![CDATA[Einfügen → Schleife mit Kopf- bzw.
-Fußbedingung legt beide Teile an.
-Eine Schleife geht auch mit einer
-Verzweigung und einem Pfeil zurück.]]></TEXT>
+                <TEXT><![CDATA[Einfügen → Schleife mit Kopf- bzw. Fußbedingung legt beide Teile an. Eine Schleife geht auch mit einer Verzweigung und einem Pfeil zurück.]]></TEXT>
               </FIGURE>
             </ENTRY>
           </ENTRIES>

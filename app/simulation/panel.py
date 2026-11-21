@@ -748,6 +748,8 @@ class SimulationPanel(QWidget):
             return
         if not path.lower().endswith(".csv"):
             path += ".csv"
+            if not self._may_replace(path, tr("Als CSV speichern")):
+                return
         buffer = io.StringIO()
         # Semikolon und Kennung am Dateianfang: so öffnet ein deutsches Excel die Datei richtig
         csv.writer(buffer, delimiter=";", lineterminator="\r\n").writerows(table_rows(table))
@@ -760,7 +762,20 @@ class SimulationPanel(QWidget):
             return
         if not path.lower().endswith(".txt"):
             path += ".txt"
+            if not self._may_replace(path, tr("Als Textdatei speichern")):
+                return
         self._write(path, text + ("\n" if text else ""), "utf-8")
+
+    def _may_replace(self, path: str, title: str) -> bool:
+        """Die Endung wurde erst nach dem Dateidialog ergänzt – er hat also nicht gefragt, ob eine vorhandene Datei
+        dieses Namens ersetzt werden soll. Das holt diese Frage nach."""
+        if not os.path.exists(path):
+            return True
+        answer = QMessageBox.question(self, title, tr("Die Datei „{name}“ ist bereits vorhanden. Soll sie ersetzt "
+                                                      "werden?", name=os.path.basename(path)),
+                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                                      QMessageBox.StandardButton.No)
+        return answer == QMessageBox.StandardButton.Yes
 
     def _write(self, path: str, content: str, encoding: str) -> None:
         try:

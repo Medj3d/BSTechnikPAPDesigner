@@ -65,6 +65,9 @@ class If(Stmt):
     then_label: str = "ja"
     else_label: str = "nein"
     comments: list = field(default_factory=list)
+    # Mehrfachverzweigung ohne „sonst“: Bedingung des letzten Ausgangs (steht im ``else_block``). Gilt sie
+    # nicht, passt kein Ausgang – die erzeugten Programme melden das wie der Schreibtischtest. Sonst leer.
+    last_case: str = ""
 
 
 @dataclass

@@ -75,15 +75,27 @@ def stamp_text(name: str, school_class: str, date_text: str) -> str:
     return " · ".join(part.strip() for part in (name, school_class, date_text) if part and part.strip())
 
 
+def _fitted_rect(target: QRectF, source: QRectF) -> QRectF:
+    """Das Rechteck in ``target``, das ``source`` mit gleichem Seitenverhältnis einnimmt (mittig).
+
+    Plan und Namenszeile werden beide hierhin gezeichnet – so sitzen sie auch auf einer Druckseite
+    mit anderem Seitenverhältnis richtig zueinander."""
+    scale = min(target.width() / source.width(), target.height() / source.height())
+    width = source.width() * scale
+    height = source.height() * scale
+    return QRectF(target.left() + (target.width() - width) / 2, target.top() + (target.height() - height) / 2,
+                  width, height)
+
+
 def _draw_stamp(painter: QPainter, target: QRectF, source: QRectF, options: ExportOptions) -> None:
-    """Zeichnet die Namenszeile klein und gedämpft unten rechts – so, dass sie den Plan nicht stört."""
+    """Zeichnet die Namenszeile klein und gedämpft unten rechts – so, dass sie den Plan nicht stört.
+
+    ``target`` ist das bereits eingepasste Rechteck des Plans (siehe ``_fitted_rect``)."""
     if not options.stamp:
         return
-    scale = min(target.width() / source.width(), target.height() / source.height())
-    left = target.left() + (target.width() - source.width() * scale) / 2
-    top = target.top() + (target.height() - source.height() * scale) / 2
+    scale = target.width() / source.width()
     painter.save()
-    painter.translate(left, top)
+    painter.translate(target.left(), target.top())
     painter.scale(scale, scale)
     painter.setFont(_stamp_font())
     painter.setPen(QColor(options.theme.text_muted))
@@ -100,9 +112,12 @@ def _render(scene, painter: QPainter, target: QRectF, source: QRectF, options: E
     painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
     if fill_background:
         painter.fillRect(target, QColor(theme.canvas_bg))
+    # Qt richtet beim Einpassen links oben aus – deshalb das Zielrechteck selbst berechnen und
+    # für Plan und Namenszeile gemeinsam verwenden
+    fitted = _fitted_rect(target, source)
     with scene.export_mode(theme):
-        scene.render(painter, target, source, Qt.AspectRatioMode.KeepAspectRatio)
-    _draw_stamp(painter, target, source, options)
+        scene.render(painter, fitted, source, Qt.AspectRatioMode.KeepAspectRatio)
+    _draw_stamp(painter, fitted, source, options)
 
 
 def _image(scene, source: QRectF, options: ExportOptions) -> QImage:
@@ -239,6 +254,13 @@ def export_pdf(scenes, path: str, options: ExportOptions) -> None:
 def print_scene(scenes, printer, options: ExportOptions) -> None:
     """Druckt jedes Diagramm auf eine eigene Seite (seitenfüllend, Seitenverhältnis bleibt)."""
     scenes = _scene_list(scenes)
+    # Im Druckdialog gewählter Bereich „Seiten von … bis …“ (1 = erste Seite; 0 = alle Seiten)
+    first, last = printer.fromPage(), printer.toPage()
+    if first > 0:
+        last = last if last >= first else len(scenes)
+        scenes = scenes[first - 1:last]
+        if not scenes:
+            raise ExportError(tr("Im gewählten Seitenbereich gibt es keine Seite zum Drucken."))
     sources = [_source_rect(scene, options.margin, options.stamp) for scene in scenes]
     painter = QPainter()
     if not painter.begin(printer):

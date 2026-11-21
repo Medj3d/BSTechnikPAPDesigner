@@ -25,8 +25,11 @@ Benutzer selbst können die Prüfung beim Start nur für sich abschalten
 from __future__ import annotations
 
 import configparser
+import logging
 import os
 import sys
+
+log = logging.getLogger(__name__)
 
 POLICY_KEY = r"Software\Policies\BSTechnik\PAPDesigner"
 DISABLE_UPDATES_VALUE = "DisableUpdates"
@@ -62,12 +65,31 @@ def _policy_file(directory: str | None) -> configparser.ConfigParser | None:
     path = os.path.join(directory, POLICY_FILE_NAME)
     if not os.path.isfile(path):
         return None
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+    except OSError:
+        return None
+    # Windows-Werkzeuge schreiben verschieden: Editor (UTF-8 mit Kennung), PowerShell 5.1 (UTF-16), ältere (ANSI)
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        text = raw.decode("utf-16", errors="replace")
+    else:
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = raw.decode("cp1252", errors="replace")
     parser = configparser.ConfigParser()
     try:
-        # utf-8-sig: auch mit dem Windows-Editor gespeicherte Dateien (mit Kennung am Anfang)
-        parser.read(path, encoding="utf-8-sig")
-    except (OSError, configparser.Error, UnicodeDecodeError):
+        parser.read_string(text)
+    except configparser.Error:
+        log.warning("policy.ini konnte nicht gelesen werden: %s", path)
         return None
+    # Abschnittsnamen ohne Rücksicht auf Groß/Klein ([updates] = [Updates])
+    for section in list(parser.sections()):
+        if section.lower() == "updates" and section != "Updates" and not parser.has_section("Updates"):
+            parser.add_section("Updates")
+            for key, value in parser.items(section, raw=True):
+                parser.set("Updates", key, value)
     return parser
 
 

@@ -342,10 +342,19 @@ class NsdRenderer:
         self.fm = QFontMetricsF(self.font)
         self.root = _build(program.body, top_level=True)
         # höchstens 900 px breit – außer der Inhalt braucht mehr, damit kein Wort abgeschnitten wird
-        self.width = max(360.0, min(900.0, self.root.pref_width(self.fm)), self.root.min_width(self.fm))
+        self.title_font = _font(14, True)
+        title_fm = QFontMetricsF(self.title_font)
+        title = self.program.name or ""
+        # Der Titel zählt mit: bis 900 px wird das Struktogramm breiter, darüber wird er umgebrochen
+        # (das längste Wort passt immer hinein, damit nichts abgeschnitten wird)
+        title_width = max(min(900.0, title_fm.horizontalAdvance(title)), _word_width(title_fm, title)) + 4
+        self.width = max(360.0, min(900.0, self.root.pref_width(self.fm)), self.root.min_width(self.fm),
+                         title_width)
+        wrapped = _text_size(title_fm, title, self.width - 2).height()
+        self.title_height = max(TITLE_HEIGHT, wrapped + 8)
 
     def size(self) -> QSizeF:
-        return QSizeF(self.width, TITLE_HEIGHT + self.root.height(self.width, self.fm))
+        return QSizeF(self.width, self.title_height + self.root.height(self.width, self.fm))
 
     def paint(self, painter: QPainter, origin: QPointF = QPointF(0, 0)) -> None:
         colors = _colors(self.theme)
@@ -354,18 +363,18 @@ class NsdRenderer:
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
         painter.setFont(self.font)
         painter.translate(origin)
-        title = QRectF(0, 0, self.width, TITLE_HEIGHT)
-        bold = _font(14, True)
-        painter.setFont(bold)
+        title = QRectF(0, 0, self.width, self.title_height)
+        painter.setFont(self.title_font)
         painter.setPen(QColor(colors["text"]))
-        painter.drawText(title.adjusted(2, 0, 0, -6), int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom),
+        painter.drawText(title.adjusted(2, 0, 0, -6),
+                         int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom | Qt.TextFlag.TextWordWrap),
                          self.program.name)
         painter.setFont(self.font)
         height = self.root.height(self.width, self.fm)
-        self.root.paint(painter, QRectF(0, TITLE_HEIGHT, self.width, height), self.fm, colors)
+        self.root.paint(painter, QRectF(0, self.title_height, self.width, height), self.fm, colors)
         painter.setPen(QPen(QColor(colors["line"]), 1.6))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawRect(QRectF(0, TITLE_HEIGHT, self.width, height))
+        painter.drawRect(QRectF(0, self.title_height, self.width, height))
         painter.restore()
 
 

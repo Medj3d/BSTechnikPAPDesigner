@@ -82,12 +82,14 @@ def _apply_look(app) -> None:
 def _install_update(arguments: list[str]) -> int:
     """Installationsmodus: Diese (neue) Programmdatei ersetzt den Programmordner und startet neu.
 
-    Aufruf durch das laufende Programm: ``--apply-update <Programmordner> <Prozessnummer>``.
+    Aufruf durch das laufende Programm: ``--apply-update <Programmordner> <Prozessnummer> [Projektdateien …]``.
+    Die Projektdateien (z. B. während des Downloads doppelgeklickt) öffnet das neu gestartete Programm.
     """
     try:
         app_dir, pid = arguments[0], int(arguments[1])
     except (IndexError, ValueError):
         return 2
+    files = [path for path in arguments[2:] if not path.startswith("-")]
     app = _create_application()
 
     from app.i18n import tr
@@ -112,7 +114,10 @@ def _install_update(arguments: list[str]) -> int:
         splash.close()
         QMessageBox.warning(None, config.APP_NAME, exc.message)
     splash.close()
-    updater.launch_program(app_dir)
+    if files:
+        updater.launch_program(app_dir, files=files)
+    else:
+        updater.launch_program(app_dir)
     return 0
 
 
@@ -142,13 +147,34 @@ def _open_in_window(window, files: list[str]) -> None:
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication
 
+    from app import single_instance
+
+    # bis sie geöffnet sind, gelten sie als offen: endet das Programm vorher (Update, Schließen), reicht der Neustart
+    # sie weiter (siehe ``_hand_on_pending_files``)
+    single_instance.add_pending(files)
+
     def run() -> None:
         if QApplication.activeModalWidget() is not None:  # z. B. offene Speichern-Nachfrage: danach erst öffnen
             QTimer.singleShot(400, run)
             return
-        window.open_external_files(files)
+        try:
+            window.open_external_files(files)
+        finally:
+            single_instance.mark_opened(files)
 
     QTimer.singleShot(0, run)
+
+
+def _hand_on_pending_files() -> None:
+    """Beim Beenden: Übergebene, aber noch nicht geöffnete Dateien (z. B. während eines Dialogs doppelgeklickt) an
+    einen neuen Programmstart weiterreichen – außer ein Neustart (Update, Sprachwechsel) übernimmt sie ohnehin."""
+    from app import restart, single_instance
+
+    if single_instance.restart_planned():
+        return
+    files = single_instance.take_pending()
+    if files:
+        restart.launch_now(files)
 
 
 def main() -> int:
@@ -223,6 +249,7 @@ def main() -> int:
         # Ab jetzt öffnen weitere Programmstarts ihre Dateien hier; was während des Starts eintraf, folgt sofort
         window.instance_server = instance_server
         app.aboutToQuit.connect(instance_server.close)
+        app.aboutToQuit.connect(_hand_on_pending_files)
         instance_server.set_handler(lambda received: _open_in_window(window, received))
 
     if resources.is_frozen():

@@ -87,7 +87,7 @@ PREFERENCES = (
                SECTION_TOOLS),
     Preference(TOOL_SIMULATION, True, N_("Schreibtischtest"), N_("Den Plan Schritt für Schritt durchspielen"),
                SECTION_TOOLS),
-    Preference(TOOL_GENERATE_CODE, False, N_("Code erzeugen"), N_("Pseudocode, Python oder Java aus dem PAP erzeugen"),
+    Preference(TOOL_GENERATE_CODE, False, N_("Code erzeugen"), N_("PIC-Assembler, Pseudocode, Python oder Java aus dem PAP erzeugen"),
                SECTION_TOOLS),
     Preference(TOOL_STRUCTOGRAM, True, N_("Struktogramm"), N_("Ablauf als Struktogramm (Nassi-Shneiderman)"),
                SECTION_TOOLS),

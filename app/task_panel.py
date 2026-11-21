@@ -186,6 +186,7 @@ class TaskPanel(QWidget):
     def refresh(self) -> None:
         task = self.current_task()
         if task.present:
+            self.title.setTextFormat(Qt.TextFormat.PlainText)
             self.title.setText(task.title or tr("Aufgabe"))
             self.text.setPlainText(task.text)
             self.text.show()
@@ -213,6 +214,7 @@ class TaskPanel(QWidget):
             return
         box = QMessageBox(self)
         box.setWindowTitle(tr("Musterlösung"))
+        box.setTextFormat(Qt.TextFormat.PlainText)   # „a<b … a>b“ ist kein HTML
         box.setText(solution)
         box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         box.exec()

@@ -93,9 +93,13 @@ class DiagramView(QGraphicsView):
     def zoom(self) -> float:
         return self._zoom
 
-    def set_zoom(self, zoom: float, anchor: QPoint | None = None, scene_anchor: QPointF | None = None) -> None:
+    def set_zoom(self, zoom: float, anchor: QPoint | None = None, scene_anchor: QPointF | None = None,
+                 minimum: float | None = None) -> None:
         """Setzt die Zoomstufe; der Szenenpunkt ``scene_anchor`` bleibt unter ``anchor``."""
-        zoom = max(config.MIN_ZOOM, min(config.MAX_ZOOM, zoom))
+        floor = config.MIN_ZOOM if minimum is None else minimum
+        if zoom < self._zoom:
+            floor = min(floor, self._zoom)   # unterhalb der kleinsten Stufe (nach „Einpassen“) nicht vergrößern
+        zoom = max(floor, min(config.MAX_ZOOM, zoom))
         if abs(zoom - self._zoom) < 1e-9:
             return
         if anchor is None:
@@ -117,6 +121,8 @@ class DiagramView(QGraphicsView):
         self.set_zoom(next_zoom_level(self._zoom, +1))
 
     def zoom_out(self) -> None:
+        if self._zoom <= config.MIN_ZOOM:
+            return   # schon kleiner als die kleinste Stufe (nach „Einpassen“): nicht wieder vergrößern
         self.set_zoom(next_zoom_level(self._zoom, -1))
 
     def zoom_reset(self) -> None:
@@ -131,7 +137,7 @@ class DiagramView(QGraphicsView):
         bounds = bounds.adjusted(-40, -40, 40, 40)
         view = self.viewport().rect()
         zoom = min(view.width() / bounds.width(), view.height() / bounds.height())
-        self.set_zoom(zoom)
+        self.set_zoom(zoom, minimum=config.FIT_MIN_ZOOM)
         self.centerOn(bounds.center())
 
     def wheelEvent(self, event) -> None:

@@ -201,8 +201,9 @@ class DiagramDocument(QObject):
             return True
         self.undo_stack.beginMacro(tr("Text ändern"))
         subprograms.rename_subprogram(self, page, clean)
-        if " ".join(item.data.text.split()) != " ".join(text.split()):
-            # Start hieß anders als die Seite (z. B. „Start“ aus dem PapDesigner)
+        if item.data.text != text:
+            # Start hieß anders als die Seite (z. B. „Start“ aus dem PapDesigner) oder ist mehrzeilig: genau so
+            # übernehmen, wie eingegeben (auch die Zeilenumbrüche)
             self.undo_stack.push(EditTextCommand(scene, item.element_id, item.data.text, text))
         self.undo_stack.endMacro()
         return True

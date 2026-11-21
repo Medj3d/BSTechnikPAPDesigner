@@ -135,6 +135,15 @@ class CodeDialog(QDialog):
             return
         if not path.lower().endswith(extension):
             path += extension
+            # Der Dateidialog kannte diesen Namen noch nicht – also hier vor dem Überschreiben fragen
+            if os.path.exists(path):
+                answer = QMessageBox.question(
+                    self, tr("Code speichern"),
+                    tr("Die Datei „{name}“ ist bereits vorhanden. Soll sie ersetzt werden?",
+                       name=os.path.basename(path)),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
         try:
             # Assembler wie in MPLAB üblich in Windows-1252 mit Windows-Zeilenenden, alles andere in UTF-8
             encoding, newline = ("cp1252", "\r\n") if self.current_language == "asm" else ("utf-8", "\n")

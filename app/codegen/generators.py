@@ -81,6 +81,21 @@ def _escape(text: str) -> str:
 
 # Meldung im erzeugten Programm (deutscher Quelltext); eingesetzt wird sie mit ``tr_code(UNSTRUCTURED_MESSAGE)``
 UNSTRUCTURED_MESSAGE = N_("Dieser Sprung im Plan lässt sich nicht als strukturiertes Programm darstellen")
+# Meldungen im erzeugten Programm – dieselben Fehlerfälle, bei denen auch der Schreibtischtest abbricht
+NO_CASE_MESSAGE = N_("Bei der Verzweigung passt kein Ausgang (es gibt keinen Ausgang „sonst“)")
+ZERO_STEP_MESSAGE = N_("Die Schrittweite der Zählschleife ist 0 – die Schleife endete nie")
+
+
+def _head_checked(header) -> bool:
+    """Prüft die Schleife ihren Kopf selbst („3-mal“, „solange …“, Zählschleife)? Dann gilt eine Bedingung am
+    Schleifenende zusätzlich – sonst steuert allein das Schleifenende (fußgesteuert)."""
+    return header.kind in ("for", "while", "times")
+
+
+def _call_note() -> str:
+    """Hinweis bei „y := doppelt(x)“: Abläufe haben keine Parameter und keinen Rückgabewert."""
+    return tr_code("Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben – die Abläufe arbeiten mit "
+                   "den gemeinsamen Variablen")
 
 
 def _hint_text(note: str) -> str:
@@ -142,7 +157,7 @@ def _completes(stmt) -> bool:
         return _block_completes(stmt.then_block) or _block_completes(stmt.else_block)
     if isinstance(stmt, DoWhileLoop) or (isinstance(stmt, LimitLoop) and stmt.footer
                                          and T.loop_footer(stmt.header, stmt.footer) is not None
-                                         and T.parse_loop_header(stmt.header).kind != "for"):
+                                         and not _head_checked(T.parse_loop_header(stmt.header))):
         return _block_completes(stmt.body) or _has_break(stmt.body)
     return True
 
@@ -170,11 +185,12 @@ def _always_repeats(stmt) -> bool:
     if isinstance(stmt, LimitLoop):
         footer = T.loop_footer(stmt.header, stmt.footer)
         header = T.parse_loop_header(stmt.header)
-        if footer is not None and header.kind != "for":
+        if footer is not None and not _head_checked(header):
             value = _constant(footer[1])
             return value is not None and value == (footer[0] == "while")
-        if footer is None and header.kind == "while":
-            return _constant(header.condition) is True
+        if header.kind == "while" and _constant(header.condition) is True:
+            # mit Bedingung am Ende nur, wenn auch sie immer wiederholt
+            return footer is None or _constant(footer[1]) == (footer[0] == "while")
     return False
 
 
@@ -183,7 +199,8 @@ def _never_runs(stmt) -> bool:
     if isinstance(stmt, WhileLoop):
         value = _constant(T.condition_expression(stmt.condition))
         return value is not None and value == stmt.negate
-    if isinstance(stmt, LimitLoop) and not stmt.footer:
+    if isinstance(stmt, LimitLoop):
+        # der Kopf wird auch mit einer Bedingung am Schleifenende zuerst geprüft
         header = T.parse_loop_header(stmt.header)
         return header.kind == "while" and _constant(header.condition) is False
     return False
@@ -323,6 +340,14 @@ class _TextConcat(ast.NodeTransformer):
 
     def visit_BinOp(self, node):
         self.generic_visit(node)
+        if isinstance(node.op, ast.Mult) and static_type(node, self.types, self.dynamic) == STRING:
+            # „"*" * (n / 2)“: Die Anzahl wird – wie im Schreibtischtest und in Java – abgeschnitten
+            for side in ("left", "right"):
+                operand = getattr(node, side)
+                if static_type(operand, self.types, self.dynamic) != STRING and not (
+                        isinstance(operand, ast.Constant) and type(operand.value) is int):
+                    setattr(node, side, ast.Call(func=ast.Name(id="int", ctx=ast.Load()), args=[operand], keywords=[]))
+                    self.changed = True
         if isinstance(node.op, ast.Add) and static_type(node, self.types, self.dynamic) == STRING:
             for side in ("left", "right"):
                 operand = getattr(node, side)
@@ -464,10 +489,13 @@ class PythonGenerator:
                         f"{one}{one}return x",
                         f"{one}if int(stellen) < -308:",
                         f"{one}{one}return 0",
-                        f"{one}faktor = 10 ** int(stellen)",
-                        f"{one}wert = int(abs(x) * faktor + 0.5) / faktor",
-                        f"{one}wert = wert if x >= 0 else -wert",
-                        f"{one}return int(wert) if stellen <= 0 else wert", "", ""]
+                        f'{one}if x != x or abs(x) == float("inf"):',
+                        f"{one}{one}return x",
+                        f"{one}from decimal import ROUND_HALF_UP, Context, Decimal",
+                        f"{one}# " + tr_code("über den Text der Zahl: 1,005 wird 1,01 (nicht 1,00 wie mit 1.00499…)"),
+                        f"{one}wert = Decimal(str(x)).quantize(Decimal(1).scaleb(-int(stellen)), ROUND_HALF_UP, "
+                        "Context(prec=4000))",
+                        f"{one}return int(wert) if int(stellen) <= 0 else float(wert) + 0.0", "", ""]
         return helpers
 
     # ----------------------------------------------------------- Startwerte
@@ -541,8 +569,8 @@ class PythonGenerator:
                         read(T.names_in(header.count), assigned)
                     out = visit(stmt.body, assigned)
                     if footer is not None:
-                        if header.kind != "for":
-                            assigned = out  # fußgesteuert: läuft mindestens einmal
+                        if not _head_checked(header):
+                            assigned = out  # nur fußgesteuert: läuft mindestens einmal
                         read(T.names_in(footer[1]), out)
             return assigned
 
@@ -611,7 +639,14 @@ class PythonGenerator:
             self.comments(depth, stmt.comments)
             self.emit(depth, f"if {self.condition(stmt.condition)}:")
             self.block(stmt.then_block, depth + 1)
-            if len(stmt.else_block):
+            last_case = self.expr(T.condition_expression(stmt.last_case)) if stmt.last_case else None
+            if last_case is not None:
+                # letzter Ausgang der Mehrfachverzweigung ohne „sonst“: passt kein Wert, deutlich anhalten
+                self.emit(depth, f"elif {last_case}:")
+                self.block(stmt.else_block, depth + 1)
+                self.emit(depth, "else:")
+                self.emit(depth + 1, f'raise SystemExit("{_escape(tr_code(NO_CASE_MESSAGE))}")')
+            elif len(stmt.else_block):
                 self.emit(depth, "else:")
                 self.block(stmt.else_block, depth + 1)
         elif isinstance(stmt, WhileLoop):
@@ -663,7 +698,12 @@ class PythonGenerator:
             kind, text = footer
             cond = self.expr(text) or self.ask(stmt.footer)
             leave = cond if kind == "until" else f"not ({cond})"
-        if footer is not None and not counting:
+        head = None
+        if header.kind == "while" and self.expr(header.condition):
+            head = f"while {self.expr(header.condition)}:"
+        elif header.kind == "times" and self.expr(header.count):
+            head = f"for _ in range({_int_expr(self.expr(header.count))}):"
+        if footer is not None and not counting and head is None:
             self.emit(depth, f"while True:  # {_one_line(stmt.header)}")
             self.loop_body(stmt.body, depth + 1)
             self.emit(depth + 1, f"if {leave}:")
@@ -673,8 +713,14 @@ class PythonGenerator:
             # Zählschleife wie im PAP: auch Kommazahl-Schritte, Schritt aus einer Variablen,
             # und die Zählvariable hat nach der Schleife den ersten Wert „hinter“ dem Ende.
             var = self.var(header.variable)
-            self.emit(depth, f"{var} = {start}")
             literal = _numeric_literal(step)
+            stop = f'raise SystemExit("{_escape(tr_code(ZERO_STEP_MESSAGE))}")'
+            if literal == 0:
+                self.emit(depth, stop)   # wie im Schreibtischtest: Schrittweite 0 endete nie
+            elif literal is None:
+                self.emit(depth, f"if ({step}) == 0:")
+                self.emit(depth + 1, stop)
+            self.emit(depth, f"{var} = {start}")
             if literal is not None:
                 self.emit(depth, f"while {var} {'>=' if literal < 0 else '<='} {end}:")
             else:
@@ -687,13 +733,12 @@ class PythonGenerator:
             self.emit(depth + 1, f"{var} -= {step[1:]}" if literal is not None and literal < 0
                       else f"{var} += {step}")
             return
-        if header.kind == "while" and self.expr(header.condition):
-            self.emit(depth, f"while {self.expr(header.condition)}:")
-        elif header.kind == "times" and self.expr(header.count):
-            self.emit(depth, f"for _ in range({_int_expr(self.expr(header.count))}):")
-        else:
-            self.emit(depth, f"while {self.ask(stmt.header)}:")
+        self.emit(depth, head or f"while {self.ask(stmt.header)}:")
         self.loop_body(stmt.body, depth + 1)
+        if leave is not None:
+            # Kopf („3-mal“, „solange …“) und Bedingung am Schleifenende gelten beide
+            self.emit(depth + 1, f"if {leave}:")
+            self.emit(depth + 2, "break")
 
     # ------------------------------------------------------------ Aktionen
     def action_input(self, stmt: Action, depth: int) -> None:
@@ -758,6 +803,8 @@ class PythonGenerator:
         if index is not None:
             # Abläufe haben keine Parameter: Sie arbeiten mit den gemeinsamen Variablen
             note = f"  # {_one_line(stmt.text)}" if _one_line(stmt.text) != routine_label(stmt.text) else ""
+            if T.call_passes_values(stmt.text):
+                self.emit(depth, f"# TODO: {_call_note()}")
             self.emit(depth, f"{self.functions[index]}(){note}")
             return
         name = slug if T.is_identifier(slug) else f"unterprogramm_{len(self.called) + 1}"
@@ -1047,7 +1094,8 @@ class _JavaExpr:
                 return f"text({self.convert(node.args[0])})"
             return f"String.valueOf({self.convert(node.args[0])})"
         if name == "len" and count == 1 and kinds[0] == STRING:
-            return f"(double) {self.operand(node.args[0], 9)}.length()"
+            # Zeichen wie im Schreibtischtest und in Python zählen: ein Emoji ist ein Zeichen (nicht zwei)
+            return f"(double) {self.operand(node.args[0], 9)}.codePoints().count()"
         if name in ("float", "int", "ganzzahl") and count == 1 and kinds[0] == STRING:
             self.helpers.add("zahl")  # Text in eine Zahl umwandeln (auch mit Komma)
             parsed = f"zahl({self.convert(node.args[0])})"
@@ -1282,8 +1330,10 @@ class JavaGenerator:
                         f"{one}static double runden(double x, double stellen) {{",
                         f"{two}if (stellen > 15) return x;",
                         f"{two}if (stellen < -308) return 0.0;",
-                        f"{two}double faktor = Math.pow(10, (long) stellen);",
-                        f"{two}return Math.signum(x) * Math.floor(Math.abs(x) * faktor + 0.5) / faktor + 0.0;",
+                        f"{two}if (Double.isNaN(x) || Double.isInfinite(x)) return x;",
+                        f"{two}// " + tr_code("über den Text der Zahl: 1,005 wird 1,01 (nicht 1,00 wie mit 1.00499…)"),
+                        f"{two}return new java.math.BigDecimal(Double.toString(x))",
+                        f"{three}.setScale((int) stellen, java.math.RoundingMode.HALF_UP).doubleValue() + 0.0;",
                         f"{one}}}", ""]
         return helpers
 
@@ -1327,7 +1377,14 @@ class JavaGenerator:
             self.comments(depth, stmt.comments)
             self.emit(depth, f"if ({self.condition(stmt.condition)}) {{")
             self.block(stmt.then_block, depth + 1)
-            if len(stmt.else_block):
+            last_case = self.truth(T.condition_expression(stmt.last_case)) if stmt.last_case else None
+            if last_case is not None:
+                # letzter Ausgang der Mehrfachverzweigung ohne „sonst“: passt kein Wert, deutlich anhalten
+                self.emit(depth, f"}} else if ({last_case}) {{")
+                self.block(stmt.else_block, depth + 1)
+                self.emit(depth, "} else {")
+                self.emit(depth + 1, f'throw new IllegalStateException("{_escape(tr_code(NO_CASE_MESSAGE))}");')
+            elif len(stmt.else_block):
                 self.emit(depth, "} else {")
                 self.block(stmt.else_block, depth + 1)
             self.emit(depth, "}")
@@ -1375,7 +1432,9 @@ class JavaGenerator:
             kind, cond = footer
             java = self.truth(cond) or self.ask(stmt.footer)
             repeat, leave = (f"!({java})", java) if kind == "until" else (java, f"!({java})")
-        if footer is not None and not counting:
+        head_checked = (header.kind == "while" and self.truth(header.condition) is not None) \
+            or (header.kind == "times" and self.number(header.count) is not None)
+        if footer is not None and not counting and not head_checked:
             self.emit(depth, "do {")
             self.loop_body(stmt.body, depth + 1)
             self.emit(depth, f"}} while ({repeat});")
@@ -1383,6 +1442,12 @@ class JavaGenerator:
         if counting:
             var = java_name(header.variable)
             literal = _numeric_literal(header.step)
+            stop = f'throw new IllegalArgumentException("{_escape(tr_code(ZERO_STEP_MESSAGE))}");'
+            if literal == 0:
+                # „if (true)“: Java ließe die Schleife dahinter sonst als unerreichbar nicht zu
+                self.emit(depth, f"if (true) {stop}")
+            elif literal is None:
+                self.emit(depth, f"if (({step}) == 0) {stop}")
             if literal is not None:
                 comparison = f"{var} {'>=' if literal < 0 else '<='} {end}"
             else:
@@ -1415,6 +1480,11 @@ class JavaGenerator:
         else:
             self.emit(depth, f"while ({self.ask(stmt.header)}) {{")
         self.loop_body(stmt.body, depth + 1)
+        if leave is not None and _block_completes(stmt.body):
+            # Kopf („3-mal“, „solange …“) und Bedingung am Schleifenende gelten beide
+            self.emit(depth + 1, f"if ({leave}) {{")
+            self.emit(depth + 2, "break;")
+            self.emit(depth + 1, "}")
         self.emit(depth, "}")
         if counter is not None:
             self._times_depth -= 1
@@ -1513,6 +1583,8 @@ class JavaGenerator:
         if index is not None:
             # Abläufe haben keine Parameter: Sie arbeiten mit den gemeinsamen Variablen
             note = f" // {_java_comment(stmt.text)}" if _one_line(stmt.text) != routine_label(stmt.text) else ""
+            if T.call_passes_values(stmt.text):
+                self.emit(depth, f"// TODO: {_java_comment(_call_note())}")
             self.emit(depth, (f"{self.methods[index]}();" if index else "main(new String[0]);") + note)
             return
         label = call[0] if call else routine_label(stmt.text)

@@ -162,6 +162,15 @@ class StructogramDialog(QDialog):
         fmt = fmt or "PNG"
         if not path.lower().endswith("." + fmt.lower()):
             path += "." + fmt.lower()
+            # Der Dateidialog kannte diesen Namen noch nicht – also hier vor dem Überschreiben fragen
+            if os.path.exists(path):
+                answer = QMessageBox.question(
+                    self, tr("Struktogramm exportieren"),
+                    tr("Die Datei „{name}“ ist bereits vorhanden. Soll sie ersetzt werden?",
+                       name=os.path.basename(path)),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
         try:
             export_nsd(self.programs, path, fmt, styles.LIGHT)
         except ExportError as exc:
