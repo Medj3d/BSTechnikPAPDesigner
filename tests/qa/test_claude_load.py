@@ -239,8 +239,6 @@ def test_closing_tabs_does_not_let_memory_grow(qapp, monkeypatch, tmp_path, big_
         close_window(window, qapp)
 
 
-@pytest.mark.xfail(strict=True, reason="QA-B07: Nach dem Schließen des Reiters bleibt ein geschlossenes Projekt "
-                                       "samt aller Bausteine im Speicher (Ansicht ↔ Minikarte halten sich gegenseitig)")
 def test_closing_the_tab_frees_the_project(qapp, monkeypatch, tmp_path):
     DialogStub(monkeypatch, __import__("random").Random(4), tmp_path, accept_rate=0.0)
     window = make_window(qapp)

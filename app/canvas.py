@@ -15,6 +15,7 @@ from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF, QTransform
 from PySide6.QtWidgets import QFrame, QGraphicsView, QMenu
 
+from app.i18n import tr
 from app import config, icons, styles
 from app.document import DiagramDocument
 from app.model.element_types import ElementType, display_name_for, is_valid_type
@@ -52,6 +53,7 @@ class DiagramView(QGraphicsView):
 
     def __init__(self, document: DiagramDocument, parent=None):
         super().__init__(document.scene, parent)
+        self.setAccessibleName(tr("Arbeitsfläche"))
         self.document = document
         self._zoom = 1.0
         self._pan_button = None

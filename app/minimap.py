@@ -12,6 +12,7 @@ from PySide6.QtCore import QEvent, QPointF, QRectF, Qt, QTimer
 from PySide6.QtGui import QColor, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
+from app.i18n import tr
 from app import styles
 
 MINIMAP_WIDTH = 120      # Breite des Streifens (Pixel)
@@ -24,6 +25,7 @@ MAX_PIXMAP_HEIGHT = 6000
 class Minimap(QWidget):
     def __init__(self, view):
         super().__init__(view)
+        self.setAccessibleName(tr("Minikarte"))
         self._view = view
         self._scene = None
         self._pixmap: QPixmap | None = None

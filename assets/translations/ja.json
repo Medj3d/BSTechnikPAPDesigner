@@ -1070,9 +1070,21 @@
  "Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene Datei angelegt, die Aufgabe bleibt unverändert.": "課題「{name}」を開きました – 解答は保存時に別のファイルになり、課題は変更されません。",
  "{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer": "{message} – 後続なし: 「{name}」の終わり、呼び出し元に戻ります",
  "Abbruch: {message}": "中止: {message}",
- "{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die Abläufe arbeiten mit den gemeinsamen Variablen.": "{message} – 注意: かっこ内の値と結果は渡されません。各フローは共通の変数で動作します。",
  "Abbruch: Bei der Verzweigung „{text}“ passt kein Ausgang ({labels}) und es gibt keinen Ausgang „sonst“.": "中止: 分岐「{text}」に一致する出口がなく（{labels}）、「それ以外」の出口もありません。",
  "Abbruch: Die Schrittweite der Zählschleife „{text}“ ist 0 – die Schleife endete nie.": "中止: カウントループ「{text}」のステップが 0 です – ループは終わりません。",
  "So heißt schon das Hauptprogramm. Bitte einen anderen Namen wählen.": "その名前はすでにメインプログラムで使われています。別の名前を選んでください。",
- "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "更新をインストールできず、以前のバージョンも完全には復元できませんでした。プログラムを再インストールしてください。古いファイルはプログラムフォルダーに残っています（拡張子「.alt」）: {names}"
+ "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "更新をインストールできず、以前のバージョンも完全には復元できませんでした。プログラムを再インストールしてください。古いファイルはプログラムフォルダーに残っています（拡張子「.alt」）: {names}",
+ "Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt aus der Palette auf einen Pfeil ziehen.": "接続点: まず矢印を選択するか、パレットから接続点を矢印の上にドラッグしてください。",
+ "Den Verbindungspunkt auf einen Pfeil ziehen – dort wird der Pfeil geteilt.": "接続点を矢印の上にドラッグしてください – 矢印はそこで分割されます。",
+ "Arbeitsfläche": "キャンバス",
+ "Raster anzeigen": "グリッドを表示",
+ "Raster ausblenden": "グリッドを非表示",
+ "Einrasten einschalten": "スナップをオン",
+ "Einrasten ausschalten": "スナップをオフ",
+ "Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben.": "注意：かっこ内の値を評価できないため、渡されません。",
+ "Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt unverändert.": "注意：「{name}」は値を返しません（「return」がありません）– 「{target}」は変わりません。",
+ "Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.": "注意：「{name}」にはパラメーターがありません – かっこ内の値は渡されません。",
+ "{message} – {note}": "{message} – {note}",
+ "Rückgabe {value}: Ende von „{name}“, zurück zum Aufrufer": "戻り値 {value}：「{name}」の終了、呼び出し元に戻ります",
+ "Rückgabe im Hauptprogramm: Der Ablauf endet.": "メインプログラムでの戻り：フローは終了します。"
 }

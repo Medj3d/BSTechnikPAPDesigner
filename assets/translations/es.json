@@ -1070,9 +1070,21 @@
  "Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene Datei angelegt, die Aufgabe bleibt unverändert.": "Tarea «{name}» abierta: su solución se guardará como archivo propio y la tarea no cambia.",
  "{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer": "{message} – sin sucesor: fin de «{name}», regreso al llamador",
  "Abbruch: {message}": "Detenido: {message}",
- "{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die Abläufe arbeiten mit den gemeinsamen Variablen.": "{message} – nota: los valores entre paréntesis y el resultado no se transfieren; los flujos trabajan con las variables comunes.",
  "Abbruch: Bei der Verzweigung „{text}“ passt kein Ausgang ({labels}) und es gibt keinen Ausgang „sonst“.": "Detenido: ninguna salida de la bifurcación «{text}» coincide ({labels}) y no hay salida «si no».",
  "Abbruch: Die Schrittweite der Zählschleife „{text}“ ist 0 – die Schleife endete nie.": "Detenido: el paso del bucle de conteo «{text}» es 0: el bucle no terminaría nunca.",
  "So heißt schon das Hauptprogramm. Bitte einen anderen Namen wählen.": "Ese ya es el nombre del programa principal. Elija otro nombre.",
- "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "No se pudo instalar la actualización ni restaurar por completo la versión anterior. Reinstale el programa. Los archivos antiguos siguen en la carpeta del programa (extensión «.alt»): {names}"
+ "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "No se pudo instalar la actualización ni restaurar por completo la versión anterior. Reinstale el programa. Los archivos antiguos siguen en la carpeta del programa (extensión «.alt»): {names}",
+ "Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt aus der Palette auf einen Pfeil ziehen.": "Punto de unión: primero seleccione una flecha, o arrastre el punto de unión desde la paleta sobre una flecha.",
+ "Den Verbindungspunkt auf einen Pfeil ziehen – dort wird der Pfeil geteilt.": "Arrastre el punto de unión sobre una flecha: la flecha se dividirá allí.",
+ "Arbeitsfläche": "Área de dibujo",
+ "Raster anzeigen": "Mostrar cuadrícula",
+ "Raster ausblenden": "Ocultar cuadrícula",
+ "Einrasten einschalten": "Activar ajuste",
+ "Einrasten ausschalten": "Desactivar ajuste",
+ "Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben.": "Nota: los valores entre paréntesis no se pudieron evaluar y no se pasan.",
+ "Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt unverändert.": "Nota: «{name}» no devuelve ningún valor (no hay «return») – «{target}» no cambia.",
+ "Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.": "Nota: «{name}» no tiene parámetros – los valores entre paréntesis no se pasan.",
+ "{message} – {note}": "{message} – {note}",
+ "Rückgabe {value}: Ende von „{name}“, zurück zum Aufrufer": "Retorno {value}: fin de «{name}», de vuelta al llamador",
+ "Rückgabe im Hauptprogramm: Der Ablauf endet.": "Retorno en el programa principal: el flujo termina."
 }

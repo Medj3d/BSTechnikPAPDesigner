@@ -143,3 +143,4 @@ class Program:
     end_text: str
     body: Block
     warnings: list = field(default_factory=list)   # Hinweise der Strukturierung
+    params: list = field(default_factory=list)     # Parameter aus der Kopfzeile („int doppelt(int n)“ → n)

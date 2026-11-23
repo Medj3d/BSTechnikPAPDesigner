@@ -201,3 +201,21 @@ def test_teacher_task_file_is_never_overwritten_silently(window, qapp, monkeypat
     reopened = DiagramDocument.open_file(str(copy))
     assert len(reopened.scene.elements()) == 2 and reopened.meta.task_lock
     reopened.deleteLater()
+
+
+def test_junction_block_splits_an_arrow_by_drop_and_by_key(window, qapp):
+    """Neu: Verbindungspunkt als Baustein (Palette, Menü „Einfügen“, Taste 0)."""
+    scene = window.current_scene()
+    a = scene.element(scene.insert_element(ElementType.PROCESS, QPointF(0, 0)))
+    b = scene.element(scene.insert_element(ElementType.OUTPUT, QPointF(0, 300)))
+    conn = scene.connection(scene.create_connection(a, "bottom", b, "top"))
+    points = conn.points()
+    middle = QPointF((points[0][0] + points[-1][0]) / 2, (points[0][1] + points[-1][1]) / 2)
+    junction_id = scene.drop_element(ElementType.JUNCTION, middle)          # Ziehen aus der Palette
+    assert junction_id and scene.element(junction_id).is_junction
+    assert len(scene.connections()) == 2
+    scene.select_items([a])                                                  # Taste 0 / Menü: Ausgangspfeil
+    window.actions["insert_junction"].trigger()
+    assert sum(1 for e in scene.elements() if e.is_junction) == 2 and len(scene.connections()) == 3
+    assert window.actions["insert_junction"].shortcuts()[0].toString() == "0"
+    assert scene.drop_element(ElementType.JUNCTION, QPointF(900, 900)) is None   # ins Leere: nichts

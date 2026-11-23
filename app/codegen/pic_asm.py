@@ -37,7 +37,7 @@ from app.analysis.ast import (Action, Block, Break, Continue, DoWhileLoop, EndSt
                               Unstructured, WhileLoop)
 from app.analysis.graph import resolve_routine, routine_label, routine_name
 from app.analysis.variables import STRING, Variables
-from app.codegen.generators import ZERO_STEP_MESSAGE
+from app.codegen.generators import ZERO_STEP_MESSAGE, _body_statements, _call_notes, _call_target, _call_values
 from app.i18n import tr_code
 
 INDENT = "\t"
@@ -140,6 +140,8 @@ class PicAsmGenerator:
         self._symbols: dict[str, str] = {}   # Variable → Name im Assembler (eindeutig: „ärger“ und „aerger“)
         self.extra_vars: list[str] = []
         self.called: dict[str, str] = {}
+        self.returns: dict[str, str] = {}   # Abläufe mit Rückgabewert (Ergebnis im W-Register)
+        self._value: str | None = None
 
     # ------------------------------------------------------------ Grundlagen
     def emit(self, depth: int, text: str) -> None:
@@ -435,6 +437,7 @@ class PicAsmGenerator:
         if not self.programs:
             return "; " + tr_code("Der Plan enthält kein Start-Element.") + "\n"
         variables = Variables(self.programs)
+        self.returns = variables.returns
         self.known = set(variables.names)
         self.variable_names = list(variables.names)
         # Text ist nur, was irgendwo Text zugewiesen bekommt – eine Eingabe liest am PIC immer eine Zahl vom Port
@@ -452,6 +455,7 @@ class PicAsmGenerator:
         body: list[str] = []
         for index, program in enumerate(self.programs):
             self._program_index = index
+            self._value = self.returns.get(program.start_id) if index else None
             self.lines = []
             if index == 0:
                 self._section(tr_code("Hauptprogramm - (loop)"))
@@ -466,7 +470,8 @@ class PicAsmGenerator:
                 self.label("ende")
                 self.emit(0, "GOTO\tende\t\t; " + tr_code("Programmende: hier anhalten"))
             else:
-                self.emit(0, "RETURN")
+                # ohne „return“ mit Wert ist das Ergebnis 0 (wie im Schreibtischtest)
+                self.emit(0, "RETLW\td'0'" if self._value else "RETURN")
             body.append(self.lines)
         main, routines = body[0], [line for lines in body[1:] for line in lines]
         code = "\n".join(self._header() + self._variables() + self._setup() + main
@@ -581,9 +586,7 @@ class PicAsmGenerator:
 
     # ------------------------------------------------------------ Anweisungen
     def block(self, block: Block, top_level: bool = False) -> None:
-        statements = list(block)
-        if top_level and statements and isinstance(statements[-1], EndStmt):
-            statements = statements[:-1]
+        statements = _body_statements(block) if top_level else list(block)
         for stmt in statements:
             self.stmt(stmt, 0)
 
@@ -633,7 +636,7 @@ class PicAsmGenerator:
         elif isinstance(stmt, Break) and self._loops:
             self.emit(0, f"GOTO\t{self._loops[-1][1]}\t\t; " + tr_code("Schleife verlassen"))
         elif isinstance(stmt, EndStmt):
-            self.emit(0, "GOTO\tende" if self._program_index == 0 else "RETURN")
+            self.emit_return(T.return_statement(stmt.text) or "")
         elif isinstance(stmt, Unstructured):
             self.note("TODO: " + stmt.note)
         else:
@@ -810,10 +813,30 @@ class PicAsmGenerator:
             self.emit(0, line)
         return True
 
+    def emit_return(self, expr: str) -> None:
+        """„return n * 2“: Das Ergebnis kommt ins W-Register, dann RETURN (im Hauptprogramm: Programmende)."""
+        if self._program_index == 0:
+            self.emit(0, "GOTO\tende")
+            return
+        if expr:
+            try:
+                for line in self.to_w(self.parse(expr)):
+                    self.emit(0, line)
+            except _Unsupported:
+                self.note("TODO: " + tr_code("{name} = {expr} (nur ganze Zahlen 0 bis 255)", name="W", expr=expr))
+        if expr:
+            self.emit(0, "RETURN\t\t; " + tr_code("Ergebnis in W"))
+        else:
+            self.emit(0, "RETLW\td'0'" if self._value else "RETURN")
+
     def action_process(self, stmt: Action) -> None:
         self.note(stmt.text)
         # wie überall im Programm: mehrere Anweisungen je Zeile oder durch „;“ getrennt
         for line in T.split_statements(stmt.text):
+            returned = T.return_statement(line)
+            if returned is not None:
+                self.emit_return(returned)
+                return   # was danach steht, wird nie erreicht
             bit = _BIT_ASSIGN.match(line)
             if bit:
                 register, command = self.var(bit.group(1)), "BSF" if bit.group(3) == "1" else "BCF"
@@ -851,7 +874,43 @@ class PicAsmGenerator:
         self.note(stmt.text)
         index = resolve_routine(stmt.text, [program.name for program in self.programs], exclude=0)
         if index is not None:
+            program = self.programs[index]
+            for hint in _call_notes(stmt.text, program, self.returns):
+                self.note("TODO: " + hint)
+            values = _call_values(stmt.text, program)
+            target = _call_target(stmt.text, program, self.returns)
+            if values or target:
+                self.note(tr_code("Übergabe über die gemeinsamen Variablen, Ergebnis in W"))
+            if len(values) > 1 and any(set(T.names_in(arg)) & set(program.params) for _, arg in values):
+                # alle Werte zuerst berechnen, dann zuweisen: „tausche(b, a)“ mit „tausche(a, b)“
+                held = []
+                for param, arg in values:
+                    try:
+                        lines = self.to_w(self.parse(arg))
+                    except _Unsupported:
+                        self.note("TODO: " + tr_code("{name} = {expr} (nur ganze Zahlen 0 bis 255)", name=param,
+                                                     expr=arg))
+                        continue
+                    temp = self.temp()
+                    for line in lines + [f"MOVWF\t{temp}"]:
+                        self.emit(0, line)
+                    held.append((param, temp))
+                for param, temp in held:
+                    register = self.var(param)
+                    for line in [f"MOVF\t{temp}, W"] + self.banked(register, [f"MOVWF\t{register}"]):
+                        self.emit(0, line)
+                for _ in held:
+                    self.release()
+                values = []
+            for param, arg in values:
+                if not self.assign(param, arg):
+                    self.note("TODO: " + tr_code("{name} = {expr} (nur ganze Zahlen 0 bis 255)", name=param,
+                                                 expr=arg))
             self.emit(0, f"CALL\t{self.labels_of[index]}")
+            if target and target not in self.strings:
+                register = self.var(target)
+                for line in self.banked(register, [f"MOVWF\t{register}"]):
+                    self.emit(0, line)
             return
         name = symbol(routine_name(stmt.text) or T.slug(stmt.text) or "unterprogramm")
         variables = {self.var(variable) for variable in self.variable_names}

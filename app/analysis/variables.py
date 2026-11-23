@@ -22,7 +22,7 @@ from __future__ import annotations
 import ast
 
 from app.analysis import text as T
-from app.analysis.ast import Action, Block, DoWhileLoop, If, LimitLoop, Loop, Program, WhileLoop
+from app.analysis.ast import Action, Block, DoWhileLoop, EndStmt, If, LimitLoop, Loop, Program, WhileLoop
 
 DOUBLE, STRING, BOOLEAN = "double", "String", "boolean"
 DEFAULTS = {DOUBLE: 0, STRING: "", BOOLEAN: False}
@@ -43,6 +43,27 @@ def walk(block: Block):
             yield from walk(stmt.else_block)
         elif isinstance(stmt, (WhileLoop, DoWhileLoop, LimitLoop, Loop)):
             yield from walk(stmt.body)
+
+
+def return_expressions(program: Program) -> list[str]:
+    """Ausdrücke der Rückgaben eines Ablaufs („return n * 2“ im Vorgang oder im Ende-Element), ohne leere."""
+    found = []
+    for stmt in walk(program.body):
+        text = None
+        if isinstance(stmt, Action) and stmt.kind == "process":
+            text = T.process_return(stmt.text)
+        elif isinstance(stmt, EndStmt):
+            text = T.return_statement(stmt.text)
+        if text:
+            found.append(text)
+    return found
+
+
+def call_routine(text: str, programs: list[Program]) -> int | None:
+    """Welchen Ablauf ein Unterprogramm-Baustein aufruft (Index) – dieselbe Zuordnung wie überall."""
+    from app.analysis.graph import resolve_routine
+
+    return resolve_routine(text, [program.name for program in programs], exclude=0)
 
 
 def static_type(node, types: dict, dynamic=frozenset()) -> str | None:
@@ -94,6 +115,12 @@ class Variables:
         self._counters: set[str] = set()          # Zählvariablen: sicher Zahlen
         self._trees: list[ast.AST] = []           # alle gelesenen Ausdrücke
         self._numeric_trees: list[ast.AST] = []   # Schleifengrenzen und Anzahlen
+        # Abläufe mit Rückgabewert (Start-Kennung → Typ des Ergebnisses)
+        self.returns: dict[str, str] = {}
+        self._returned = {program.start_id: [tree for expr in return_expressions(program)
+                                             if (tree := T.parse_expression(expr)) is not None]
+                          for program in programs}
+        self._programs = programs
         statements = [stmt for program in programs for stmt in walk(program.body)]
         for stmt in statements:
             self._collect_names(stmt)
@@ -101,6 +128,11 @@ class Variables:
         for stmt in statements:
             self._collect_expressions(stmt, known)
         self._infer()
+        for program in programs:
+            if return_expressions(program):
+                trees = self._returned[program.start_id]
+                kinds = [static_type(tree, self.types, self.dynamic) for tree in trees]
+                self.returns[program.start_id] = next((kind for kind in kinds if kind), DOUBLE)
 
     # ---------------------------------------------------------- Sammeln
     def _add(self, name: str) -> None:
@@ -124,6 +156,26 @@ class Variables:
             if header.kind == "for":
                 self._add(header.variable)
                 self._counters.add(header.variable)
+        if isinstance(stmt, Action) and stmt.kind == "subprogram":
+            self._collect_call(stmt.text)
+
+    def _collect_call(self, text: str) -> None:
+        """„y := doppelt(x)“: Die Werte gehen an die Parameter, das Ergebnis an „y“ – wie Zuweisungen."""
+        spec = T.call_spec(text)
+        index = call_routine(text, self._programs) if spec else None
+        if index is None:
+            return
+        target, args = spec
+        program = self._programs[index]
+        for param, arg in zip(program.params, args or []):
+            self._add(param)
+            tree = T.parse_expression(arg)
+            if tree is not None:
+                self._assignments.append((param, tree))
+        if target and return_expressions(program):
+            self._add(target)
+            for tree in self._returned[program.start_id]:
+                self._assignments.append((target, tree))
 
     def _read(self, expr: str | None, numeric: bool = False) -> None:
         tree = T.parse_expression(expr) if expr else None
@@ -131,7 +183,11 @@ class Variables:
             (self._numeric_trees if numeric else self._trees).append(tree)
 
     def _collect_expressions(self, stmt, known: set) -> None:
-        if isinstance(stmt, Action) and stmt.kind == "output":
+        if isinstance(stmt, Action) and stmt.kind == "process":
+            self._read(T.process_return(stmt.text))
+        elif isinstance(stmt, EndStmt):
+            self._read(T.return_statement(stmt.text))
+        elif isinstance(stmt, Action) and stmt.kind == "output":
             spec = T.output_spec(stmt.text, known)
             if spec.kind == "expression":
                 self._read(spec.value)

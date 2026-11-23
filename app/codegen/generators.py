@@ -71,7 +71,8 @@ def with_title(programs: list[Program], title: str | None) -> list[Program]:
     if not programs or not title or programs[0].name.strip().lower() not in generic_program_names():
         return programs
     first = programs[0]
-    renamed = Program(title, first.start_id, first.end_id, first.end_text, first.body, first.warnings)
+    renamed = Program(title, first.start_id, first.end_id, first.end_text, first.body, first.warnings,
+                      first.params)
     return [renamed] + list(programs[1:])
 
 
@@ -92,10 +93,47 @@ def _head_checked(header) -> bool:
     return header.kind in ("for", "while", "times")
 
 
-def _call_note() -> str:
-    """Hinweis bei „y := doppelt(x)“: Abläufe haben keine Parameter und keinen Rückgabewert."""
-    return tr_code("Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben – die Abläufe arbeiten mit "
-                   "den gemeinsamen Variablen")
+def _call_notes(text: str, program: Program, returns: dict) -> list[str]:
+    """Hinweise zu einem Aufruf, dessen Werte oder Ergebnis nicht übergeben werden können."""
+    spec = T.call_spec(text)
+    if not spec:
+        return []
+    target, args = spec
+    notes = []
+    if args is None:
+        notes.append(tr_code("Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben."))
+    elif args and not program.params:
+        notes.append(tr_code("Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.",
+                             name=routine_label(text)))
+    if target and program.start_id not in returns:
+        notes.append(tr_code("Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt "
+                             "unverändert.", name=routine_label(text), target=target))
+    return notes
+
+
+def _call_values(text: str, program: Program) -> list[tuple[str, str]]:
+    """(Parameter, Wert) eines Aufrufs „doppelt(x)“ für den Ablauf „int doppelt(int n)“ – nach Position."""
+    spec = T.call_spec(text)
+    return list(zip(program.params, spec[1] or [])) if spec else []
+
+
+def _call_target(text: str, program: Program, returns: dict) -> str | None:
+    """Variable, die das Ergebnis des Aufrufs bekommt („y := doppelt(x)“) – nur bei einem Ablauf mit „return“."""
+    spec = T.call_spec(text)
+    return spec[0] if spec and spec[0] and program.start_id in returns else None
+
+
+def _returns_in(stmt) -> bool:
+    """Vorgang mit „return …“: Danach geht es im Ablauf nicht weiter."""
+    return isinstance(stmt, Action) and stmt.kind == "process" and T.process_return(stmt.text) is not None
+
+
+def _body_statements(block: Block) -> list:
+    """Anweisungen eines Ablaufs ohne das abschließende Ende-Element – außer es gibt einen Wert zurück."""
+    statements = list(block)
+    if statements and isinstance(statements[-1], EndStmt) and not T.return_statement(statements[-1].text):
+        statements = statements[:-1]
+    return statements
 
 
 def _hint_text(note: str) -> str:
@@ -147,7 +185,7 @@ def _has_break(block: Block) -> bool:
 
 def _completes(stmt) -> bool:
     """Kann der Ablauf nach dieser Anweisung weitergehen? (Java lehnt unerreichbaren Code ab.)"""
-    if isinstance(stmt, (EndStmt, Break, Continue)):
+    if isinstance(stmt, (EndStmt, Break, Continue)) or _returns_in(stmt):
         return False
     if isinstance(stmt, Unstructured):
         return not stmt.fatal
@@ -375,6 +413,8 @@ class PythonGenerator:
         self.renamed: dict[str, str] = {}        # Variable des Plans → Name im Python-Programm
         self._rename_pattern = None
         self._loops = 0                          # Tiefe der gerade erzeugten Schleifen
+        self.returns: dict[str, str] = {}        # Abläufe mit Rückgabewert → Typ des Ergebnisses
+        self._value: str | None = None           # Typ des Ergebnisses des gerade erzeugten Ablaufs
 
     def var(self, name: str) -> str:
         """Name einer Plan-Variablen im Python-Programm."""
@@ -407,6 +447,7 @@ class PythonGenerator:
         variables = Variables(self.programs)
         self.known = set(variables.names)
         self.types, self.dynamic = variables.types, variables.dynamic
+        self.returns = variables.returns
         # Hilfsfunktionen dürfen nicht wie eine Variable des Plans heißen
         self.input_fn = _free_name("eingabe", self.known)
         self.ask_fn = _free_name("frage", self.known)
@@ -431,7 +472,11 @@ class PythonGenerator:
                 for name in unset:
                     self.lines.append(f"{INDENT}{self.var(name)} = {DEFAULTS[self.types[name]]!r}"
                                       .replace("''", '""'))
+            self._value = self.returns.get(program.start_id) if index else None
             self.block(program.body, 1, top_level=True)
+            if self._value is not None and _block_completes(Block(_body_statements(program.body))):
+                # ohne „return“ am Ende: das Ergebnis ist der Startwert seines Typs (wie im Schreibtischtest)
+                self.emit(1, f"return {self._default()}")
             body.extend(self.lines)
             body.append("")
             body.append("")
@@ -523,6 +568,7 @@ class PythonGenerator:
                         for name, expr in T.recognized_assignments(stmt.text):
                             read(T.names_in(expr), assigned)
                             assigned.add(name)
+                        read(T.names_in(T.process_return(stmt.text) or ""), assigned)
                     elif stmt.kind == "output":
                         spec = T.output_spec(stmt.text, self.known)
                         read(spec.variables, assigned)
@@ -532,10 +578,17 @@ class PythonGenerator:
                     elif stmt.kind == "subprogram":
                         # dieselbe Zuordnung wie beim Aufruf selbst (action_subprogram)
                         index = resolve_routine(stmt.text, [p.name for p in self.programs], exclude=0)
+                        if index is not None:
+                            # die Werte in Klammern gehen an die Parameter
+                            for param, arg in _call_values(stmt.text, self.programs[index]):
+                                read(T.names_in(arg), assigned)
+                            assigned.update(param for param, _ in _call_values(stmt.text, self.programs[index]))
                         if index is not None and index not in active:
                             active.add(index)
                             visit(self.programs[index].body, assigned)
                             active.discard(index)
+                        if index is not None and _call_target(stmt.text, self.programs[index], self.returns):
+                            assigned.add(_call_target(stmt.text, self.programs[index], self.returns))
                 elif isinstance(stmt, If):
                     read(T.names_in(T.condition_expression(stmt.condition) or ""), assigned)
                     then_out, else_out = visit(stmt.then_block, assigned), visit(stmt.else_block, assigned)
@@ -622,9 +675,7 @@ class PythonGenerator:
         return f"not ({expr})" if negate else expr
 
     def block(self, block: Block, depth: int, top_level: bool = False) -> None:
-        statements = list(block)
-        if top_level and statements and isinstance(statements[-1], EndStmt):
-            statements = statements[:-1]
+        statements = _body_statements(block) if top_level else list(block)
         before = len(self.lines)
         for stmt in statements:
             self.stmt(stmt, depth)
@@ -670,7 +721,7 @@ class PythonGenerator:
         elif isinstance(stmt, Break) and self._loops:
             self.emit(depth, "break  # " + tr_code("Schleife verlassen"))
         elif isinstance(stmt, EndStmt):
-            self.emit(depth, "return  # " + tr_code("Ende", ctx="Kommentar"))
+            self.emit_return(depth, T.return_statement(stmt.text) or "", "  # " + tr_code("Ende", ctx="Kommentar"))
         elif isinstance(stmt, (Unstructured, Break, Continue)):
             note = stmt.note if isinstance(stmt, Unstructured) else _jump_note()
             self.emit(depth, f"# {_hint_text(_one_line(note))}")
@@ -776,10 +827,28 @@ class PythonGenerator:
             text = spec.value if spec.kind in ("string", "text") else _one_line(stmt.text)
             self.emit(depth, f'print("{_escape(text)}")')
 
+    def _default(self) -> str:
+        """Startwert des Ergebnistyps des gerade erzeugten Ablaufs."""
+        return repr(DEFAULTS[self._value or DOUBLE]).replace("''", '""')
+
+    def emit_return(self, depth: int, expr: str, suffix: str = "") -> None:
+        """„return n * 2“: im Hauptprogramm nur ``return``, sonst mit dem Wert (ohne Wert: Startwert)."""
+        if self._value is None:
+            self.emit(depth, "return" + suffix)
+            return
+        code = self.expr(expr) if expr else self._default()
+        if code is None:
+            self.emit(depth, f"# TODO: return {_one_line(expr)}")
+            code = self._default()
+        self.emit(depth, f"return {code}{suffix}")
+
     def action_process(self, stmt: Action, depth: int) -> None:
         items = T.assignment_items(stmt.text)
-        if any(not isinstance(item, str) for item in items):
+        if any(not isinstance(item, str) for item in items) or _returns_in(stmt):
             for item in items:
+                if isinstance(item, str) and T.return_statement(item) is not None:
+                    self.emit_return(depth, T.return_statement(item))
+                    return   # was danach steht, wird nie erreicht
                 if isinstance(item, str):   # einzelne Zeile ohne Zuweisung: die übrigen gelten trotzdem
                     self.emit(depth, f"# TODO: {item}")
                     continue
@@ -801,11 +870,27 @@ class PythonGenerator:
         slug = routine_name(stmt.text) or T.slug(stmt.text)
         index = resolve_routine(stmt.text, [p.name for p in self.programs], exclude=0)
         if index is not None:
-            # Abläufe haben keine Parameter: Sie arbeiten mit den gemeinsamen Variablen
+            # Die Werte in Klammern gehen an die Parameter (gemeinsame Variablen), das Ergebnis an die Variable
+            program = self.programs[index]
             note = f"  # {_one_line(stmt.text)}" if _one_line(stmt.text) != routine_label(stmt.text) else ""
-            if T.call_passes_values(stmt.text):
-                self.emit(depth, f"# TODO: {_call_note()}")
-            self.emit(depth, f"{self.functions[index]}(){note}")
+            for hint in _call_notes(stmt.text, program, self.returns):
+                self.emit(depth, f"# TODO: {hint}")
+            names, codes = [], []
+            for param, arg in _call_values(stmt.text, program):
+                code = self.expr(arg)
+                if code is None:
+                    missing = _quoted_names(T.unknown_names(arg, self.known))
+                    self.emit(depth, "# TODO: " + tr_code("{name} = {expr} – {missing} erhält im Plan keinen Wert",
+                                                          name=param, expr=arg, missing=missing))
+                    code = "0"
+                names.append(self.var(param))
+                codes.append(code)
+            if names:
+                # alle Werte zuerst berechnen, dann zuweisen: „tausche(b, a)“ mit „tausche(a, b)“
+                self.emit(depth, f"{', '.join(names)} = {', '.join(codes)}")
+            target = _call_target(stmt.text, program, self.returns)
+            call = f"{self.functions[index]}()"
+            self.emit(depth, (f"{self.var(target)} = {call}" if target else call) + note)
             return
         name = slug if T.is_identifier(slug) else f"unterprogramm_{len(self.called) + 1}"
         name = _free_name(name, (self.known | _PY_RESERVED_FUNCTIONS | set(self.functions)
@@ -1136,6 +1221,9 @@ def _java_expr(expr: str, types: dict | None = None, known=None, dynamic=frozens
         return None
 
 
+_JAVA_DEFAULTS = {DOUBLE: "0", STRING: '""', BOOLEAN: "false"}
+
+
 class JavaGenerator:
     def __init__(self, programs: list[Program]):
         self.programs = programs
@@ -1151,6 +1239,8 @@ class JavaGenerator:
         self.methods: list[str] = []  # Methodenname je Ablauf (Aufrufe: resolve_routine)
         self._times_depth = 0
         self._loops = 0                          # Tiefe der gerade erzeugten Schleifen
+        self.returns: dict[str, str] = {}        # Abläufe mit Rückgabewert → Typ des Ergebnisses
+        self._value: str | None = None           # Typ des Ergebnisses der gerade erzeugten Methode
 
     # -------------------------------------------------------------- Namen
     def _name_methods(self) -> None:
@@ -1224,6 +1314,7 @@ class JavaGenerator:
         variables = Variables(self.programs)
         self.known = set(variables.names)
         self.types, self.dynamic = variables.types, variables.dynamic
+        self.returns = variables.returns
         _java_plan_variables.clear()
         _java_plan_variables.update(self.known)
         self._name_methods()
@@ -1231,18 +1322,22 @@ class JavaGenerator:
         for index, program in enumerate(self.programs):
             self.lines = []
             self._times_depth = 0
+            self._value = self.returns.get(program.start_id) if index else None
             signature = "public static void main(String[] args)" if index == 0 else \
-                f"static void {self.methods[index]}()"
+                f"static {self._value or 'void'} {self.methods[index]}()"
             self.lines.append(f"{INDENT}// {_java_comment(program.name)}")
             for warning in program.warnings:
                 self.lines.append(f"{INDENT}// {_warning_text(_java_comment(warning))}")
             self.lines.append(f"{INDENT}{signature} {{")
             self.block(program.body, 2, top_level=True)
+            if self._value is not None and _block_completes(Block(_body_statements(program.body))):
+                # ohne „return“ am Ende: das Ergebnis ist der Startwert seines Typs (wie im Schreibtischtest)
+                self.emit(2, f"return {_JAVA_DEFAULTS[self._value]};")
             self.lines.append(f"{INDENT}}}")
             methods.extend(self.lines)
             methods.append("")
         # Variablen als Klassenfelder: Unterprogramme arbeiten mit denselben Werten
-        defaults = {DOUBLE: "0", STRING: '""', BOOLEAN: "false"}
+        defaults = _JAVA_DEFAULTS
         fields = [f"{INDENT}static {self.types[name]} {java_name(name)} = {defaults[self.types[name]]};"
                   for name in variables.names]
         if fields:
@@ -1346,9 +1441,7 @@ class JavaGenerator:
             self.emit(depth, f"// {_java_comment(comment)}")
 
     def block(self, block: Block, depth: int, top_level: bool = False) -> None:
-        statements = list(block)
-        if top_level and statements and isinstance(statements[-1], EndStmt):
-            statements = statements[:-1]
+        statements = _body_statements(block) if top_level else list(block)
         for index, stmt in enumerate(statements):
             if _never_runs(stmt):
                 # „while (false)“ lässt javac nicht zu: der Rumpf wäre unerreichbar
@@ -1409,7 +1502,7 @@ class JavaGenerator:
         elif isinstance(stmt, Break) and self._loops:
             self.emit(depth, "break; // " + tr_code("Schleife verlassen"))
         elif isinstance(stmt, EndStmt):
-            self.emit(depth, "return; // " + tr_code("Ende", ctx="Kommentar"))
+            self.emit_return(depth, T.return_statement(stmt.text) or "", " // " + tr_code("Ende", ctx="Kommentar"))
         elif isinstance(stmt, (Unstructured, Break, Continue)):
             note = stmt.note if isinstance(stmt, Unstructured) else _jump_note()
             self.emit(depth, f"// {_hint_text(_java_comment(note))}")
@@ -1536,36 +1629,53 @@ class JavaGenerator:
         else:
             self.emit(depth, f'System.out.println("{_escape(spec.value)}");')
 
+    def converted(self, expr: str, wanted: str) -> str | None:
+        """Ausdruck als Java-Code vom Typ ``wanted`` – oder ``None``, wenn er sich nicht übersetzen lässt."""
+        result = self.typed(expr)
+        if result is None:
+            return None
+        code, found = result
+        if wanted == found:
+            return code
+        if wanted == DOUBLE and found == BOOLEAN:
+            return f"({code}) ? 1 : 0"
+        if wanted == DOUBLE:
+            return self.number(expr)  # wechselnde Eingabe als Zahl; reiner Text: nicht übersetzbar
+        if wanted == BOOLEAN and found == DOUBLE:
+            return self.truth(expr)
+        if wanted == STRING and found == DOUBLE:
+            return self.printable(expr)
+        if wanted == STRING:
+            return f"String.valueOf({code})"
+        return None
+
+    def emit_return(self, depth: int, expr: str, suffix: str = "") -> None:
+        """„return n * 2“: in main nur ``return;``, sonst mit dem Wert (ohne Wert: Startwert des Typs)."""
+        if self._value is None:
+            self.emit(depth, "return;" + suffix)
+            return
+        code = self.converted(expr, self._value) if expr else _JAVA_DEFAULTS[self._value]
+        if code is None:
+            self.emit(depth, f"// TODO: return {_java_comment(expr)}")
+            code = _JAVA_DEFAULTS[self._value]
+        self.emit(depth, f"return {code};{suffix}")
+
     def action_process(self, stmt: Action, depth: int) -> None:
         items = T.assignment_items(stmt.text)
-        if all(isinstance(item, str) for item in items):
+        if all(isinstance(item, str) for item in items) and not _returns_in(stmt):
             for line in [line for line in stmt.text.splitlines() if line.strip()] or [tr_code("(leer)")]:
                 self.emit(depth, f"// TODO: {_java_comment(line)}")
             return
         for item in items:
+            if isinstance(item, str) and T.return_statement(item) is not None:
+                self.emit_return(depth, T.return_statement(item))
+                return   # Java lehnt Anweisungen dahinter als unerreichbar ab
             if isinstance(item, str):   # einzelne Zeile ohne Zuweisung: die übrigen gelten trotzdem
                 self.emit(depth, f"// TODO: {_java_comment(item)}")
                 continue
             name, expr = item
             target, wanted = java_name(name), self.types.get(name, DOUBLE)
-            result = self.typed(expr)
-            code = None
-            if result is not None:
-                code, found = result
-                if wanted == found:
-                    pass
-                elif wanted == DOUBLE and found == BOOLEAN:
-                    code = f"({code}) ? 1 : 0"
-                elif wanted == DOUBLE:
-                    code = self.number(expr)  # wechselnde Eingabe als Zahl; reiner Text: nicht übersetzbar
-                elif wanted == BOOLEAN and found == DOUBLE:
-                    code = self.truth(expr)
-                elif wanted == STRING and found == DOUBLE:
-                    code = self.printable(expr)
-                elif wanted == STRING:
-                    code = f"String.valueOf({code})"
-                else:
-                    code = None
+            code = self.converted(expr, wanted)
             if code is None:
                 missing = T.unknown_names(expr, self.known)
                 if missing:
@@ -1581,11 +1691,54 @@ class JavaGenerator:
         call = T.call_parts(stmt.text)
         index = resolve_routine(stmt.text, [p.name for p in self.programs], exclude=0)
         if index is not None:
-            # Abläufe haben keine Parameter: Sie arbeiten mit den gemeinsamen Variablen
+            # Die Werte in Klammern gehen an die Parameter (Klassenfelder), das Ergebnis an die Variable
+            program = self.programs[index]
             note = f" // {_java_comment(stmt.text)}" if _one_line(stmt.text) != routine_label(stmt.text) else ""
-            if T.call_passes_values(stmt.text):
-                self.emit(depth, f"// TODO: {_java_comment(_call_note())}")
-            self.emit(depth, (f"{self.methods[index]}();" if index else "main(new String[0]);") + note)
+            for hint in _call_notes(stmt.text, program, self.returns):
+                self.emit(depth, f"// TODO: {_java_comment(hint)}")
+            assignments = []
+            for param, arg in _call_values(stmt.text, program):
+                wanted = self.types.get(param, DOUBLE)
+                code = self.converted(arg, wanted)
+                if code is None:
+                    missing = T.unknown_names(arg, self.known)
+                    todo = tr_code("{name} = {expr} – {missing} erhält im Plan keinen Wert", name=param, expr=arg,
+                                   missing=_quoted_names(missing)) if missing else f"{param} = {arg}"
+                    self.emit(depth, f"// TODO: {_java_comment(todo)}")
+                    continue
+                assignments.append((java_name(param), wanted, code))
+            params = {name for name, _, _ in assignments}
+            if len(assignments) > 1 and any(set(T.names_in(arg)) & set(program.params)
+                                            for _, arg in _call_values(stmt.text, program)):
+                # alle Werte zuerst berechnen, dann zuweisen: „tausche(b, a)“ mit „tausche(a, b)“
+                taken = {java_name(name) for name in self.known} | params
+                self.emit(depth, "{")
+                for number, (name, wanted, code) in enumerate(assignments, 1):
+                    temp = _free_name(f"wert{number}_", taken)
+                    taken.add(temp)
+                    self.emit(depth + 1, f"{wanted} {temp} = {code};")
+                    assignments[number - 1] = (name, wanted, temp)
+                for name, _, code in assignments:
+                    self.emit(depth + 1, f"{name} = {code};")
+                self.emit(depth, "}")
+                assignments = []
+            for name, _, code in assignments:
+                self.emit(depth, f"{name} = {code};")
+            call = f"{self.methods[index]}()" if index else "main(new String[0])"
+            target = _call_target(stmt.text, program, self.returns) if index else None
+            if target:
+                value, wanted = self.returns[program.start_id], self.types.get(target, DOUBLE)
+                if value != wanted:
+                    call = {(DOUBLE, BOOLEAN): f"({call}) ? 1 : 0", (STRING, DOUBLE): f"text({call})",
+                            (STRING, BOOLEAN): f"String.valueOf({call})"}.get((wanted, value), "")
+                    if wanted == STRING and value == DOUBLE:
+                        self.helpers.add("text")
+                if call:
+                    self.emit(depth, f"{java_name(target)} = {call};{note}")
+                else:
+                    self.emit(depth, f"{self.methods[index]}();{note} // TODO: {_java_comment(stmt.text)}")
+                return
+            self.emit(depth, f"{call};{note}")
             return
         label = call[0] if call else routine_label(stmt.text)
         name = _free_name(T.lower_camel(label, f"unterprogramm{len(self.called) + 1}"),

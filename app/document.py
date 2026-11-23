@@ -445,11 +445,14 @@ class DiagramDocument(QObject):
     @classmethod
     def open_file(cls, path: str, parent=None) -> "DiagramDocument":
         """Öffnet eine Projektdatei. Wirft ``ProjectFileError``."""
+        # Zeitstempel VOR dem Lesen: Ersetzt ein anderes Programm die Datei während des Lesens, passt der Stempel
+        # nicht mehr – das Programm erkennt die Änderung, statt den neueren Stand später zu überschreiben
+        stamp = file_stamp(os.path.abspath(path))
         result = load_diagram(path)
         document = cls(result.diagram, os.path.abspath(path), parent)
         document.load_warnings = result.warnings + document.load_warnings
         document.native_file = result.native
-        document.disk_stamp = file_stamp(document.file_path)
+        document.disk_stamp = stamp
         if not result.native:
             for page in document.pages[1:]:
                 page.fit_on_show = True

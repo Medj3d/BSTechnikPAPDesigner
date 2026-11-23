@@ -129,7 +129,8 @@ class _Structurer:
             body, _ = self.block(outs[0].target, frozenset())
         else:
             self.warn(tr("„{name}“ ist mit keinem Baustein verbunden.", name=name))
-        return Program(name, start_id, self.end_id, self.end_text, body, self.warnings)
+        return Program(name, start_id, self.end_id, self.end_text, body, self.warnings,
+                       self.g.flow_parameters(start_id))
 
     # ------------------------------------------------------------ Hilfen
     def node(self, nid: str):

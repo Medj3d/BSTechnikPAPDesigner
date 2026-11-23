@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from app import i18n, labels
 from app.analysis import text as T
 from app.analysis.ast import DoWhileLoop, If, LimitLoop, Loop, WhileLoop
-from app.analysis.graph import FlowGraph, yes_no_edges
+from app.analysis.graph import FlowGraph, routine_label, yes_no_edges
 from app.analysis.structure import is_choice_decision, structure_program
 from app.i18n import N_, tr
 from app.model.element_types import ElementType, default_text_for, display_name_for
@@ -94,6 +94,7 @@ class Simulator:
         self.types: dict[str, str] = info.types
         self.dynamic: set[str] = info.dynamic
         self.known: set[str] = set(info.names)
+        self._returns: dict[str, str] = info.returns   # Abläufe mit Rückgabewert → Typ des Ergebnisses
         self._defaults = {name: DEFAULTS[kind] for name, kind in info.types.items()}
         self._missing: list[str] = []
         self.reset()
@@ -125,7 +126,8 @@ class Simulator:
         self.pending: StepResult | None = None
         self._loop_state: dict[str, dict] = {}
         self._reentering: set[str] = set()
-        self._call_stack: list[tuple[str | None, str]] = []  # (Rücksprungziel, Aufruf-Text)
+        # (Rücksprungziel, Aufruf-Text, Variable für das Ergebnis oder None, Start des Aufgerufenen)
+        self._call_stack: list[tuple[str | None, str, str | None, str | None]] = []
 
     # ------------------------------------------------------------- Helfer
     def node(self, nid: str):
@@ -146,14 +148,59 @@ class Simulator:
         while target is None and self._call_stack:
             # Sackgasse in einem Unterprogramm: Wie im erzeugten Programm endet nur das Unterprogramm,
             # es geht beim Aufrufer weiter
-            target, name = self._call_stack.pop()
+            target, name, result = self._pop_call()
             self.current = target
             message = tr("{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer",
-                         message=message, name=name)
+                         message=message, name=name) + result
         if target is None:
             self.finished = True
             message = tr("{message} – Ablauf endet hier (kein Nachfolger).", message=message)
         return StepResult(nid, message, output=output, finished=self.finished)
+
+    def _pop_call(self, value=None) -> tuple[str | None, str, str]:
+        """Rücksprung aus einem Unterprogramm: (Ziel, Name, Meldungszusatz). Das Ergebnis geht an die Variable
+        des Aufrufs („y := doppelt(x)“); ohne „return“ mit Wert bekommt sie den Startwert ihres Typs."""
+        return_to, name, target, start = self._call_stack.pop()
+        if target is None:
+            return return_to, name, ""
+        if value is None:
+            value = DEFAULTS[self._returns.get(start) or self.types.get(target, "double")]
+        self.variables[target] = value
+        return return_to, name, f": {target} = {format_value(value)}"
+
+    def _return(self, nid: str, expr: str, parts: list[str]) -> StepResult:
+        """„return n * 2“: beendet den laufenden Ablauf und gibt den Wert an den Aufrufer."""
+        prefix = ", ".join(parts) + " – " if parts else ""
+        if not self._call_stack:
+            # im Hauptprogramm endet der Ablauf – wie „return“ in main() der erzeugten Programme
+            self._record(nid)
+            self.finished = True
+            return StepResult(nid, prefix + tr("Rückgabe im Hauptprogramm: Der Ablauf endet."), finished=True)
+        value = None
+        if expr:
+            try:
+                value = evaluate(expr, self._scope())
+            except CalculationError as exc:
+                return self._abort(nid, tr("Fehler bei „{assignment}“: {error}", assignment=f"return {expr}",
+                                           error=exc))
+            except EvaluationError as exc:
+                return self._advance(nid, self._next(nid), tr("Fehler bei „{assignment}“: {error}",
+                                                              assignment=f"return {expr}", error=exc))
+        self._record(nid)
+        return_to, name, result = self._pop_call(value)
+        self.current = return_to
+        message = prefix + tr("Rückgabe {value}: Ende von „{name}“, zurück zum Aufrufer",
+                              value=format_value(value) if value is not None else "–", name=name) + result
+        while return_to is None and self._call_stack:
+            # der Aufruf war der letzte Baustein des Aufrufers: weiter zurück (wie in ``_advance``)
+            return_to, name, result = self._pop_call()
+            self.current = return_to
+            message = tr("{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer",
+                         message=message, name=name) + result
+        if return_to is None:
+            self.finished = True
+            message = tr("{message} – Ablauf endet hier (kein Nachfolger).", message=message)
+        return StepResult(nid, message, finished=self.finished)
 
     def _abort(self, nid: str, message: str) -> StepResult:
         """Bricht den Ablauf an diesem Baustein ab (Rechenfehler – wie das erzeugte Programm)."""
@@ -235,8 +282,11 @@ class Simulator:
 
     def _end(self, nid, node):
         if self._call_stack:
-            return_to, name = self._call_stack.pop()
-            return self._advance(nid, return_to, tr("Ende von „{name}“: zurück zum Aufrufer", name=name))
+            expr = T.return_statement(node.text)
+            if expr:   # Ende-Element mit Rückgabe: „return n * 2“
+                return self._return(nid, expr, [])
+            return_to, name, result = self._pop_call()
+            return self._advance(nid, return_to, tr("Ende von „{name}“: zurück zum Aufrufer", name=name) + result)
         self._record(nid)
         self.finished = True
         return StepResult(nid, tr("Ende: {text}", text=node.text or default_text_for(ElementType.END)),
@@ -264,16 +314,44 @@ class Simulator:
             self.finished = True
             return StepResult(nid, tr("Abbruch: zu viele verschachtelte Aufrufe von „{name}“ (Rekursion?).",
                                       name=name), finished=True)
-        self._call_stack.append((self._next(nid), name))
+        # „y := doppelt(x)“ mit „int doppelt(int n)“: erst alle Werte berechnen, dann den Parametern zuweisen
+        spec = T.call_spec(node.text)
+        target, args = spec if spec else (None, None)
+        params = self.graph.flow_parameters(start)
+        notes, passed, values = [], [], []
+        if spec and args is None:
+            notes.append(tr("Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben."))
+        elif args and not params:
+            notes.append(tr("Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.",
+                            name=routine_label(node.text)))
+        for param, arg in zip(params, args or []):
+            try:
+                values.append((param, evaluate(arg, self._scope())))
+            except CalculationError as exc:
+                return self._abort(nid, tr("Fehler bei „{assignment}“: {error}", assignment=f"{param} = {arg}",
+                                           error=exc))
+            except EvaluationError as exc:
+                return self._advance(nid, self._next(nid), tr("Fehler bei „{assignment}“: {error}",
+                                                              assignment=f"{param} = {arg}", error=exc))
+        for param, value in values:
+            self.variables[param] = value
+            passed.append(f"{param} = {format_value(value)}")
+        if target and start not in self._returns:
+            notes.append(tr("Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt "
+                            "unverändert.", name=routine_label(node.text), target=target))
+            target = None
+        self._call_stack.append((self._next(nid), name, target, start))
         message = tr("Unterprogramm „{name}“ aufgerufen.", name=name)
-        if T.call_passes_values(node.text):
-            # „y := doppelt(x)“: Werte und Ergebnis werden nicht übergeben – lieber deutlich sagen als still 0
-            message = tr("{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die "
-                         "Abläufe arbeiten mit den gemeinsamen Variablen.", message=message)
+        if passed:
+            message = f"{message} {', '.join(passed)}"
+        for note in notes:
+            message = tr("{message} – {note}", message=message, note=note)
         return self._advance(nid, start, message)
 
     def _process(self, nid, node):
         items = T.assignment_items(node.text)
+        if T.process_return(node.text) is not None:
+            return self._process_with_return(nid, items)
         if all(isinstance(item, str) for item in items):
             return self._advance(nid, self._next(nid),
                                  tr("Nicht ausgewertet: {text}", text=' '.join(node.text.split())))
@@ -287,6 +365,30 @@ class Simulator:
                 value = evaluate(expr, self._scope())
             except CalculationError as exc:
                 # wie im erzeugten Programm (z. B. Division durch null): der Ablauf bricht hier ab
+                return self._abort(nid, tr("Fehler bei „{assignment}“: {error}", assignment=f"{name} = {expr}",
+                                           error=exc))
+            except EvaluationError as exc:
+                return self._advance(nid, self._next(nid),
+                                     tr("Fehler bei „{assignment}“: {error}", assignment=f"{name} = {expr}",
+                                        error=exc))
+            self.variables[name] = value
+            parts.append(f"{name} = {format_value(value)}")
+        return self._advance(nid, self._next(nid), ", ".join(parts))
+
+    def _process_with_return(self, nid, items):
+        """Vorgang mit „return …“: Die Zuweisungen davor gelten, danach endet der Ablauf mit dem Wert."""
+        parts = []
+        for item in items:
+            if isinstance(item, str):
+                expr = T.return_statement(item)
+                if expr is not None:
+                    return self._return(nid, expr, parts)
+                parts.append(tr("Nicht ausgewertet: {text}", text=item))
+                continue
+            name, expr = item
+            try:
+                value = evaluate(expr, self._scope())
+            except CalculationError as exc:
                 return self._abort(nid, tr("Fehler bei „{assignment}“: {error}", assignment=f"{name} = {expr}",
                                            error=exc))
             except EvaluationError as exc:

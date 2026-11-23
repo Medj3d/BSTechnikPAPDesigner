@@ -237,6 +237,8 @@ class SettingsDialog(QDialog):
         box = QCheckBox(clean_text(action.text()))
         box.setObjectName("SettingSwitch")   # fett und etwas größer: die Funktion, darunter gedämpft die Erklärung
         box.setChecked(action.isChecked())
+        box.setEnabled(action.isEnabled())   # z. B. Updates von der Schul-IT abgeschaltet
+        action.changed.connect(lambda b=box, a=action: b.setEnabled(a.isEnabled()))
         # „trigger“ löst wie ein Klick im Menü alles aus, was an der Einstellung hängt
         box.clicked.connect(lambda _checked=False: action.trigger())
         action.toggled.connect(box.setChecked)

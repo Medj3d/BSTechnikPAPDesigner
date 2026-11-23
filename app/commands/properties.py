@@ -41,6 +41,29 @@ class SetElementPropertyCommand(QUndoCommand):
         self._apply(self._old, self._old_text)
 
 
+class ViewSettingCommand(QUndoCommand):
+    """Raster anzeigen / Am Raster einrasten: gehört zum Projekt (wird gespeichert) und lässt sich rückgängig machen."""
+
+    def __init__(self, document, attr: str, value: bool, text: str, parent=None):
+        super().__init__(text, parent)
+        self._document = document
+        self._attr = attr
+        self._new = bool(value)
+        self._old = not bool(value)
+
+    def _apply(self, value: bool) -> None:
+        if self._attr == "grid_visible":
+            self._document.set_grid_visible(value)
+        else:
+            self._document.set_snap_to_grid(value)
+
+    def redo(self) -> None:
+        self._apply(self._new)
+
+    def undo(self) -> None:
+        self._apply(self._old)
+
+
 class ProjectPropertiesCommand(QUndoCommand):
     """Ändert Projektmetadaten und Rastergröße eines Dokuments."""
 

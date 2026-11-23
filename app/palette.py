@@ -7,9 +7,10 @@ werden (unterhalb des ausgewählten Bausteins bzw. in der Bildmitte).
 
 from __future__ import annotations
 
-from PySide6.QtCore import QMimeData, QPoint, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QDrag, QPainter, QPen
-from PySide6.QtWidgets import QApplication, QLabel, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PySide6.QtCore import QMimeData, QPoint, QPointF, QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QAccessible, QAccessibleActionInterface, QColor, QDrag, QPainter, QPen
+from PySide6.QtWidgets import (QAccessibleWidget, QApplication, QLabel, QScrollArea, QSizePolicy, QVBoxLayout,
+                               QWidget)
 
 from app import styles
 from app.canvas import ELEMENT_MIME_TYPE
@@ -33,6 +34,7 @@ class PaletteEntry(QWidget):
         self.element_type = ElementType(element_type)
         self.spec = spec_for(self.element_type)
         self.label = display_name_for(self.element_type)
+        self.setAccessibleName(self.label)
         self._hovered = False
         self._pressed_pos: QPoint | None = None
         self.key_hint = ""
@@ -42,7 +44,9 @@ class PaletteEntry(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setToolTip(f"<b>{self.label}</b><br>{description_for(self.element_type)}<br><br>"
                         + tr("Auf die Arbeitsfläche ziehen oder klicken zum Einfügen."))
-        self.setAccessibleName(self.label)
+        # per Tab erreichbar, Leertaste/Eingabe fügt ein (wie ein Klick)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setAccessibleDescription(description_for(self.element_type))
 
     def sizeHint(self) -> QSize:
         """So breit, dass Vorschau, Bezeichnung und Taste nebeneinander passen (gleich breite Schrift)."""
@@ -59,12 +63,21 @@ class PaletteEntry(QWidget):
             p.setPen(QPen(QColor(theme.border_strong), 1))
             p.setBrush(QColor(theme.panel_raised))
             p.drawRoundedRect(rect, 6, 6)
+        if self.hasFocus():
+            # sichtbarer Fokusrahmen für die Tastaturbedienung
+            p.setPen(QPen(QColor(theme.accent), 2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRoundedRect(rect.adjusted(1, 1, -1, -1), 6, 6)
 
         # Arabisch (rechts nach links): gespiegelt – Vorschau rechts, Bezeichnung daneben, Taste links
         rtl = self.isRightToLeft()
         chip = None
+        key_text = self.key_hint
         if self.key_hint:
-            width = max(16.0, p.fontMetrics().horizontalAdvance(self.key_hint) + 8.0)
+            # ein langes Kürzel („Strg+Alt+Umschalt+F12“) darf den Namen nicht verdrängen: höchstens ein Drittel
+            limit = max(24.0, rect.width() / 3)
+            key_text = p.fontMetrics().elidedText(self.key_hint, Qt.TextElideMode.ElideLeft, int(limit - 8))
+            width = max(16.0, p.fontMetrics().horizontalAdvance(key_text) + 8.0)
             chip_x = rect.left() + 4 if rtl else rect.right() - width - 4
             chip = QRectF(chip_x, rect.center().y() - 9, width, 18)
 
@@ -79,7 +92,14 @@ class PaletteEntry(QWidget):
             w, h = 44.0, 32.0
         elif self.element_type in FLOW_TERMINALS:
             w, h = 52.0, 22.0
-        if self.element_type is ElementType.LOOP:
+        if self.element_type is ElementType.JUNCTION:
+            # kleiner Punkt auf einem Stück Pfeil – so, wie er im Plan aussieht
+            pen = QPen(QColor(colors.border), 1.6)
+            p.setPen(pen)
+            p.drawLine(QPointF(-PREVIEW_WIDTH / 2 + 4, 0), QPointF(PREVIEW_WIDTH / 2 - 4, 0))
+            p.setBrush(QColor(colors.border))
+            p.drawEllipse(QPointF(0, 0), 5.0, 5.0)
+        elif self.element_type is ElementType.LOOP:
             # Schleifenbeginn und -ende übereinander
             half = 13.0
             p.translate(0, -half / 2 - 1.5)
@@ -109,8 +129,28 @@ class PaletteEntry(QWidget):
             p.setBrush(QColor(theme.panel_raised))
             p.drawRoundedRect(chip, 4, 4)
             p.setPen(QColor(theme.text_muted))
-            p.drawText(chip, int(Qt.AlignmentFlag.AlignCenter), self.key_hint)
+            p.drawText(chip, int(Qt.AlignmentFlag.AlignCenter), key_text)
         p.end()
+
+    def activate(self) -> None:
+        """Fügt den Baustein ein – wie ein Klick (Tastatur, Bildschirmleser)."""
+        if self.isEnabled():
+            self.activated.emit(self.element_type)
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter) and not event.isAutoRepeat():
+            self.activate()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def focusInEvent(self, event) -> None:
+        self.update()
+        super().focusInEvent(event)
+
+    def focusOutEvent(self, event) -> None:
+        self.update()
+        super().focusOutEvent(event)
 
     def enterEvent(self, event) -> None:
         self._hovered = True
@@ -161,6 +201,37 @@ class PaletteEntry(QWidget):
         drag.exec(Qt.DropAction.CopyAction)
 
 
+class PaletteEntryAccessible(QAccessibleWidget):
+    """Bildschirmleser sehen einen Paletteneintrag als Knopf mit der Aktion „Drücken“."""
+
+    def __init__(self, entry: PaletteEntry):
+        super().__init__(entry, QAccessible.Role.Button, entry.label)
+        self._entry = entry
+
+    def text(self, kind):
+        if kind == QAccessible.Text.Name:
+            return self._entry.label
+        return super().text(kind)
+
+    def actionNames(self):
+        return [QAccessibleActionInterface.pressAction()] + list(super().actionNames())
+
+    def doAction(self, name) -> None:
+        if name == QAccessibleActionInterface.pressAction():
+            self._entry.activate()
+        else:
+            super().doAction(name)
+
+
+def _palette_accessible_factory(key, obj):
+    if isinstance(obj, PaletteEntry):
+        return PaletteEntryAccessible(obj)
+    return None
+
+
+QAccessible.installFactory(_palette_accessible_factory)
+
+
 class ToolPalette(QWidget):
     """Kompakte Liste aller Bausteine."""
 
@@ -185,6 +256,7 @@ class ToolPalette(QWidget):
         layout.addWidget(heading)
         for element_type in PALETTE_ORDER:
             layout.addWidget(self._entry(element_type))
+        layout.addWidget(self._entry(ElementType.JUNCTION))   # auf einen Pfeil ziehen: teilt ihn dort
         layout.addWidget(self._section(tr("ABLAUF", ctx="Palette")))
         for element_type in FLOW_TERMINALS:
             layout.addWidget(self._entry(element_type))

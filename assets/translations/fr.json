@@ -1070,9 +1070,21 @@
  "Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene Datei angelegt, die Aufgabe bleibt unverändert.": "Exercice « {name} » ouvert – votre solution sera enregistrée dans un fichier séparé, l’exercice reste inchangé.",
  "{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer": "{message} – pas de successeur : fin de « {name} », retour à l’appelant",
  "Abbruch: {message}": "Arrêt : {message}",
- "{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die Abläufe arbeiten mit den gemeinsamen Variablen.": "{message} – remarque : les valeurs entre parenthèses et le résultat ne sont pas transmis ; les flux utilisent les variables communes.",
  "Abbruch: Bei der Verzweigung „{text}“ passt kein Ausgang ({labels}) und es gibt keinen Ausgang „sonst“.": "Arrêt : aucune sortie de l’embranchement « {text} » ne correspond ({labels}) et il n’y a pas de sortie « sinon ».",
  "Abbruch: Die Schrittweite der Zählschleife „{text}“ ist 0 – die Schleife endete nie.": "Arrêt : le pas de la boucle de comptage « {text} » est 0 – la boucle ne se terminerait jamais.",
  "So heißt schon das Hauptprogramm. Bitte einen anderen Namen wählen.": "C’est déjà le nom du programme principal. Veuillez choisir un autre nom.",
- "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "La mise à jour n’a pas pu être installée et la version précédente n’a pas pu être entièrement restaurée. Veuillez réinstaller le programme. Les anciens fichiers se trouvent encore dans le dossier du programme (extension « .alt ») : {names}"
+ "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "La mise à jour n’a pas pu être installée et la version précédente n’a pas pu être entièrement restaurée. Veuillez réinstaller le programme. Les anciens fichiers se trouvent encore dans le dossier du programme (extension « .alt ») : {names}",
+ "Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt aus der Palette auf einen Pfeil ziehen.": "Point de jonction : sélectionnez d’abord une flèche – ou faites glisser le point de jonction de la palette sur une flèche.",
+ "Den Verbindungspunkt auf einen Pfeil ziehen – dort wird der Pfeil geteilt.": "Faites glisser le point de jonction sur une flèche – la flèche y sera divisée.",
+ "Arbeitsfläche": "Zone de dessin",
+ "Raster anzeigen": "Afficher la grille",
+ "Raster ausblenden": "Masquer la grille",
+ "Einrasten einschalten": "Activer le magnétisme",
+ "Einrasten ausschalten": "Désactiver le magnétisme",
+ "Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben.": "Remarque : les valeurs entre parenthèses n’ont pas pu être évaluées et ne sont pas transmises.",
+ "Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt unverändert.": "Remarque : « {name} » ne renvoie aucune valeur (pas de « return ») – « {target} » reste inchangé.",
+ "Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.": "Remarque : « {name} » n’a pas de paramètres – les valeurs entre parenthèses ne sont pas transmises.",
+ "{message} – {note}": "{message} – {note}",
+ "Rückgabe {value}: Ende von „{name}“, zurück zum Aufrufer": "Retour {value} : fin de « {name} », retour à l’appelant",
+ "Rückgabe im Hauptprogramm: Der Ablauf endet.": "Retour dans le programme principal : le déroulement se termine."
 }

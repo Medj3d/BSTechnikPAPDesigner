@@ -314,6 +314,12 @@ class FlowGraph:
                 return " ".join(name.split())
         return node.text
 
+    def flow_parameters(self, start_id: str) -> list[str]:
+        """Parameter des Ablaufs aus der Kopfzeile des Start-Elements (sonst aus dem Seitennamen)."""
+        from app.analysis.text import routine_parameters
+
+        return routine_parameters(self.nodes[start_id].text) or routine_parameters(self.flow_label(start_id))
+
     def start_for_call(self, text: str, exclude: str | None = None) -> str | None:
         """Start-Element des Ablaufs, den ein Unterprogramm-Text aufruft (``exclude``: das laufende Programm,
         das nur gemeint ist, wenn kein anderer Ablauf so heißt) – oder ``None``."""

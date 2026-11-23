@@ -276,7 +276,6 @@ def test_autosave_does_not_recreate_an_externally_deleted_file(window, tmp_path)
     assert document.is_modified
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="Dateistempel gehört nicht zum gelesenen Inhalt")
 def test_external_replacement_during_open_is_detected(document, monkeypatch, tmp_path):
     target = tmp_path / "Zeitgleich geändert.pap"
     add_process(document.scene, label="Stand beim Öffnen")

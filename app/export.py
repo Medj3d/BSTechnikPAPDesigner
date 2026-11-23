@@ -221,9 +221,15 @@ def _scene_list(scenes) -> list:
     return list(scenes) if isinstance(scenes, (list, tuple)) else [scenes]
 
 
+PDF_MAX_POINTS = 14400.0
+
+
 def _pdf_layout(source: QRectF) -> QPageLayout:
     # Seitengröße = Diagrammgröße (96 dpi → Punkt: 72/96)
-    page_size = QPageSize(QSizeF(source.width() * 72 / 96, source.height() * 72 / 96),
+    # PDF-Seiten dürfen höchstens 14 400 pt (200 Zoll) groß sein – größere Pläne werden passend verkleinert
+    width, height = source.width() * 72 / 96, source.height() * 72 / 96
+    shrink = min(1.0, PDF_MAX_POINTS / max(width, height))
+    page_size = QPageSize(QSizeF(width * shrink, height * shrink),
                           QPageSize.Unit.Point, tr("Diagramm"), QPageSize.SizeMatchPolicy.ExactMatch)
     return QPageLayout(page_size, QPageLayout.Orientation.Portrait, QMarginsF(0, 0, 0, 0))
 
@@ -251,27 +257,57 @@ def export_pdf(scenes, path: str, options: ExportOptions) -> None:
         painter.end()
 
 
+# Druck: kleiner als 75 % der Bildschirmgröße wird die Schrift schwer lesbar (≈ 2,5 mm) – dann auf mehrere Blätter
+PRINT_MIN_SCALE = 0.75
+
+
+def _print_pages(scenes, sources, page: QRectF, dpi: float, options: ExportOptions) -> list:
+    """(Szene, Ausschnitt, Optionen) je Blatt: ein Plan pro Blatt, große Pläne lesbar auf mehrere Blätter verteilt."""
+    import dataclasses
+    import math
+
+    readable = dpi / 96.0 * PRINT_MIN_SCALE
+    without_stamp = dataclasses.replace(options, stamp="")
+    pages = []
+    for scene, source in zip(scenes, sources):
+        fit = min(page.width() / source.width(), page.height() / source.height())
+        if fit >= readable:
+            pages.append((scene, source, options))
+            continue
+        width, height = page.width() / readable, page.height() / readable   # Szenenausschnitt je Blatt
+        columns = math.ceil(source.width() / width)
+        rows = math.ceil(source.height() / height)
+        for row in range(rows):
+            for column in range(columns):
+                tile = QRectF(source.left() + column * width, source.top() + row * height, width, height)
+                last = row == rows - 1 and column == columns - 1
+                pages.append((scene, tile, options if last else without_stamp))
+    return pages
+
+
 def print_scene(scenes, printer, options: ExportOptions) -> None:
-    """Druckt jedes Diagramm auf eine eigene Seite (seitenfüllend, Seitenverhältnis bleibt)."""
+    """Druckt jedes Diagramm auf eine eigene Seite (seitenfüllend, Seitenverhältnis bleibt). Wäre die Schrift dabei
+    kaum lesbar, wird der Plan auf mehrere Blätter verteilt (zum Zusammenkleben)."""
     scenes = _scene_list(scenes)
-    # Im Druckdialog gewählter Bereich „Seiten von … bis …“ (1 = erste Seite; 0 = alle Seiten)
+    sources = [_source_rect(scene, options.margin, options.stamp) for scene in scenes]
+    page = QRectF(printer.pageLayout().paintRectPixels(printer.resolution()))
+    page = QRectF(0, 0, page.width(), page.height())
+    pages = _print_pages(scenes, sources, page, printer.resolution(), options)
+    # Im Druckdialog gewählter Bereich „Seiten von … bis …“ (gezählt werden die gedruckten Blätter; 0 = alle)
     first, last = printer.fromPage(), printer.toPage()
     if first > 0:
-        last = last if last >= first else len(scenes)
-        scenes = scenes[first - 1:last]
-        if not scenes:
+        last = last if last >= first else len(pages)
+        pages = pages[first - 1:last]
+        if not pages:
             raise ExportError(tr("Im gewählten Seitenbereich gibt es keine Seite zum Drucken."))
-    sources = [_source_rect(scene, options.margin, options.stamp) for scene in scenes]
     painter = QPainter()
     if not painter.begin(printer):
         raise ExportError(tr("Der Druck konnte nicht gestartet werden."))
     try:
-        for index, (scene, source) in enumerate(zip(scenes, sources)):
+        for index, (scene, source, page_options) in enumerate(pages):
             if index and not printer.newPage():
                 raise ExportError(tr("Der Druck konnte nicht gestartet werden."))
-            page = QRectF(printer.pageLayout().paintRectPixels(printer.resolution()))
-            page = QRectF(0, 0, page.width(), page.height())
-            _render(scene, painter, page, source, options, fill_background=False)
+            _render(scene, painter, page, source, page_options, fill_background=False)
     finally:
         painter.end()
 

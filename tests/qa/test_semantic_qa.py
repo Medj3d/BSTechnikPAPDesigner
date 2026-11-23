@@ -48,14 +48,15 @@ def test_java_emoji_length_matches_simulation(tmp_path):
     assert run_java(code, (), tmp_path) == simulate(graph).outputs
 
 
-@pytest.mark.xfail(strict=True, reason="Python aborts on division by zero while the simulator continues")
 def test_python_division_by_zero_agrees_with_simulation():
     graph = linear((T.PROCESS, "x = 1 / 0"), (T.OUTPUT, '"weiter"'))
     code = generate(structure_diagram(graph), "python")
-    assert run_python(code, ()) == simulate(graph).outputs
+    # beide brechen an derselben Stelle ab: kein „weiter“
+    with pytest.raises(ZeroDivisionError):
+        run_python(code, ())
+    assert simulate(graph).outputs == []
 
 
-@pytest.mark.xfail(strict=True, reason="A call ignores arguments and does not assign its return value")
 def test_subprogram_signature_and_call_return_value():
     plan = Plan()
     plan.chain(plan.node("s", T.START, "Start"), plan.node("init", T.PROCESS, "x = 10; y = 0; n = 2"),
@@ -83,20 +84,18 @@ def test_explicit_choices_do_not_match_an_unlisted_value():
     assert simulator.outputs == []
 
 
-@pytest.mark.xfail(strict=True, reason="A zero increment generates an endless counting loop")
 def test_generated_python_guards_zero_counting_step():
     graph = linear((LOOP_BEGIN, "Für i = 1 bis 3 Schritt 0"), (T.PROCESS, "x = x + 1"),
                    (LOOP_END, "Schleifenende"), (T.OUTPUT, "x ausgeben"))
     code = generate(structure_diagram(graph), "python")
 
     # The reused Python runner breaks after a bounded number of traced lines.
-    try:
+    # der erzeugte Code hält mit klarer Meldung an, statt endlos zu laufen
+    with pytest.raises(SystemExit) as stopped:
         run_python(code, ())
-    except ValueError as error:
-        assert "0" in str(error)
+    assert "0" in str(stopped.value)
 
 
-@pytest.mark.xfail(strict=True, reason="Routine slug discards Japanese letters before validating the name")
 def test_japanese_subprogram_name_can_be_entered(document):
     assert subprograms.name_error(document, "補助") is None
 

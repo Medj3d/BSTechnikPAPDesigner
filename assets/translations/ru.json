@@ -1070,9 +1070,21 @@
  "Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene Datei angelegt, die Aufgabe bleibt unverändert.": "Задание «{name}» открыто – решение будет сохранено в отдельный файл, задание не изменится.",
  "{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer": "{message} – нет продолжения: конец «{name}», возврат к вызову",
  "Abbruch: {message}": "Остановлено: {message}",
- "{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die Abläufe arbeiten mit den gemeinsamen Variablen.": "{message} – примечание: значения в скобках и результат не передаются; алгоритмы работают с общими переменными.",
  "Abbruch: Bei der Verzweigung „{text}“ passt kein Ausgang ({labels}) und es gibt keinen Ausgang „sonst“.": "Остановлено: ни один выход ветвления «{text}» не подходит ({labels}), а выхода «иначе» нет.",
  "Abbruch: Die Schrittweite der Zählschleife „{text}“ ist 0 – die Schleife endete nie.": "Остановлено: шаг счётного цикла «{text}» равен 0 – цикл никогда не закончится.",
  "So heißt schon das Hauptprogramm. Bitte einen anderen Namen wählen.": "Так уже называется основная программа. Выберите другое имя.",
- "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "Не удалось установить обновление и полностью восстановить прежнюю версию. Переустановите программу. Старые файлы остались в папке программы (расширение «.alt»): {names}"
+ "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "Не удалось установить обновление и полностью восстановить прежнюю версию. Переустановите программу. Старые файлы остались в папке программы (расширение «.alt»): {names}",
+ "Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt aus der Palette auf einen Pfeil ziehen.": "Точка соединения: сначала выберите стрелку – или перетащите точку соединения из палитры на стрелку.",
+ "Den Verbindungspunkt auf einen Pfeil ziehen – dort wird der Pfeil geteilt.": "Перетащите точку соединения на стрелку – стрелка будет разделена в этом месте.",
+ "Arbeitsfläche": "Рабочая область",
+ "Raster anzeigen": "Показать сетку",
+ "Raster ausblenden": "Скрыть сетку",
+ "Einrasten einschalten": "Включить привязку",
+ "Einrasten ausschalten": "Выключить привязку",
+ "Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben.": "Примечание: значения в скобках не удалось вычислить, они не передаются.",
+ "Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt unverändert.": "Примечание: «{name}» не возвращает значение (нет «return») – «{target}» не изменяется.",
+ "Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.": "Примечание: у «{name}» нет параметров – значения в скобках не передаются.",
+ "{message} – {note}": "{message} – {note}",
+ "Rückgabe {value}: Ende von „{name}“, zurück zum Aufrufer": "Возврат {value}: конец «{name}», возврат к вызывающему",
+ "Rückgabe im Hauptprogramm: Der Ablauf endet.": "Возврат в основной программе: выполнение завершается."
 }

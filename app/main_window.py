@@ -36,7 +36,7 @@ from app.dialogs.recovery import RecoveryDialog
 from app.layout.auto_layout import apply_layout, plan_auto_layout
 from app.nsd.dialog import StructogramDialog
 from app.simulation.panel import SimulationPanel
-from app.commands import ProjectPropertiesCommand
+from app.commands import ProjectPropertiesCommand, ViewSettingCommand
 from app.connections.connection import ConnectionItem
 from app.connections.label import ConnectionLabel
 from app.dialogs.about import AboutDialog
@@ -282,6 +282,7 @@ class MainWindow(QMainWindow):
                 for name in ("insert_loop_head", "insert_loop_foot"):
                     a[name].setIcon(icons.element_icon(ElementType.LOOP))
                     insert_menu.addAction(a[name])
+        insert_menu.addAction(a[insert_action_name(ElementType.JUNCTION)])
         insert_menu.addSeparator()
         for element_type in FLOW_TERMINALS:
             insert_menu.addAction(a[insert_action_name(element_type)])
@@ -629,7 +630,7 @@ class MainWindow(QMainWindow):
         a["toggle_grid"].toggled.connect(self._set_grid_visible)
         a["toggle_snap"].toggled.connect(self._set_snap)
 
-        for element_type in PALETTE_ORDER + FLOW_TERMINALS:
+        for element_type in PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION,):
             a[insert_action_name(element_type)].triggered.connect(
                 lambda _=False, t=element_type: self.insert_element(t))
         a["insert_loop_head"].triggered.connect(lambda: self.insert_element(ElementType.LOOP, loop_kind="head"))
@@ -934,7 +935,7 @@ class MainWindow(QMainWindow):
     def _on_shortcuts_changed(self) -> None:
         self.settings_store.set_shortcuts(self.actions.custom_shortcuts())
         hints = {}
-        for element_type in PALETTE_ORDER + FLOW_TERMINALS:
+        for element_type in PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION,):
             keys = self.actions[insert_action_name(element_type)].shortcuts()
             hints[element_type] = sequence_text(keys[0]) if keys else ""
         self.palette.set_key_hints(hints)
@@ -1058,6 +1059,7 @@ class MainWindow(QMainWindow):
         document.modified_changed.connect(lambda _m, d=document: self._update_document_title(d))
         document.undo_stack.indexChanged.connect(lambda _i, d=document: self._schedule_auto_save(d))
         document.settings_changed.connect(self._update_status)
+        document.settings_changed.connect(self._sync_grid_actions)   # nach Rückgängig
         for page in document.pages:
             self._connect_scene(page.scene)
         document.page_added.connect(lambda page: self._connect_scene(page.scene))
@@ -1156,7 +1158,10 @@ class MainWindow(QMainWindow):
         # aller Bausteine im Speicher
         document.undo_stack.clear()
         for page in document.pages:
+            connections = page.scene.connections()
             page.scene.clear_diagram()
+            for conn in connections:
+                conn.label.connection = None   # Pfeil ↔ Beschriftung hielten sich sonst gegenseitig fest
             page.scene.deleteLater()
         view.deleteLater()
         document.deleteLater()
@@ -1926,8 +1931,32 @@ class MainWindow(QMainWindow):
         if view is None:
             self.new_document()
             view = self.current_view()
+        if ElementType(element_type) is ElementType.JUNCTION:
+            self._insert_junction(view)
+            return
         element_id = view.document.scene.insert_element_smart(ElementType(element_type), view.visible_center(),
                                                               loop_kind=loop_kind)
+        self._reveal([element_id] if element_id else [])
+
+    def _insert_junction(self, view: DiagramView) -> None:
+        """Verbindungspunkt per Klick oder Taste: auf den ausgewählten Pfeil bzw. den Ausgangspfeil des ausgewählten
+        Bausteins, jeweils in die Mitte. (Ziehen aus der Palette setzt ihn genau dorthin, wo man loslässt.)"""
+        scene = view.document.scene
+        connections = scene.selected_connections()
+        if not connections and scene.single_selected is not None:
+            connections = [c for c in scene.single_selected.connections
+                           if c.source is scene.single_selected and not c.is_annotation]
+        if len(connections) != 1:
+            self.statusBar().showMessage(tr("Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt "
+                                            "aus der Palette auf einen Pfeil ziehen."), 6000)
+            return
+        points = connections[0].points()
+        if len(points) < 2:
+            return
+        # Mitte des längsten Stücks der Linie (liegt sicher auf dem Pfeil, auch bei Knicken)
+        a, b = max(zip(points[:-1], points[1:]), key=lambda s: abs(s[0][0] - s[1][0]) + abs(s[0][1] - s[1][1]))
+        point = QPointF((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+        element_id = scene.insert_junction(connections[0], point)
         self._reveal([element_id] if element_id else [])
 
     def align(self, mode: str) -> None:
@@ -1965,16 +1994,27 @@ class MainWindow(QMainWindow):
             scene.reset_routing(conn)
 
     def _set_grid_visible(self, visible: bool) -> None:
-        document = self.current_document()
-        if document is not None:
-            document.set_grid_visible(visible)
-        self._update_status()
+        self._change_view_setting("grid_visible", visible, tr("Raster anzeigen") if visible else tr("Raster ausblenden"))
 
     def _set_snap(self, enabled: bool) -> None:
+        self._change_view_setting("snap_to_grid", enabled,
+                                  tr("Einrasten einschalten") if enabled else tr("Einrasten ausschalten"))
+
+    def _change_view_setting(self, attr: str, value: bool, text: str) -> None:
+        """Raster/Einrasten gehören zum Projekt: als Rückgängig-Schritt, damit sie gespeichert werden."""
         document = self.current_document()
-        if document is not None:
-            document.set_snap_to_grid(enabled)
+        if document is not None and bool(getattr(document.settings, attr)) != bool(value):
+            document.undo_stack.push(ViewSettingCommand(document, attr, value, text))
+        self._sync_grid_actions()
         self._update_status()
+
+    def _sync_grid_actions(self) -> None:
+        document = self.current_document()
+        for name, attr in (("toggle_grid", "grid_visible"), ("toggle_snap", "snap_to_grid")):
+            action = self.actions[name]
+            action.blockSignals(True)
+            action.setChecked(bool(getattr(document.settings, attr)) if document else True)
+            action.blockSignals(False)
 
     # ============================================================ Kontextmenü
     def show_context_menu(self, scene_pos: QPointF, global_pos) -> None:
@@ -2550,12 +2590,7 @@ class MainWindow(QMainWindow):
     def _update_ui(self) -> None:
         has_document = self.tabs.count() > 0
         self.stack.setCurrentWidget(self.workspace if has_document else self.empty_state)
-        document = self.current_document()
-        for name, attr in (("toggle_grid", "grid_visible"), ("toggle_snap", "snap_to_grid")):
-            action = self.actions[name]
-            action.blockSignals(True)
-            action.setChecked(bool(getattr(document.settings, attr)) if document else True)
-            action.blockSignals(False)
+        self._sync_grid_actions()
         self._update_window_title()
         self._update_actions()
         self._update_status()

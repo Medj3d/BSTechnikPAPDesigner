@@ -1070,9 +1070,21 @@
  "Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene Datei angelegt, die Aufgabe bleibt unverändert.": "已打开任务“{name}”——你的答案将保存为单独的文件，任务保持不变。",
  "{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer": "{message} – 没有后继：“{name}”结束，返回调用处",
  "Abbruch: {message}": "已中止：{message}",
- "{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die Abläufe arbeiten mit den gemeinsamen Variablen.": "{message} – 提示：括号中的值和结果不会传递；各流程使用共享变量。",
  "Abbruch: Bei der Verzweigung „{text}“ passt kein Ausgang ({labels}) und es gibt keinen Ausgang „sonst“.": "已中止：分支“{text}”没有匹配的出口（{labels}），且没有“否则”出口。",
  "Abbruch: Die Schrittweite der Zählschleife „{text}“ ist 0 – die Schleife endete nie.": "已中止：计数循环“{text}”的步长为 0——循环永远不会结束。",
  "So heißt schon das Hauptprogramm. Bitte einen anderen Namen wählen.": "主程序已使用此名称。请选择其他名称。",
- "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "无法安装更新，也无法完全恢复以前的版本。请重新安装程序。旧文件仍在程序文件夹中（扩展名“.alt”）：{names}"
+ "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "无法安装更新，也无法完全恢复以前的版本。请重新安装程序。旧文件仍在程序文件夹中（扩展名“.alt”）：{names}",
+ "Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt aus der Palette auf einen Pfeil ziehen.": "连接点：请先选择一条箭头——或将连接点从面板拖到箭头上。",
+ "Den Verbindungspunkt auf einen Pfeil ziehen – dort wird der Pfeil geteilt.": "将连接点拖到箭头上——箭头会在该处分开。",
+ "Arbeitsfläche": "画布",
+ "Raster anzeigen": "显示网格",
+ "Raster ausblenden": "隐藏网格",
+ "Einrasten einschalten": "开启对齐",
+ "Einrasten ausschalten": "关闭对齐",
+ "Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben.": "提示：括号中的值无法计算，不会被传递。",
+ "Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt unverändert.": "提示：“{name}”不返回值（没有“return”）– “{target}”保持不变。",
+ "Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.": "提示：“{name}”没有参数 – 括号中的值不会被传递。",
+ "{message} – {note}": "{message} – {note}",
+ "Rückgabe {value}: Ende von „{name}“, zurück zum Aufrufer": "返回 {value}：“{name}”结束，返回调用者",
+ "Rückgabe im Hauptprogramm: Der Ablauf endet.": "在主程序中返回：流程结束。"
 }

@@ -1711,6 +1711,13 @@ class DiagramScene(QGraphicsScene):
 
     def drop_element(self, element_type: ElementType, pos: QPointF) -> str | None:
         element_type = ElementType(element_type)
+        if element_type is ElementType.JUNCTION:
+            self.clear_drop_preview()
+            conn = self._connection_at(pos)
+            if conn is None or conn.is_annotation:
+                self.status_message.emit(tr("Den Verbindungspunkt auf einen Pfeil ziehen – dort wird der Pfeil geteilt."))
+                return None
+            return self.insert_junction(conn, pos)
         target = self._drop_target_connection(element_type, pos)
         point = self.snap_point(pos)
         axis = None

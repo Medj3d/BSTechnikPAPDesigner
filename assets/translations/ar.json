@@ -1070,9 +1070,21 @@
  "Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene Datei angelegt, die Aufgabe bleibt unverändert.": "تم فتح المهمة „{name}“ – سيُحفظ حلك في ملف مستقل وتبقى المهمة دون تغيير.",
  "{message} – kein Nachfolger: Ende von „{name}“, zurück zum Aufrufer": "{message} – لا يوجد تالٍ: نهاية „{name}“، العودة إلى المستدعي",
  "Abbruch: {message}": "توقف: {message}",
- "{message} – Hinweis: Werte in Klammern und das Ergebnis werden nicht übergeben; die Abläufe arbeiten mit den gemeinsamen Variablen.": "{message} – ملاحظة: القيم بين الأقواس والنتيجة لا تُمرَّر؛ تعمل الإجراءات بالمتغيرات المشتركة.",
  "Abbruch: Bei der Verzweigung „{text}“ passt kein Ausgang ({labels}) und es gibt keinen Ausgang „sonst“.": "توقف: لا يتطابق أي مخرج للتفرع „{text}“ ({labels}) ولا يوجد مخرج „وإلا“.",
  "Abbruch: Die Schrittweite der Zählschleife „{text}“ ist 0 – die Schleife endete nie.": "توقف: خطوة حلقة العد „{text}“ تساوي 0 – لن تنتهي الحلقة أبدًا.",
  "So heißt schon das Hauptprogramm. Bitte einen anderen Namen wählen.": "هذا هو اسم البرنامج الرئيسي بالفعل. يرجى اختيار اسم آخر.",
- "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "تعذر تثبيت التحديث وتعذرت استعادة الإصدار السابق بالكامل. يرجى إعادة تثبيت البرنامج. الملفات القديمة ما زالت في مجلد البرنامج (الامتداد „.alt“): {names}"
+ "Das Update konnte nicht installiert werden, und die bisherige Version ließ sich nicht vollständig wiederherstellen. Bitte das Programm neu installieren. Der alte Stand liegt noch im Programmordner (Endung „.alt“): {names}": "تعذر تثبيت التحديث وتعذرت استعادة الإصدار السابق بالكامل. يرجى إعادة تثبيت البرنامج. الملفات القديمة ما زالت في مجلد البرنامج (الامتداد „.alt“): {names}",
+ "Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt aus der Palette auf einen Pfeil ziehen.": "نقطة الربط: حدد سهمًا أولاً – أو اسحب نقطة الربط من اللوحة إلى سهم.",
+ "Den Verbindungspunkt auf einen Pfeil ziehen – dort wird der Pfeil geteilt.": "اسحب نقطة الربط إلى سهم – سيتم تقسيم السهم هناك.",
+ "Arbeitsfläche": "مساحة الرسم",
+ "Raster anzeigen": "إظهار الشبكة",
+ "Raster ausblenden": "إخفاء الشبكة",
+ "Einrasten einschalten": "تشغيل المحاذاة",
+ "Einrasten ausschalten": "إيقاف المحاذاة",
+ "Hinweis: Die Werte in Klammern ließen sich nicht auswerten und werden nicht übergeben.": "ملاحظة: تعذّر حساب القيم بين القوسين ولن تُمرَّر.",
+ "Hinweis: „{name}“ gibt keinen Wert zurück (kein „return“) – „{target}“ bleibt unverändert.": "ملاحظة: «{name}» لا يُرجع أي قيمة (لا يوجد «return») – تبقى «{target}» دون تغيير.",
+ "Hinweis: „{name}“ hat keine Parameter – die Werte in Klammern werden nicht übergeben.": "ملاحظة: «{name}» ليس له معاملات – لن تُمرَّر القيم بين القوسين.",
+ "{message} – {note}": "{message} – {note}",
+ "Rückgabe {value}: Ende von „{name}“, zurück zum Aufrufer": "إرجاع {value}: نهاية «{name}»، العودة إلى المستدعي",
+ "Rückgabe im Hauptprogramm: Der Ablauf endet.": "إرجاع في البرنامج الرئيسي: ينتهي التنفيذ."
 }

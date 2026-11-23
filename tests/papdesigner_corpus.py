@@ -409,6 +409,12 @@ class Interpreter:
         self.outputs.append(" ".join(text.split()))
 
     def statement(self, s):
+        if isinstance(s, Call) and s.routine is not None and s.routine.params and "(" in s.text:
+            # Werte in Klammern gehen nach Position an die Parameter (wie im Schreibtischtest und im Code)
+            inner = s.text.partition("(")[2].rpartition(")")[0]
+            values = [self.env.get(a.strip(), 0) for a in inner.split(",") if a.strip()]
+            for param, value in zip(s.routine.params, values):
+                self.env[param] = value
         if isinstance(s, Act):
             for target, expr in s.assignments:
                 self.env[target] = self.eval(expr)

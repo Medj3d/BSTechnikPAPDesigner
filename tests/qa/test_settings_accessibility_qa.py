@@ -174,7 +174,6 @@ def test_page_add_button_tooltip_uses_current_shortcut(main_windows):
     assert "F7" in window.page_bar.add_button.toolTip()
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="QCheckBox spiegelt die per Richtlinie deaktivierte Aktion nicht.")
 def test_updates_switch_is_disabled_under_admin_policy(main_windows, monkeypatch):
     monkeypatch.setattr(UpdateController, "disabled_by_policy", lambda _self: True)
     window = main_windows()
@@ -215,7 +214,6 @@ def test_view_switches_survive_close_and_reopen(main_windows, tmp_path):
     assert not window.actions["toggle_snap"].isChecked()
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="Paletteneinträge sind weder per Tab fokussierbar noch als Buttons zugänglich.")
 def test_palette_entry_exposes_keyboard_and_accessibility_activation(main_windows):
     window = main_windows()
     window.new_document()
@@ -228,7 +226,6 @@ def test_palette_entry_exposes_keyboard_and_accessibility_activation(main_window
 
 
 @pytest.mark.parametrize("tool", ["simulation_run", "diagnostics_refresh"])
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="Das Symbol hat eine Beschreibung, aber keinen Accessible Name.")
 def test_icon_buttons_expose_accessible_names(main_windows, tool):
     window = main_windows()
     button = (window.simulation_panel.run_button if tool == "simulation_run"
@@ -238,7 +235,6 @@ def test_icon_buttons_expose_accessible_names(main_windows, tool):
     assert accessible.text(QAccessible.Text.Name).strip()
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="Ein langes Kürzel verdeckt die Bausteinbeschriftung.")
 def test_palette_label_remains_visible_with_long_shortcut(main_windows, qapp):
     window = main_windows()
     window.new_document()

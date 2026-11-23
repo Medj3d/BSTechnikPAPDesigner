@@ -223,6 +223,8 @@ class SimulationPanel(QWidget):
             table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             table.customContextMenuRequested.connect(lambda pos, t=table: self._table_menu(t, pos))
         self.tabs = QTabWidget()
+        # kleine Bildschirme (1366×768 bei 150 %): die Tabelle darf sehr niedrig werden, sie rollt dann
+        self.tabs.setMinimumHeight(56)
         self.tabs.addTab(self.variables_table, tr("Variablen"))
         self.tabs.addTab(self.trace_table, tr("Schreibtischtest"))
         self.tabs.addTab(self.outputs, tr("Ausgaben"))
@@ -271,6 +273,7 @@ class SimulationPanel(QWidget):
         button = QToolButton()
         button.setIcon(icons.icon(icon_name))
         button.setToolTip(tip)
+        button.setAccessibleName(tip)   # Bildschirmleser nennen den Knopf (er zeigt nur ein Symbol)
         button.setProperty("icon_name", icon_name)
         button.clicked.connect(slot)
         return button

@@ -36,7 +36,8 @@ _UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue", "Ä": "Ae", "Ö": 
 
 def slug(text: str, default: str = "unterprogramm") -> str:
     """Bezeichner aus Freitext: „Summe berechnen“ → „summe_berechnen“."""
-    words = re.findall(r"[A-Za-z0-9]+", text.translate(_UMLAUTS))
+    # Buchstaben jeder Schrift (z. B. japanische Namen); Umlaute vorher wie bisher umschreiben
+    words = re.findall(r"[^\W_]+", text.translate(_UMLAUTS))
     name = "_".join(w.lower() for w in words)
     if not name:
         return default
@@ -207,18 +208,69 @@ def call_parts(text: str) -> tuple[str, list[str]] | None:
 _CALL_ASSIGNMENT = re.compile(r"(?::=|←|<-|(?<![<>!=])=(?!=))")
 
 
-def call_passes_values(text: str) -> bool:
-    """Aufruf mit Werten oder Ergebnis: „doppelt(x)“, „y := doppelt(x)“.
+def call_spec(text: str) -> tuple[str | None, list[str] | None] | None:
+    """Aufruf mit Klammern: „y := doppelt(x)“ → („y“, [„x“]), „doppelt(x, 2)“ → (None, [„x“, „2“]).
 
-    Abläufe haben keine Parameter und keinen Rückgabewert – sie arbeiten mit den gemeinsamen Variablen. Das
-    melden Schreibtischtest und Code-Erzeugung, statt still mit 0 weiterzurechnen."""
+    Ohne Klammern ``None`` (der Aufruf arbeitet nur mit den gemeinsamen Variablen). Lassen sich die Werte in den
+    Klammern nicht auswerten, ist die Liste ``None``. Vor dem Namen darf ein Typ stehen („int y = doppelt(x)“).
+    """
     text = " ".join(str(text or "").split())
     head, bracket, rest = text.partition("(")
     if not bracket or not head.strip():
-        return False
-    if _CALL_ASSIGNMENT.search(head):
-        return True
-    return bool(rest.rpartition(")")[0].strip() if ")" in rest else rest.strip())
+        return None
+    parts = _CALL_ASSIGNMENT.split(head)
+    target = None
+    if len(parts) > 1:
+        words = parts[-2].split()
+        target = words[-1] if words and is_identifier(words[-1]) else None
+    name = parts[-1].split()
+    if not name:
+        return None
+    found = call_parts(name[-1] + "(" + rest) if is_identifier(name[-1]) else None
+    return target, (found[1] if found else None)
+
+
+def routine_parameters(text: str) -> list[str]:
+    """Parameter aus der Kopfzeile eines Ablaufs: „int doppelt(int n)“ → [„n“], „f(double a, b)“ → [„a“, „b“].
+
+    Typangaben (int, double, String, boolean, …) zählen nicht. Ist ein Teil kein Name („Teil (2)“), hat der Ablauf
+    keine Parameter."""
+    text = " ".join(str(text or "").split())
+    head, bracket, rest = text.partition("(")
+    if not bracket or not head.strip() or _CALL_ASSIGNMENT.search(head) or ")" not in rest:
+        return []
+    inner = rest.rpartition(")")[0].strip()
+    if not inner:
+        return []
+    names = []
+    for part in inner.split(","):
+        part = part.split("=")[0].split(":")[0].replace("[]", " ").replace("&", " ").replace("*", " ")
+        words = part.split()
+        if not words or not is_identifier(words[-1]) or words[-1] in names:
+            return []
+        names.append(words[-1])
+    return names
+
+
+_RETURN = re.compile(r"^\s*(?:return|rückgabe|rueckgabe)\b(?!\s*(?::=|=|←|<-))\s*:?\s*(.*?)\s*;?\s*$",
+                     re.IGNORECASE | re.DOTALL)
+
+
+def return_statement(text: str) -> str | None:
+    """„return n * 2“, „Rückgabe: n * 2“ → Ausdruck (Python-Schreibweise), „return“ allein → „“, sonst ``None``."""
+    match = _RETURN.match(str(text or ""))
+    if not match:
+        return None
+    return normalize_expression(match.group(1)) if match.group(1).strip() else ""
+
+
+def process_return(text: str) -> str | None:
+    """Rückgabe in einem Vorgang (eine seiner Anweisungen) – wie ``return_statement``, sonst ``None``."""
+    for part in split_statements(text):
+        found = return_statement(part)
+        if found is not None:
+            return found
+    return None
 
 
 def condition_expression(text: str) -> str | None:

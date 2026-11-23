@@ -86,6 +86,7 @@ class DiagnosticsPanel(QWidget):
         refresh = QToolButton()
         refresh.setIcon(icons.icon("restart"))
         refresh.setToolTip(tr("Aktualisieren"))
+        refresh.setAccessibleName(tr("Aktualisieren"))
         refresh.clicked.connect(self.refresh)
         self._refresh_button = refresh
         header = QHBoxLayout()

@@ -11,7 +11,7 @@ from app import icons, preferences
 from app.alignment import (ALIGN_BOTTOM, ALIGN_CENTER_X, ALIGN_CENTER_Y, ALIGN_LEFT, ALIGN_RIGHT,
                            ALIGN_TOP, DISTRIBUTE_H, DISTRIBUTE_V, LABELS, SNAP_TO_GRID)
 from app.i18n import N_, tr
-from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, description_for, display_name_for
+from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType, description_for, display_name_for
 
 K = QKeySequence.StandardKey
 
@@ -149,7 +149,9 @@ _DEFINITIONS = {
 }
 
 # Bausteine liegen auf den Zifferntasten, in der Reihenfolge der Werkzeugpalette
-BLOCK_KEYS = dict(zip(PALETTE_ORDER + FLOW_TERMINALS, "123456789"))
+# Verbindungspunkt (zum Teilen eines Pfeils) liegt auf der 0
+INSERTABLE_BLOCKS = PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION,)
+BLOCK_KEYS = dict(zip(INSERTABLE_BLOCKS, "1234567890"))
 
 ALIGN_ACTIONS = [ALIGN_LEFT, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM, ALIGN_CENTER_X, ALIGN_CENTER_Y,
                  DISTRIBUTE_H, DISTRIBUTE_V]
@@ -201,7 +203,7 @@ class ActionRegistry:
             action.setToolTip(self._tooltip(text, sequences))
             self._actions[name] = action
             self._default_shortcuts[name] = sequences
-        for element_type in PALETTE_ORDER + FLOW_TERMINALS:
+        for element_type in INSERTABLE_BLOCKS:
             block_name = display_name_for(element_type)
             action = QAction(block_name, parent)
             action.setIcon(icons.element_icon(element_type))
@@ -234,7 +236,7 @@ class ActionRegistry:
         """Icons nach einem Wechsel des Farbschemas neu setzen."""
         for name, icon_name in self._icon_names.items():
             self._actions[name].setIcon(icons.icon(icon_name))
-        for element_type in PALETTE_ORDER + FLOW_TERMINALS:
+        for element_type in INSERTABLE_BLOCKS:
             self._actions[insert_action_name(element_type)].setIcon(icons.element_icon(element_type))
 
     @staticmethod
