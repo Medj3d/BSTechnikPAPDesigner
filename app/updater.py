@@ -136,7 +136,34 @@ def _open(url: str, timeout: float):
         raise UpdateError(tr("Updates werden nur über eine gesicherte Verbindung geladen."))
     request = urllib.request.Request(url, headers={
         "User-Agent": f"{config.EXECUTABLE_NAME}/{config.APP_VERSION}", "Accept": "*/*"})
-    return urllib.request.urlopen(request, timeout=timeout, context=ssl.create_default_context())
+    return urllib.request.urlopen(request, timeout=timeout, context=ssl_context())
+
+
+# Zertifikate der Linux-Systeme: Das AppImage bringt sein eigenes OpenSSL mit, das sie nur dort sucht, wo das
+# Build-System (Ubuntu) sie hat – Fedora, Arch, openSUSE … legen sie woanders ab („keine Verbindung“ beim Update)
+CA_BUNDLES = (
+    "/etc/ssl/certs/ca-certificates.crt",                  # Debian, Ubuntu, Mint, Arch, Gentoo
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",   # Fedora, RHEL, CentOS
+    "/etc/pki/tls/certs/ca-bundle.crt",                    # ältere Fedora/RHEL
+    "/etc/ssl/ca-bundle.pem",                              # openSUSE
+    "/etc/ssl/cert.pem",                                   # Arch, Alpine, macOS
+    "/etc/pki/tls/cacert.pem",                             # OpenELEC
+)
+
+
+def ssl_context() -> ssl.SSLContext:
+    """Gesicherte Verbindung mit den Zertifikaten des Systems – auch im AppImage auf jeder Distribution."""
+    context = ssl.create_default_context()
+    if sys.platform.startswith("linux"):
+        extra = os.environ.get("SSL_CERT_FILE")
+        for path in ([extra] if extra else []) + list(CA_BUNDLES):
+            if path and os.path.isfile(path):
+                try:
+                    context.load_verify_locations(cafile=path)
+                    break
+                except (OSError, ssl.SSLError):
+                    continue
+    return context
 
 
 def parse_manifest(raw: bytes, repo: str) -> UpdateInfo:
