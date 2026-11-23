@@ -3,7 +3,7 @@
 Der Plan wird auf die Breite des Streifens verkleinert. Ein durchscheinender Schieber zeigt den sichtbaren
 Ausschnitt; ihn ziehen verschiebt die Ansicht, ein Klick daneben springt dorthin. Ist der Plan höher als der
 Streifen, läuft die Karte beim Blättern mit (wie in VS Code). Über dem Streifen wird der Schieber deutlicher.
-Zuschaltbar über Einstellungen → Zusatzknöpfe → Minikarte.
+Zuschaltbar über Ansicht → Minikarte (Strg+M); als Knopf über Einstellungen → Werkzeugleiste → Minikarte.
 """
 
 from __future__ import annotations

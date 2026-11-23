@@ -13,8 +13,8 @@ import time
 
 import shiboken6
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QAction, QActionGroup, QKeySequence, QUndoGroup
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer, Signal
+from PySide6.QtGui import QAction, QKeySequence, QUndoGroup
 from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QLabel,
                                QSizePolicy,
                                QMainWindow, QMenu, QMessageBox, QPushButton, QStackedWidget,
@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayo
 from app import (alignment, clipboard, config, examples, export, file_association, i18n, icons, platforms, preferences, restart,
                  single_instance, styles, subprograms)
 from app import theme as theme_module
-from app.actions import ALIGN_ACTIONS, ActionRegistry, clean_text, insert_action_name, sequence_text
+from app.actions import ALIGN_ACTIONS, ActionRegistry, INSERTABLE_BLOCKS, clean_text, insert_action_name, sequence_text
 from app.autosave import AutosaveManager
 from app.canvas import DiagramView
 from app.codegen.dialog import CodeDialog
@@ -42,7 +42,7 @@ from app.connections.label import ConnectionLabel
 from app.dialogs.about import AboutDialog
 from app.dialogs.export_options import ExportOptionsDialog, StampSettings
 from app.dialogs.project_properties import ProjectPropertiesDialog
-from app.dialogs.settings import SettingsDialog
+from app.dialogs import settings as settings_dialog
 from app.dialogs.shortcuts import ShortcutsDialog
 from app.dialogs.subprogram_name import SubprogramNameDialog
 from app.inline_editor import add_special_characters
@@ -65,6 +65,12 @@ CHANGEABLE_TYPES = (ElementType.PROCESS, ElementType.INPUT, ElementType.OUTPUT, 
 
 # Version des gespeicherten Fensterlayouts (bei neuen Docks erhöhen)
 WINDOW_STATE_VERSION = 2
+
+
+def language_label() -> str:
+    """„Sprache / Language“: in jeder Oberflächensprache auch auf Englisch, damit man die Einstellung findet."""
+    local = tr("Sprache", ctx="Oberfläche")
+    return local if local.casefold() == "language" else f"{local} / Language"
 
 
 class EmptyState(QWidget):
@@ -127,6 +133,8 @@ class EmptyState(QWidget):
 
 
 class MainWindow(QMainWindow):
+    theme_changed = Signal(str)   # „dark“ oder „light“: das Einstellungsfenster folgt dem Knopf in der Werkzeugleiste
+
     def __init__(self, enable_autosave: bool = False, autosave_directory: str | None = None):
         super().__init__()
         self.setWindowTitle(config.APP_NAME)
@@ -219,7 +227,8 @@ class MainWindow(QMainWindow):
             file_menu.addAction(a[name])
         self.recent_menu = file_menu.addMenu(tr("&Zuletzt geöffnet"))
         file_menu.addSeparator()
-        for name in ("save", "save_as", "auto_save", "backup_on_save"):
+        # „Automatisch speichern“ und „Sicherungskopie anlegen“ stellt man einmal ein: Einstellungen → Allgemein
+        for name in ("save", "save_as"):
             file_menu.addAction(a[name])
         file_menu.addSeparator()
         export_menu = file_menu.addMenu(icons.icon("export"), tr("E&xportieren"))
@@ -261,14 +270,7 @@ class MainWindow(QMainWindow):
             else:
                 view_menu.addAction(a[name])
         view_menu.addAction(a["presentation"])
-        view_menu.addSeparator()
-        theme_menu = view_menu.addMenu(tr("&Farbschema"))
-        theme_group = QActionGroup(self)
-        theme_group.setExclusive(True)
-        for name in ("theme_dark", "theme_light"):
-            theme_group.addAction(a[name])
-            theme_menu.addAction(a[name])
-        self._build_language_menu(view_menu)
+        # Farbschema, Sprache und Werkzeugleiste stehen in den Einstellungen (Hell/Dunkel auch als Knopf oben rechts)
         view_menu.addSeparator()
         for name in ("open_subprogram", "next_page", "previous_page", "go_back", "go_forward"):
             view_menu.addAction(a[name])
@@ -283,12 +285,12 @@ class MainWindow(QMainWindow):
                     a[name].setIcon(icons.element_icon(ElementType.LOOP))
                     insert_menu.addAction(a[name])
         insert_menu.addAction(a[insert_action_name(ElementType.JUNCTION)])
+        insert_menu.addAction(a[insert_action_name(ElementType.CONNECTOR)])
         insert_menu.addSeparator()
         for element_type in FLOW_TERMINALS:
             insert_menu.addAction(a[insert_action_name(element_type)])
         insert_menu.addSeparator()
-        insert_menu.addAction(a["new_subprogram"])
-        insert_menu.addAction(a["extract_subprogram"])
+        insert_menu.addAction(a["new_subprogram"])   # „Auswahl in Unterprogramm auslagern“ steht unter Bearbeiten
 
         arrange_menu = bar.addMenu(tr("An&ordnen"))
         for name in ALIGN_ACTIONS[:6]:
@@ -310,17 +312,10 @@ class MainWindow(QMainWindow):
         extras_menu = bar.addMenu(tr("E&xtras"))
         extras_menu.addAction(a["generate_code"])
         extras_menu.addAction(a["structogram"])
-        extras_menu.addAction(a["auto_layout"])
         extras_menu.addSeparator()
-        # Schnellzugriff auf die Schalter für Pfeile und Prüfung (dieselben wie in den Einstellungen)
-        for title, section in ((preferences.SECTION_ARROWS, preferences.SECTION_ARROWS),
-                               (preferences.SECTION_CHECKS, preferences.SECTION_CHECKS)):
-            submenu = extras_menu.addMenu(tr(title))
-            for preference in preferences.PREFERENCES:
-                if preference.section == section:
-                    submenu.addAction(a[preferences.action_name(preference.name)])
-        extras_menu.addSeparator()
-        self.extras_menu = extras_menu  # Schreibtischtest/Hinweise folgen in _build_tool_docks
+        # Jeder Befehl steht in genau einem Menü: „Automatisch anordnen“ unter Anordnen, Schreibtischtest, Hinweise
+        # und Aufgabe unter Ansicht; die Schalter für Pfeile und Prüfung in den Einstellungen
+        self.extras_menu = extras_menu  # Haltepunkte, Aufgabe stellen, Suchen und Einstellungen in _build_tool_docks
 
         help_menu = bar.addMenu(tr("&Hilfe"))
         help_menu.addAction(a["shortcuts"])
@@ -331,30 +326,10 @@ class MainWindow(QMainWindow):
             action.triggered.connect(lambda _=False, p=path: self.open_example(p))
         examples_menu.setEnabled(not examples_menu.isEmpty())
         help_menu.addSeparator()
-        if file_association.is_supported():
-            help_menu.addAction(a["register_filetype"])
+        # „Dateityp registrieren“ und „Beim Start nach Updates suchen“: Einstellungen → Allgemein
         help_menu.addAction(a["check_updates"])
-        help_menu.addAction(a["check_updates_on_start"])
         help_menu.addSeparator()
         help_menu.addAction(a["about"])
-
-    def _build_language_menu(self, parent_menu: QMenu) -> None:
-        """Untermenü „Sprache / Language“: die Systemsprache oder eine der vorhandenen Sprachen."""
-        # Die Beschriftung ist bewusst zweisprachig und wird nicht übersetzt: So findet man sie in jeder Sprache.
-        menu = parent_menu.addMenu("Sprache / Language")
-        group = QActionGroup(self)
-        group.setExclusive(True)
-        self.language_actions: dict[str, object] = {}
-        chosen = self.settings_store.language()
-        entries = [(i18n.AUTOMATIC, tr("Automatisch (Systemsprache)"))]
-        entries += [(code, i18n.language_name(code)) for code in i18n.available_languages()]
-        for code, label in entries:
-            action = menu.addAction(label)
-            action.setCheckable(True)
-            action.setChecked(code == chosen)
-            group.addAction(action)
-            action.triggered.connect(lambda _checked=False, c=code: self._on_language_chosen(c))
-            self.language_actions[code] = action
 
     def _on_language_chosen(self, code: str) -> None:
         """Merkt sich die gewählte Sprache; sie gilt nach einem Neustart (auf Wunsch sofort)."""
@@ -401,7 +376,7 @@ class MainWindow(QMainWindow):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self._toolbar_end = toolbar.addWidget(spacer)
         self.search_bar = SearchBar(self.search_entries, self)
-        toolbar.addWidget(self.search_bar)
+        self._search_action = toolbar.addWidget(self.search_bar)   # davor kommt in _finish_toolbar Hell/Dunkel
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
         self.toolbar = toolbar
         # Ist das Fenster zu schmal (z. B. Laptop mit Skalierung), schiebt Qt die Suchleiste in den versteckten
@@ -411,9 +386,11 @@ class MainWindow(QMainWindow):
         self.menuBar().setCornerWidget(self.menu_search_bar, Qt.Corner.TopRightCorner)
         self.menu_search_bar.hide()
         toolbar.visibilityChanged.connect(lambda _visible: self._schedule_search_place())
+        # Ein-/Ausblenden in den Einstellungen (Werkzeugleiste → Anzeige); über Strg+K ist es auch zu finden
         toggle = toolbar.toggleViewAction()
-        toggle.setText(tr("&Werkzeugleiste"))
-        self.view_menu.addAction(toggle)
+        toggle.setText(tr("Werkzeugleiste &anzeigen"))
+        toggle.setStatusTip(tr("Die Leiste mit den Knöpfen oben im Fenster ein- oder ausblenden"))
+        self.actions.adopt("toggle_toolbar", toggle, [])
 
     def _build_palette(self) -> None:
         self.palette = ToolPalette()
@@ -447,7 +424,6 @@ class MainWindow(QMainWindow):
             toggle = dock.toggleViewAction()
             toggle.setText(text)
             self.actions.adopt(name, toggle, [shortcut])
-            self.extras_menu.addAction(toggle)
             self.view_menu.addAction(toggle)
         self.extras_menu.addAction(self.actions["toggle_breakpoint"])
         self.extras_menu.addAction(self.actions["clear_breakpoints"])
@@ -481,7 +457,6 @@ class MainWindow(QMainWindow):
             self.view_menu.addAction(toggle)
         self.view_menu.addAction(self.actions["toggle_minimap"])
         self.extras_menu.addAction(self.actions["edit_task"])
-        self.extras_menu.addAction(self.actions["toggle_task"])
         self.extras_menu.addSeparator()
         self.extras_menu.addActions([self.actions["search"], self.actions["settings"]])
         self.code_dock.hide()
@@ -630,7 +605,7 @@ class MainWindow(QMainWindow):
         a["toggle_grid"].toggled.connect(self._set_grid_visible)
         a["toggle_snap"].toggled.connect(self._set_snap)
 
-        for element_type in PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION,):
+        for element_type in INSERTABLE_BLOCKS:
             a[insert_action_name(element_type)].triggered.connect(
                 lambda _=False, t=element_type: self.insert_element(t))
         a["insert_loop_head"].triggered.connect(lambda: self.insert_element(ElementType.LOOP, loop_kind="head"))
@@ -665,6 +640,7 @@ class MainWindow(QMainWindow):
         a["auto_layout"].triggered.connect(self.auto_layout)
         a["theme_dark"].triggered.connect(lambda: self.set_theme("dark"))
         a["theme_light"].triggered.connect(lambda: self.set_theme("light"))
+        a["toggle_theme"].triggered.connect(self.toggle_theme)
 
         a["shortcuts"].triggered.connect(lambda: ShortcutsDialog(self, self.actions).exec())
         a["register_filetype"].triggered.connect(self.register_file_type)
@@ -749,7 +725,7 @@ class MainWindow(QMainWindow):
              (P.TOOL_GENERATE_CODE, ("generate_code",)), (P.TOOL_STRUCTOGRAM, ("structogram",))),
             ((P.TOOL_CODE_VIEW, ("toggle_code_view",)), (P.TOOL_MINIMAP, ("toggle_minimap",)),
              (P.TOOL_BREAKPOINTS, ("toggle_breakpoint",)), (P.TOOL_TEACHER, ("edit_task",))),
-            ((P.TOOL_PDF, ("export_pdf",)), (P.TOOL_PRINT, ("print",))),
+            ((P.TOOL_PRINT, ("print",)),),   # PDF: Datei → Exportieren (Strg+E)
         )
         end = self._toolbar_end
         for segment in segments:
@@ -787,6 +763,10 @@ class MainWindow(QMainWindow):
         self.more_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.more_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         toolbar.insertWidget(end, self.more_button)
+        # Hell/Dunkel mit einem Klick (immer sichtbar), rechts direkt vor der Suchleiste; das Symbol zeigt das
+        # eingestellte Farbschema
+        toolbar.insertAction(self._search_action, a["toggle_theme"])
+        self.theme_button = toolbar.widgetForAction(a["toggle_theme"])
         self._show_checkmarks()
 
     def _show_checkmarks(self) -> None:
@@ -928,14 +908,41 @@ class MainWindow(QMainWindow):
                 page.scene.preferences_changed()
 
     def show_settings(self, show_shortcuts: bool = False) -> None:
-        dialog = SettingsDialog(self.actions, self, show_shortcuts)
+        dialog = settings_dialog.SettingsDialog(self.actions, self, show_shortcuts, options=self.settings_options())
         dialog.shortcuts_changed.connect(self._on_shortcuts_changed)
-        dialog.exec()
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()   # sonst bliebe jedes geöffnete Fenster unsichtbar bestehen (und folgte dem Farbschema)
+
+    def settings_options(self) -> dict:
+        """Felder des Einstellungsfensters, die zum Fenster gehören (die Schalter kommen aus der Befehlsliste)."""
+        S, a = settings_dialog, self.actions
+        options = {
+            S.THEME: S.Choice(
+                S.THEME, tr("Farbschema"), tr("Farben der Bedienoberfläche; „Hell“ eignet sich z. B. für den Beamer"),
+                [("dark", clean_text(a["theme_dark"].text())), ("light", clean_text(a["theme_light"].text()))],
+                self.current_theme_name, self.set_theme, self.theme_changed),
+            # zweisprachig, damit man es auch in einer fremden Sprache findet
+            S.LANGUAGE: S.Choice(
+                S.LANGUAGE, language_label(), tr("Die Sprache wird nach einem Neustart des Programms geändert."),
+                [(i18n.AUTOMATIC, tr("Automatisch (Systemsprache)"))]
+                + [(code, i18n.language_name(code)) for code in i18n.available_languages()],
+                self.settings_store.language, self._on_language_chosen),
+            S.TOOLBAR: S.Toggle(S.TOOLBAR, clean_text(a["toggle_toolbar"].text()), a["toggle_toolbar"].statusTip(),
+                                a["toggle_toolbar"], default=True),
+        }
+        if file_association.is_supported():
+            options[S.REGISTER_FILETYPE] = S.Button(
+                S.REGISTER_FILETYPE, a["register_filetype"].text(),
+                tr("Projektdateien ({ext}) mit einem Doppelklick in diesem Programm öffnen", ext=config.FILE_EXTENSION),
+                a["register_filetype"].trigger)
+        return options
 
     def _on_shortcuts_changed(self) -> None:
         self.settings_store.set_shortcuts(self.actions.custom_shortcuts())
         hints = {}
-        for element_type in PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION,):
+        for element_type in INSERTABLE_BLOCKS:
             keys = self.actions[insert_action_name(element_type)].shortcuts()
             hints[element_type] = sequence_text(keys[0]) if keys else ""
         self.palette.set_key_hints(hints)
@@ -999,6 +1006,9 @@ class MainWindow(QMainWindow):
                     if text:
                         detail = f"{display_name_for(item.element_type)} · {page.display_name}"
                         entries.append(SearchEntry(text, detail, lambda p=index, i=item.element_id: self._go_to(p, i)))
+        # die Sprache ist kein Befehl, soll aber über Strg+K zu finden sein (auch auf Englisch)
+        entries.append(SearchEntry(language_label(), tr("Einstellungen"), self.show_settings,
+                                   "Sprache Language " + tr("Automatisch (Systemsprache)")))
         return entries
 
     def _go_to(self, page: int, element_id: str) -> None:
@@ -1719,9 +1729,18 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(tr("Der Plan ist bereits angeordnet."), 4000)
 
     def _sync_theme_actions(self) -> None:
-        name = theme_module.theme_name_of(styles.current_theme())
+        name = self.current_theme_name()
         self.actions["theme_dark"].setChecked(name == "dark")
         self.actions["theme_light"].setChecked(name == "light")
+        self.actions["toggle_theme"].setIcon(icons.icon("theme_light" if name == "light" else "theme_dark"))
+
+    @staticmethod
+    def current_theme_name() -> str:
+        return theme_module.theme_name_of(styles.current_theme())
+
+    def toggle_theme(self) -> None:
+        """Knopf in der Werkzeugleiste: zwischen Dunkel und Hell wechseln."""
+        self.set_theme("dark" if self.current_theme_name() == "light" else "light")
 
     def set_theme(self, name: str) -> None:
         """Farbschema zur Laufzeit umschalten (wird gespeichert)."""
@@ -1758,6 +1777,7 @@ class MainWindow(QMainWindow):
         self.diagnostics_panel.refresh()
         self.page_bar.refresh_theme()
         self._sync_theme_actions()
+        self.theme_changed.emit(self.current_theme_name())
 
     def _refresh_recent_menu(self) -> None:
         self.recent_menu.clear()
@@ -2099,11 +2119,11 @@ class MainWindow(QMainWindow):
             menu.addAction(a["delete"])
         else:
             new_menu = menu.addMenu(icons.icon("new"), tr("Neu"))
-            for element_type in PALETTE_ORDER + FLOW_TERMINALS:
+            for element_type in PALETTE_ORDER + (ElementType.CONNECTOR,) + FLOW_TERMINALS:
                 action = new_menu.addAction(icons.element_icon(element_type), a[insert_action_name(element_type)].text())
                 action.triggered.connect(lambda _=False, t=element_type, p=QPointF(scene_pos):
                                          self._insert_at(view, t, p))
-                if element_type is PALETTE_ORDER[-1]:
+                if element_type is ElementType.CONNECTOR:
                     new_menu.addSeparator()
             paste = menu.addAction(icons.icon("paste"), tr("Einfügen"))
             paste.setShortcut(QKeySequence(QKeySequence.StandardKey.Paste))

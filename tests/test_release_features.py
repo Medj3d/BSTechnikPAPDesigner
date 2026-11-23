@@ -325,12 +325,17 @@ def test_auto_save_choice_is_remembered(window):
     assert store.auto_save() is config.AUTO_SAVE_DEFAULT
 
 
-def test_menus_offer_auto_save_and_update_check(window):
+def test_auto_save_and_update_check_are_in_the_settings(window):
+    """Einmal einzustellen: in den Einstellungen; im Hilfe-Menü bleibt „Nach Updates suchen …“."""
+    from app.dialogs.settings import SettingsDialog
     menus = {action.text().replace("&", ""): action.menu() for action in window.menuBar().actions()}
     file_entries = [a.text().replace("&", "") for a in menus["Datei"].actions()]
     help_entries = [a.text().replace("&", "") for a in menus["Hilfe"].actions()]
-    assert "Automatisch speichern" in file_entries
+    assert "Automatisch speichern" not in file_entries
     assert "Nach Updates suchen …" in help_entries and "Über das Programm" in help_entries
+    assert "Beim Start nach Updates suchen" not in help_entries
+    dialog = SettingsDialog(window.actions, window)
+    assert {"auto_save", "backup_on_save", "check_updates_on_start"} <= set(dialog.switches)
 
 
 # ------------------------------------------------------------------ Updates

@@ -35,7 +35,7 @@ from app.analysis.graph import Edge, FlowGraph, has_yes_no_labels, yes_no_edges
 from app.analysis.text import branch_condition, is_choice
 from app.i18n import tr
 from app.labels import no_label, yes_label
-from app.model.element_types import ElementType, default_text_for
+from app.model.element_types import ElementType, default_text_for, display_name_for
 
 ACTION_KINDS = {
     ElementType.INPUT: "input",
@@ -43,6 +43,7 @@ ACTION_KINDS = {
     ElementType.PROCESS: "process",
     ElementType.SUBPROGRAM: "subprogram",
     ElementType.JUNCTION: "junction",
+    ElementType.CONNECTOR: "junction",
 }
 MAX_DEPTH = 200
 MAX_REPLAYS = 60
@@ -142,7 +143,7 @@ class _Structurer:
 
     def label(self, nid: str) -> str:
         node = self.node(nid)
-        return " ".join(node.text.split()) or node.type.value
+        return " ".join(node.text.split()) or display_name_for(node.type)
 
     def comments(self, nid: str) -> list[str]:
         return list(self.g.annotations.get(nid, []))
@@ -381,12 +382,12 @@ class _Structurer:
         if not outs:
             node = self.node(nid)
             if node.type is not ElementType.END:
-                self.warn(tr("„{name}“ hat keinen Nachfolger.", name=node.text or node.type.value))
+                self.warn(tr("„{name}“ hat keinen Nachfolger.", name=node.text or display_name_for(node.type)))
             return None
         if len(outs) > 1:
             node = self.node(nid)
             self.warn(tr("„{name}“ hat mehrere Ausgänge ohne Bedingung; nur der erste wird berücksichtigt.",
-                         name=node.text or node.type.value))
+                         name=node.text or display_name_for(node.type)))
         return outs[0].target
 
     # ------------------------------------------------------ Verzweigung

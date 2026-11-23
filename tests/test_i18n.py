@@ -237,13 +237,15 @@ def test_language_setting_defaults_to_the_system_language(window):
     assert store.language() == i18n.AUTOMATIC
 
 
-def test_language_menu_lists_the_languages_in_their_own_names(window, catalogs):
-    menu = next(a.menu() for a in window.menuBar().actions() if a.text().replace("&", "") == "Ansicht")
-    language_menu = next(a.menu() for a in menu.actions() if a.text() == "Sprache / Language")
-    labels = [a.text() for a in language_menu.actions()]
+def test_language_choice_lists_the_languages_in_their_own_names(window, catalogs):
+    """Die Sprache steht in den Einstellungen (Allgemein → Darstellung), zweisprachig beschriftet."""
+    from app.dialogs.settings import LANGUAGE, SettingsDialog
+    dialog = SettingsDialog(window.actions, window)
+    box = dialog.choices[LANGUAGE]
+    assert dialog.options[LANGUAGE].text == "Sprache / Language"
+    labels = [box.itemText(index) for index in range(box.count())]
     assert labels[0] == "Automatisch (Systemsprache)" and "Deutsch" in labels
-    assert window.language_actions[i18n.AUTOMATIC].isChecked()
-    assert sum(1 for a in language_menu.actions() if a.isChecked()) == 1
+    assert box.value() == i18n.AUTOMATIC
 
 
 def test_choosing_a_language_is_saved_and_offers_a_restart(window, monkeypatch, catalogs):

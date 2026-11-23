@@ -42,7 +42,11 @@ class PaletteEntry(QWidget):
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         self.setFixedHeight(44)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.setToolTip(f"<b>{self.label}</b><br>{description_for(self.element_type)}<br><br>"
+        title = self.label
+        if self.element_type is ElementType.JUNCTION:
+            # führt Pfeile zusammen – keine Übergangsstelle (Konnektor) zu einer anderen Seite nach DIN
+            title = tr("{name} (Zusammenführung)", name=self.label)
+        self.setToolTip(f"<b>{title}</b><br>{description_for(self.element_type)}<br><br>"
                         + tr("Auf die Arbeitsfläche ziehen oder klicken zum Einfügen."))
         # per Tab erreichbar, Leertaste/Eingabe fügt ein (wie ein Klick)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -92,6 +96,8 @@ class PaletteEntry(QWidget):
             w, h = 44.0, 32.0
         elif self.element_type in FLOW_TERMINALS:
             w, h = 52.0, 22.0
+        elif self.element_type is ElementType.CONNECTOR:
+            w, h = 26.0, 26.0
         if self.element_type is ElementType.JUNCTION:
             # kleiner Punkt auf einem Stück Pfeil – so, wie er im Plan aussieht
             pen = QPen(QColor(colors.border), 1.6)
@@ -108,6 +114,10 @@ class PaletteEntry(QWidget):
             paint_shape(p, geometry, w, half, colors, {LOOP_PART_KEY: LOOP_END}, 1.3)
         else:
             paint_shape(p, geometry, w, h, colors, None, 1.3)
+            if self.element_type is ElementType.CONNECTOR:
+                # Marke wie im Plan, damit man die Übergangsstelle von einem Verbindungspunkt unterscheidet
+                p.setPen(QColor(theme.element_text))
+                p.drawText(QRectF(-w / 2, -h / 2, w, h), int(Qt.AlignmentFlag.AlignCenter), "A")
         p.restore()
 
         # Bezeichnung
@@ -257,6 +267,7 @@ class ToolPalette(QWidget):
         for element_type in PALETTE_ORDER:
             layout.addWidget(self._entry(element_type))
         layout.addWidget(self._entry(ElementType.JUNCTION))   # auf einen Pfeil ziehen: teilt ihn dort
+        layout.addWidget(self._entry(ElementType.CONNECTOR))  # Übergangsstelle: Kreis mit Marke
         layout.addWidget(self._section(tr("ABLAUF", ctx="Palette")))
         for element_type in FLOW_TERMINALS:
             layout.addWidget(self._entry(element_type))

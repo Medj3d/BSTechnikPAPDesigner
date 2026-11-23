@@ -250,6 +250,7 @@ class Simulator:
             ElementType.OUTPUT: self._output, ElementType.PROCESS: self._process,
             ElementType.SUBPROGRAM: self._subprogram, ElementType.DECISION: self._decision,
             ElementType.LOOP: self._loop, ElementType.JUNCTION: self._junction,
+            ElementType.CONNECTOR: self._junction,
         }.get(node.type, self._process)
         self._missing.clear()
         try:
@@ -293,7 +294,7 @@ class Simulator:
                           finished=True)
 
     def _junction(self, nid, node):
-        return self._advance(nid, self._next(nid), display_name_for(ElementType.JUNCTION))
+        return self._advance(nid, self._next(nid), display_name_for(node.type))
 
     def _subprogram_start(self, text: str) -> str | None:
         """Start-Element des Ablaufs, der so heißt wie der Aufruf („Verdoppeln“, „ok := pruefe(x)“).

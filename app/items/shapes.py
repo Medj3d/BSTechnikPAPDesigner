@@ -222,8 +222,25 @@ class JunctionGeometry(ShapeGeometry):
         return QPointF(0.0, 0.0)
 
 
+class CircleGeometry(ShapeGeometry):
+    """Übergangsstelle: Kreis mit kurzer Marke in der Mitte."""
+
+    pad_x = 8.0
+    pad_y = 8.0
+
+    def outline(self, w, h, props=None):
+        path = QPainterPath()
+        path.addEllipse(QPointF(0.0, 0.0), w / 2, h / 2)
+        return path
+
+    def size_for_text(self, tw, th, props=None):
+        side = max(tw + 2 * self.pad_x, th + 2 * self.pad_y)
+        return side, side
+
+
 GEOMETRIES: dict[ElementType, ShapeGeometry] = {
     ElementType.JUNCTION: JunctionGeometry(),
+    ElementType.CONNECTOR: CircleGeometry(),
     ElementType.START: StadiumGeometry(),
     ElementType.END: StadiumGeometry(),
     ElementType.INPUT: ParallelogramGeometry(),

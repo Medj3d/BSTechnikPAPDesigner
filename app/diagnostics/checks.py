@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.analysis.ast import DoWhileLoop, If, LimitLoop, Loop, Unstructured, WhileLoop
-from app.analysis.graph import FlowGraph, flow_name, subprogram_call_name
+from app.analysis.graph import FlowGraph, connector_roles, flow_name, subprogram_call_name
 from app.analysis.structure import structure_diagram
 from app.i18n import tr
 from app.model.element_types import LOOSE_END_KEY, ElementType, display_name_for, is_default_text
@@ -80,12 +80,16 @@ def run_checks(target) -> list[Issue]:
             issues.append(Issue(WARNING, tr("Der Plan hat kein Ende-Element.")))
 
         dead_ends: list = []   # schon als Sackgasse gemeldet – die Strukturanalyse sagt dasselbe noch einmal
+        # Übergangsstellen haben eigene, genauere Meldungen (fehlendes Gegenstück, doppelte Marke)
+        connector_ids = _connector_issues(graph, issues, dead_ends)
         reachable: set[str] = set()
         for start in starts:
             reachable |= graph.reachable_from(start.id)
         for node in flow_nodes.values():
             if node.properties.get(LOOSE_END_KEY):
                 continue  # steht schon als nicht angeschlossener Pfeil in der Liste
+            if node.id in connector_ids:
+                continue
             outs = graph.outgoing(node.id)
             if node.type is ElementType.START and not outs:
                 issues.append(Issue(WARNING, tr("{name} ist mit keinem Baustein verbunden.", name=_name(node)),
@@ -114,7 +118,9 @@ def run_checks(target) -> list[Issue]:
                                                     name=_name(node), label=sorted(duplicates)[0]), [node.id],
                                         [e.id for e in outs if e.label.strip().lower() in duplicates]))
 
-        _structure_issues(graph, issues, {tr("„{name}“ hat keinen Nachfolger.", name=node.text or node.type.value)
+        # genau so benannt wie in app/analysis/structure.py, sonst stünde die Sackgasse doppelt in der Liste
+        _structure_issues(graph, issues, {tr("„{name}“ hat keinen Nachfolger.",
+                                             name=node.text or display_name_for(node.type))
                                           for node in dead_ends})
 
     # Texte
@@ -136,6 +142,39 @@ def run_checks(target) -> list[Issue]:
         return (0 if issue.severity == WARNING else 1, pos)
     issues.sort(key=sort_key)
     return _dedupe(issues)
+
+
+def _connector_issues(graph: FlowGraph, issues: list[Issue], dead_ends: list) -> set[str]:
+    """Übergangsstellen: Jede Marke braucht genau eine Stelle, an der der Ablauf weitergeht, und mindestens eine,
+    die hinführt. Liefert die IDs der Übergangsstellen, deren Fehler hier schon gemeldet sind."""
+    handled: set[str] = set()
+    real_edges = [e for e in graph.edges if not e.id.startswith("connector-link:")]
+    for (_page, mark), group in connector_roles(graph.nodes, real_edges).items():
+        ids = group["exits"] + group["entries"]
+        node = graph.nodes[ids[0]]
+        label = " ".join((node.text or "").split())
+        if not mark:
+            issues.append(Issue(WARNING, tr("Übergangsstelle ohne Marke: Schreibe einen Buchstaben oder eine Zahl "
+                                            "hinein, z. B. A."), ids))
+            handled.update(ids)
+            dead_ends.extend(graph.nodes[i] for i in group["exits"])
+            continue
+        if len(group["entries"]) > 1:
+            issues.append(Issue(WARNING, tr("Übergangsstelle „{mark}“: Der Ablauf geht an {count} Stellen weiter. "
+                                            "Jede Marke darf nur einmal einen Ausgang haben.",
+                                            mark=label, count=len(group["entries"])), group["entries"]))
+            handled.update(ids)
+            dead_ends.extend(graph.nodes[i] for i in group["exits"])
+        elif group["exits"] and not group["entries"]:
+            issues.append(Issue(WARNING, tr("Übergangsstelle „{mark}“: Es gibt keine zweite Übergangsstelle "
+                                            "„{mark}“, an der der Ablauf weitergeht.", mark=label), group["exits"]))
+            handled.update(group["exits"])
+            dead_ends.extend(graph.nodes[i] for i in group["exits"])
+        elif group["entries"] and not group["exits"] and not group["fed"]:
+            issues.append(Issue(WARNING, tr("Übergangsstelle „{mark}“: Keine Übergangsstelle „{mark}“ führt hierher.",
+                                            mark=label), group["entries"]))
+            handled.update(group["entries"])
+    return handled
 
 
 def _subprogram_issues(pages: list, graph: FlowGraph, issues: list[Issue]) -> None:

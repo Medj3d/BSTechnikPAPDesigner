@@ -19,7 +19,7 @@ Abgeschaltet heißt: keine Prüfung beim Start, „Nach Updates suchen“ und de
 Schalter dafür sind gesperrt, und das Programm gibt beim Start auch nicht an
 eine schon früher in den Benutzerordner geladene neuere Version ab.
 Benutzer selbst können die Prüfung beim Start nur für sich abschalten
-(Hilfe → „Beim Start nach Updates suchen“).
+(Einstellungen → Allgemein → „Beim Start nach Updates suchen“).
 """
 
 from __future__ import annotations

@@ -23,6 +23,53 @@ ELSE_LABELS = labels.ELSE_WORDS
 PORT_ORDER = {"bottom": 0, "right": 1, "left": 2, "top": 3}
 
 
+# Bausteine ohne eigene Wirkung: Der Ablauf läuft durch sie hindurch
+PASS_THROUGH = (ElementType.JUNCTION, ElementType.CONNECTOR)
+# Kennung der gedachten Kante zwischen zwei Übergangsstellen (keine Verbindung im Plan)
+CONNECTOR_LINK_PREFIX = "connector-link:"
+
+
+def connector_mark(text: str) -> str:
+    """Marke einer Übergangsstelle zum Vergleichen: ohne Leerraum, Groß-/Kleinschreibung egal."""
+    return "".join((text or "").split()).casefold()
+
+
+def connector_roles(nodes: dict, edges: list) -> dict:
+    """Übergangsstellen je (Seite, Marke): ``{"exits": [...], "entries": [...], "fed": {...}}``.
+
+    Sprung (``exits``): kein Pfeil heraus – hier verlässt der Ablauf die Stelle. Ziel (``entries``): ein Pfeil heraus –
+    hier geht der Ablauf weiter; Pfeile hinein darf es zusätzlich haben (die Übergangsstelle steht dann mitten in
+    einer Linie, und der Sprung führt dort hinein). ``fed``: Ziele, in die auch ein echter Pfeil hineinführt.
+    """
+    has_out = {e.source for e in edges}
+    has_in = {e.target for e in edges}
+    groups: dict = {}
+    for node in nodes.values():
+        if node.type is not ElementType.CONNECTOR:
+            continue
+        group = groups.setdefault((node.page, connector_mark(node.text)), {"exits": [], "entries": [], "fed": set()})
+        if node.id in has_out:
+            group["entries"].append(node.id)
+            if node.id in has_in:
+                group["fed"].add(node.id)
+        else:
+            group["exits"].append(node.id)
+    return groups
+
+
+def connector_links(nodes: dict, edges: list) -> list:
+    """Gedachte Kanten von jeder Übergangsstelle ohne Ausgang zur Übergangsstelle mit derselben Marke, aus der der
+    Ablauf weitergeht – nur wenn es genau eine solche gibt (sonst meldet die Prüfung den Fehler)."""
+    links = []
+    for (_page, mark), group in connector_roles(nodes, edges).items():
+        if not mark or len(group["entries"]) != 1:
+            continue
+        entry = group["entries"][0]
+        for exit_id in group["exits"]:
+            links.append(Edge(CONNECTOR_LINK_PREFIX + exit_id, exit_id, entry, "", "bottom", "top"))
+    return links
+
+
 @dataclass(frozen=True)
 class Node:
     id: str
@@ -200,8 +247,12 @@ class FlowGraph:
     # ------------------------------------------------------------ Aufbau
     @classmethod
     def from_diagram(cls, elements: list[ElementData], connections: list[ConnectionData],
-                     pages: dict[str, int] | None = None) -> "FlowGraph":
-        """``pages``: Seite je Element-ID (fehlt eine Angabe, gilt Seite 0 – das Hauptprogramm)."""
+                     pages: dict[str, int] | None = None, link_connectors: bool = True) -> "FlowGraph":
+        """``pages``: Seite je Element-ID (fehlt eine Angabe, gilt Seite 0 – das Hauptprogramm).
+
+        ``link_connectors``: Übergangsstellen mit derselben Marke über eine gedachte Kante verbinden (siehe
+        ``connector_links``); die automatische Anordnung schaltet das ab, damit sie die Paare nicht zusammenzieht.
+        """
         pages = pages or {}
         nodes: dict[str, Node] = {}
         comments: dict[str, str] = {}
@@ -224,11 +275,13 @@ class FlowGraph:
                 continue
             if c.source_id in nodes and c.target_id in nodes:
                 edges.append(Edge(c.id, c.source_id, c.target_id, c.label or "", c.source_port, c.target_port))
+        if link_connectors:
+            edges += connector_links(nodes, edges)
         return cls(nodes, edges, annotations)
 
     @classmethod
-    def from_scene(cls, scene) -> "FlowGraph":
-        return cls.from_diagram(scene.element_data(), scene.connection_data())
+    def from_scene(cls, scene, link_connectors: bool = True) -> "FlowGraph":
+        return cls.from_diagram(scene.element_data(), scene.connection_data(), link_connectors=link_connectors)
 
     @classmethod
     def from_scenes(cls, scenes, page_names: dict[int, str] | None = None) -> "FlowGraph":
@@ -260,7 +313,7 @@ class FlowGraph:
         while changed:
             changed = False
             for nid, node in list(nodes.items()):
-                if node.type is not ElementType.JUNCTION:
+                if node.type not in PASS_THROUGH:
                     continue
                 outs = [e for e in edges if e.source == nid]
                 if len(outs) != 1:

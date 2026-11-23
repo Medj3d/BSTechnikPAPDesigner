@@ -6,6 +6,7 @@ import math
 
 from app.items.base_item import FlowItem
 from app.items.comment_item import CommentItem
+from app.items.connector_item import ConnectorItem
 from app.items.decision_item import DecisionItem
 from app.items.end_item import EndItem
 from app.items.input_item import InputItem
@@ -30,6 +31,7 @@ ITEM_CLASSES: dict[ElementType, type[FlowItem]] = {
     ElementType.LOOP: LoopItem,
     ElementType.COMMENT: CommentItem,
     ElementType.JUNCTION: JunctionItem,
+    ElementType.CONNECTOR: ConnectorItem,
 }
 
 

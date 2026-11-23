@@ -32,6 +32,9 @@ class ElementType(str, Enum):
     # Verbindungsknoten auf einem bestehenden Pfeil (entsteht beim Anschließen
     # einer Verbindung an einen Pfeil; nicht in der Werkzeugpalette)
     JUNCTION = "junction"
+    # Übergangsstelle (Konnektor nach DIN 66001): Kreis mit Marke; der Ablauf geht bei der Übergangsstelle mit
+    # derselben Marke weiter (Paare auf derselben Seite)
+    CONNECTOR = "connector"
 
 
 # Anschlusspunkte
@@ -59,6 +62,8 @@ LOOP_END = "end"
 TRUNK_IN_KEY = "trunk_in"
 TRUNK_OUT_KEY = "trunk_out"
 JUNCTION_SIZE = 12
+# Durchmesser einer Übergangsstelle (wächst mit einer längeren Marke)
+CONNECTOR_SIZE = 40
 # Verbindungspunkt als loses Ende eines Pfeils (ins Leere gezogen, noch nicht angeschlossen)
 LOOSE_END_KEY = "loose_end"
 
@@ -133,6 +138,11 @@ _SPECS = {
         ElementType.JUNCTION, N_("Verbindungspunkt", ctx="Baustein"),
         N_("Knoten auf einem Pfeil, an dem weitere Verbindungen ansetzen"),
         "", JUNCTION_SIZE, JUNCTION_SIZE, 0, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
+    ),
+    ElementType.CONNECTOR: ElementSpec(
+        ElementType.CONNECTOR, N_("Übergangsstelle", ctx="Baustein"),
+        N_("Kreis mit Marke (z. B. A): Der Ablauf geht bei der Übergangsstelle mit derselben Marke weiter"),
+        N_("A", ctx="Standardtext"), CONNECTOR_SIZE, CONNECTOR_SIZE, 60, (PORT_TOP, PORT_BOTTOM, PORT_LEFT, PORT_RIGHT),
     ),
 }
 

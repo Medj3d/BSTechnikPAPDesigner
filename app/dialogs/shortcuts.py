@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QHeaderView, QLabel, QLineEdit,
                                QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout)
 
@@ -15,7 +16,8 @@ from app.search_text import matches
 SHORTCUTS = [
     (N_("Suchen und Einstellen"), ""),
     (N_("Strg+K"), N_("Suchleiste: Funktionen, Einstellungen und Bausteine finden")),
-    (N_("Strg+,"), N_("Einstellungen: Schalter und Tastenkürzel")),
+    (N_("Strg+,"), N_("Einstellungen: Farbschema, Sprache, Speichern, Schalter und Tastenkürzel")),
+    (N_("Knopf mit Mond/Sonne (Werkzeugleiste)"), N_("Zwischen dunklem und hellem Farbschema wechseln")),
     (N_("1 bis 9"), N_("Baustein einfügen (Reihenfolge wie in der Werkzeugpalette)")),
     (N_("Datei"), ""),
     (N_("Strg+N"), N_("Neues Projekt")),
@@ -23,6 +25,7 @@ SHORTCUTS = [
     (N_("Strg+S"), N_("Speichern")),
     (N_("Strg+Umschalt+S"), N_("Speichern unter")),
     (N_("Strg+P"), N_("Drucken")),
+    (N_("Strg+E"), N_("Als PDF exportieren (auf Wunsch mit Name, Klasse und Datum)")),
     (N_("Strg+W"), N_("Projekt schließen")),
     (N_("Bearbeiten"), ""),
     (N_("Strg+Z"), N_("Rückgängig")),
@@ -55,16 +58,17 @@ SHORTCUTS = [
      N_("Duplizieren, Kopieren, Ausschneiden, Einfügen, Verschieben, „Aufgerufen von“")),
     (N_("Strg+Alt+U"), N_("Markierte Bausteine in ein Unterprogramm auslagern")),
     (N_("Alt+← / Alt+→"), N_("Zurück / vorwärts zwischen den zuletzt gezeigten Seiten")),
+    # Heißt eine Überschrift wie ein Menü, stehen darunter nur Befehle aus diesem Menü (Schüler suchen sie dort)
+    (N_("Anordnen"), ""),
+    (N_("Strg+L"), N_("Automatisch anordnen")),
     (N_("Extras"), ""),
     (N_("Strg+Umschalt+C"), N_("Code erzeugen (Pseudocode, Python, Java)")),
     (N_("Strg+Umschalt+N"), N_("Struktogramm")),
-    (N_("Strg+L"), N_("Automatisch anordnen")),
+    (N_("Schreibtischtest"), ""),   # im Menü Ansicht
     (N_("Strg+T"), N_("Schreibtischtest ein-/ausblenden (F5 und F10 öffnen ihn auch)")),
     (N_("F10 / F5"), N_("Schreibtischtest: ein Schritt / bis zur nächsten Eingabe")),
     (N_("Strg+F10"), N_("Schreibtischtest: einen Schritt zurück")),
     (N_("F6"), N_("Schreibtischtest automatisch abspielen bzw. anhalten (Tempo am Regler)")),
-    (N_("Strg+Umschalt+H"), N_("Hinweisliste ein-/ausblenden")),
-    (N_("Strg+E"), N_("Als PDF exportieren (auf Wunsch mit Name, Klasse und Datum)")),
     (N_("Zusatzknöpfe (Einstellungen)"), ""),
     (N_("F9"), N_("Haltepunkt am ausgewählten Baustein setzen/entfernen")),
     (N_("Strg+M"), N_("Minikarte ein-/ausblenden")),
@@ -78,6 +82,7 @@ SHORTCUTS = [
     (N_("Strg+1"), N_("Diagramm einpassen")),
     (N_("Strg+G"), N_("Raster ein/aus")),
     (N_("F11"), N_("Präsentationsansicht (Esc beendet)")),
+    (N_("Strg+Umschalt+H"), N_("Hinweisliste ein-/ausblenden")),
     (N_("Maus"), ""),
     (N_("Linke Maustaste ziehen (frei)"), N_("Auswahlrechteck")),
     (N_("Strg+Klick"), N_("Mehrfachauswahl")),
@@ -123,7 +128,7 @@ class ShortcutsDialog(QDialog):
         super().__init__(parent)
         self.actions = actions
         self.setWindowTitle(tr("Tastenkürzel und Bedienung"))
-        self.resize(560, 640)
+        self.resize(640, 640)
         title = QLabel(tr("Tastenkürzel und Bedienung"))
         title.setObjectName("DialogTitle")
 
@@ -139,8 +144,12 @@ class ShortcutsDialog(QDialog):
         table.setShowGrid(False)
         table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
-        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        # lange Erklärungen umbrechen statt mit „…“ abschneiden
+        table.setWordWrap(True)
+        table.setTextElideMode(Qt.TextElideMode.ElideNone)
+        table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         for row, (key, text) in enumerate(SHORTCUTS):
             key_item = QTableWidgetItem(self._key_text(key))
             text_item = QTableWidgetItem(tr(text) if text else "")
@@ -150,6 +159,9 @@ class ShortcutsDialog(QDialog):
                 key_item.setFont(font)
             table.setItem(row, 0, key_item)
             table.setItem(row, 1, text_item)
+        # Tastenspalte so breit wie nötig, aber höchstens etwa die Hälfte: Für die Erklärungen bleibt Platz
+        table.resizeColumnToContents(0)
+        table.setColumnWidth(0, min(table.columnWidth(0), 260))
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(tr("Schließen"))

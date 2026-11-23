@@ -107,6 +107,8 @@ _SUBTYPE_FOR_TYPE = {
     ElementType.SUBPROGRAM: "PapModule",
     ElementType.DECISION: "PapCondition",
     ElementType.JUNCTION: "PapConnector",
+    # Übergangsstelle: für den PapDesigner ein Verbindungspunkt mit Text, für dieses Programm an bst:CONNECTOR erkennbar
+    ElementType.CONNECTOR: "PapConnector",
     ElementType.COMMENT: "PapComment",
 }
 # Verbindungsknoten: Verweise auf die beiden Teile des aufgetrennten Pfeils
@@ -600,6 +602,8 @@ def _figure_attributes(element: ElementData, number: int, associate: int | None)
     if associate is not None:
         attributes.append(("ASSOCIATE", associate))
     attributes.append((_ext("UID"), element.id))
+    if etype is ElementType.CONNECTOR:
+        attributes.append((_ext("CONNECTOR"), "True"))
     for key, name in _TRUNK_ATTRIBUTES:
         if isinstance(extra.get(key), str):
             attributes.append((_ext(name), extra.pop(key)))
@@ -1120,6 +1124,8 @@ def _read_project(raw: bytes | str, fallback_name: str) -> LoadResult:
             if etype is None:
                 unknown_types.add(subtype or "?")
                 etype = ElementType.PROCESS
+            elif etype is ElementType.JUNCTION and native and _flag(figure.get(_key("CONNECTOR")), False):
+                etype = ElementType.CONNECTOR
             spec = spec_for(etype)
             column, row = _attr_int(entry, "COLUMN"), _attr_int(entry, "ROW")
             x, y, placed = column * COLUMN_WIDTH, row * ROW_HEIGHT, False

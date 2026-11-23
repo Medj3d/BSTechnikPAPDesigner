@@ -3,7 +3,7 @@
 **Windows**: Die Zuordnung wird ausschließlich für den aktuellen Benutzer
 (``HKEY_CURRENT_USER\\Software\\Classes``) eingetragen und erfordert daher
 keine Administratorrechte. Sie wird nur auf ausdrücklichen Wunsch des
-Benutzers (Menü „Hilfe“) vorgenommen. Für eine Installation über ein
+Benutzers (Einstellungen → Allgemein → Dateityp) vorgenommen. Für eine Installation über ein
 Setup-Programm siehe ``installer/BSTechnikPAPDesigner.iss``.
 
 **Linux**: ``.desktop``-Datei, Dateityp und Symbole im Benutzerordner – siehe ``app/file_association_linux.py``.

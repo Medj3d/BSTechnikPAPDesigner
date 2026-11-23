@@ -11,8 +11,8 @@ Danach werden ``update-mime-database`` und ``update-desktop-database`` aufgerufe
 praktisch jeder Desktop-Umgebung).
 
 Das AppImage richtet das beim Start von selbst ein (``ensure_installed``), wenn es fehlt oder auf eine andere
-AppImage-Datei bzw. Version zeigt (z. B. nach dem Verschieben oder einem Update). Über das Menü „Hilfe“ lässt
-es sich jederzeit erneuern.
+AppImage-Datei bzw. Version zeigt (z. B. nach dem Verschieben oder einem Update). Unter Einstellungen → Allgemein →
+Dateityp lässt es sich jederzeit erneuern.
 """
 
 from __future__ import annotations

@@ -32,7 +32,6 @@ TOOL_LAYOUT = "tool_layout"
 TOOL_SIMULATION = "tool_simulation"
 TOOL_GENERATE_CODE = "tool_generate_code"
 TOOL_STRUCTOGRAM = "tool_structogram"
-TOOL_PDF = "tool_pdf"
 TOOL_PRINT = "tool_print"
 TOOL_CLIPBOARD = "tool_clipboard"
 TOOL_GRID = "tool_grid"
@@ -79,7 +78,7 @@ PREFERENCES = (
                SECTION_TOOLS),
     Preference(TOOL_ZOOM, True, N_("Zoom"), N_("Verkleinern, 100 %, Vergrößern und ganzen Plan einpassen"),
                SECTION_TOOLS),
-    Preference(TOOL_GRID, False, N_("Raster und Einrasten"),
+    Preference(TOOL_GRID, True, N_("Raster und Einrasten"),
                N_("Knöpfe zum Ein- und Ausschalten von Raster und Einrasten"), SECTION_TOOLS),
     Preference(TOOL_ALIGN, False, N_("Ausrichten und Verteilen"),
                N_("Knöpfe zum Ausrichten mehrerer markierter Bausteine (auch im Menü „Anordnen“)"), SECTION_TOOLS),
@@ -87,7 +86,7 @@ PREFERENCES = (
                SECTION_TOOLS),
     Preference(TOOL_SIMULATION, True, N_("Schreibtischtest"), N_("Den Plan Schritt für Schritt durchspielen"),
                SECTION_TOOLS),
-    Preference(TOOL_GENERATE_CODE, False, N_("Code erzeugen"), N_("PIC-Assembler, Pseudocode, Python oder Java aus dem PAP erzeugen"),
+    Preference(TOOL_GENERATE_CODE, True, N_("Code erzeugen"), N_("PIC-Assembler, Pseudocode, Python oder Java aus dem PAP erzeugen"),
                SECTION_TOOLS),
     Preference(TOOL_STRUCTOGRAM, True, N_("Struktogramm"), N_("Ablauf als Struktogramm (Nassi-Shneiderman)"),
                SECTION_TOOLS),
@@ -102,9 +101,8 @@ PREFERENCES = (
     Preference(TOOL_TEACHER, False, N_("Lehrermodus"),
                N_("Aufgaben stellen: Aufgabenstellung offen, Musterlösung mit Passwort verschlüsselt"),
                SECTION_TOOLS),
-    Preference(TOOL_PDF, False, N_("Als PDF exportieren"), N_("Den Plan als PDF speichern, z. B. für die Abgabe (Strg+E)"),
-               SECTION_TOOLS),
-    Preference(TOOL_PRINT, True, N_("Drucken"), N_("Den Plan drucken"), SECTION_TOOLS),
+    # PDF gibt es über Datei → Exportieren und Strg+E, Drucken über Datei und Strg+P
+    Preference(TOOL_PRINT, False, N_("Drucken"), N_("Den Plan drucken"), SECTION_TOOLS),
 )
 
 TOOLS = tuple(preference.name for preference in PREFERENCES if preference.section == SECTION_TOOLS)

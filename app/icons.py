@@ -441,6 +441,24 @@ def _draw_breakpoint(p, c):
     p.drawEllipse(QPointF(12, 12), 6, 6)
 
 
+def _draw_theme_dark(p, c):
+    """Mond: das dunkle Farbschema ist eingestellt."""
+    path = QPainterPath()
+    path.addEllipse(QPointF(12, 12), 7.5, 7.5)
+    bite = QPainterPath()
+    bite.addEllipse(QPointF(16, 8.5), 6.5, 6.5)
+    p.setBrush(c)
+    p.drawPath(path.subtracted(bite))
+
+
+def _draw_theme_light(p, c):
+    """Sonne: das helle Farbschema ist eingestellt."""
+    p.drawEllipse(QPointF(12, 12), 4, 4)
+    for dx, dy in ((0, -1), (0.707, -0.707), (1, 0), (0.707, 0.707), (0, 1), (-0.707, 0.707), (-1, 0),
+                   (-0.707, -0.707)):
+        p.drawLine(QPointF(12 + dx * 6.5, 12 + dy * 6.5), QPointF(12 + dx * 9, 12 + dy * 9))
+
+
 _DRAWERS = {
     "new": _draw_new, "open": _draw_open, "save": _draw_save, "save_as": _draw_save_as,
     "close": _draw_close, "undo": _draw_undo, "redo": _draw_redo, "cut": _draw_cut,
@@ -457,6 +475,7 @@ _DRAWERS = {
     "step": _draw_step, "step_back": _draw_step_back, "autoplay": _draw_autoplay, "pause": _draw_pause,
     "stop": _draw_stop, "restart": _draw_restart, "warning": _draw_warning, "code_view": _draw_code_view,
     "task": _draw_task, "minimap": _draw_minimap, "breakpoint": _draw_breakpoint,
+    "theme_dark": _draw_theme_dark, "theme_light": _draw_theme_light,
 }
 
 
@@ -526,6 +545,8 @@ def _element_icon(element_type: ElementType, theme_name: str) -> QIcon:
         w, h = (20.0, 20.0) if element_type is ElementType.DECISION else (21.0, 11.0)
         if element_type in (ElementType.START, ElementType.END):
             w, h = 21.0, 10.0
+        elif element_type is ElementType.CONNECTOR:
+            w, h = 14.0, 14.0
         # Formen wirken erst bei Originalproportionen richtig; daher skalieren
         scale = w / 80.0
         painter.scale(scale, scale)

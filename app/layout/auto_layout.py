@@ -240,7 +240,7 @@ def plan_auto_layout(scene, only_ids: set | None = None) -> LayoutPlan:
         return LayoutPlan()
     grid = scene.grid_size
     sizes = {eid: (item.width, item.height) for eid, item in items.items()}
-    graph = FlowGraph.from_scene(scene)
+    graph = FlowGraph.from_scene(scene, link_connectors=False)
     try:
         programs = structure_diagram(graph)
     except Exception:

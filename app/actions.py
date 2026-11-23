@@ -120,8 +120,11 @@ _DEFINITIONS = {
                      N_("Nur den Plan im Vollbild zeigen – z. B. für den Beamer (F11 oder Esc beendet)")),
     "theme_dark": (N_("&Dunkel"), None, [], N_("Dunkles Farbschema")),
     "theme_light": (N_("&Hell"), None, [], N_("Helles Farbschema (z. B. für Beamer)")),
+    # Knopf rechts in der Werkzeugleiste; sein Symbol (Mond/Sonne) zeigt das eingestellte Farbschema
+    "toggle_theme": (N_("Hell/Dunkel &umschalten"), None, [],
+                     N_("Zwischen dunklem und hellem Farbschema wechseln")),
     "settings": (N_("&Einstellungen …"), "properties", ["Ctrl+,"],
-                 N_("Schalter und frei belegbare Tastenkürzel")),
+                 N_("Farbschema, Sprache, Speichern, Schalter und frei belegbare Tastenkürzel")),
     "search": (N_("&Suchen …"), None, ["Ctrl+K"], N_("Funktionen, Einstellungen und Bausteine im Plan finden")),
     "edit_task": (N_("&Aufgabe stellen …"), "task", [],
                   N_("Lehrkraft: Aufgabenstellung und verschlüsselte Musterlösung in das Projekt schreiben")),
@@ -150,7 +153,8 @@ _DEFINITIONS = {
 
 # Bausteine liegen auf den Zifferntasten, in der Reihenfolge der Werkzeugpalette
 # Verbindungspunkt (zum Teilen eines Pfeils) liegt auf der 0
-INSERTABLE_BLOCKS = PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION,)
+# Übergangsstelle ohne eigene Taste (die Ziffern sind vergeben)
+INSERTABLE_BLOCKS = PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION, ElementType.CONNECTOR)
 BLOCK_KEYS = dict(zip(INSERTABLE_BLOCKS, "1234567890"))
 
 ALIGN_ACTIONS = [ALIGN_LEFT, ALIGN_RIGHT, ALIGN_TOP, ALIGN_BOTTOM, ALIGN_CENTER_X, ALIGN_CENTER_Y,
@@ -211,7 +215,7 @@ class ActionRegistry:
                                    description=description_for(element_type)))
             action.setData(element_type)
             name = insert_action_name(element_type)
-            sequences = [QKeySequence(BLOCK_KEYS[element_type])]
+            sequences = [QKeySequence(BLOCK_KEYS[element_type])] if element_type in BLOCK_KEYS else []
             action.setShortcuts(sequences)
             action.setToolTip(self._tooltip(block_name, sequences))
             self._actions[name] = action

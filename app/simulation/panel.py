@@ -667,7 +667,7 @@ class SimulationPanel(QWidget):
                 if called:
                     todo.append(called)
         visited = {row.element_id for row in simulator.trace if row.element_id in graph.nodes}
-        counted = {nid for nid in reachable | visited if graph.nodes[nid].type is not ElementType.JUNCTION}
+        counted = {nid for nid in reachable | visited if graph.nodes[nid].type not in (ElementType.JUNCTION, ElementType.CONNECTOR)}
         return len(visited & counted), len(counted)
 
     def _update_coverage(self) -> None:

@@ -58,9 +58,9 @@ def shown_in_toolbar(window) -> set:
 def test_toolbar_is_simple_by_default(window):
     shown = shown_in_toolbar(window)
     for name in ("new", "open", "save", "undo", "redo", "delete", "zoom_in", "zoom_out", "zoom_fit", "auto_layout",
-                 "toggle_simulation", "structogram", "print"):
+                 "toggle_simulation", "structogram", "toggle_grid", "toggle_snap", "generate_code"):
         assert window.actions[name] in shown, name
-    for name in ("cut", "toggle_grid", "generate_code", "export_pdf", "toggle_code_view", "toggle_minimap"):
+    for name in ("cut", "print", "export_pdf", "toggle_code_view", "toggle_minimap"):
         assert window.actions[name] not in shown, name
     # alles Weitere unter „Mehr“ – ohne Einstellungen erreichbar
     more = window.more_menu.actions()
@@ -93,13 +93,14 @@ def test_pinned_buttons_and_reset(window, qapp):
     assert window.settings_store.preference(preferences.TOOL_CODE_VIEW) is False
 
 
-def test_arrow_and_check_switches_in_extras(window):
-    from PySide6.QtWidgets import QMenu
-    titles = {action.text(): action.menu() for action in window.extras_menu.actions() if action.menu()}
-    arrows, checks = titles["Pfeile"], titles["Prüfung"]
-    assert window.actions[preferences.action_name(preferences.LOOSE_ENDS)] in arrows.actions()
-    assert window.actions[preferences.action_name(preferences.EXTENDED_CHECKS)] in checks.actions()
-    assert isinstance(arrows, QMenu)
+def test_arrow_and_check_switches_only_in_settings(window):
+    """Pfeile und Prüfung stellt man einmal ein: in den Einstellungen, nicht mehr unter Extras."""
+    from app.dialogs.settings import SettingsDialog
+    assert not [action for action in window.extras_menu.actions() if action.menu()]
+    dialog = SettingsDialog(window.actions, window)
+    for key in (preferences.LOOSE_ENDS, preferences.QUICK_MENU, preferences.ROUNDED_LINES,
+                preferences.WARNING_MARKS, preferences.EXTENDED_CHECKS):
+        assert preferences.action_name(key) in dialog.switches, key
 
 
 def test_toolbar_proxy_follows_action(window):

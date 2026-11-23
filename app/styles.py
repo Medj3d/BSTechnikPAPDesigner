@@ -116,6 +116,7 @@ DARK = Theme(
         ElementType.LOOP: "#D6808A",
         ElementType.COMMENT: "#868D97",
         ElementType.JUNCTION: "#8E959F",
+        ElementType.CONNECTOR: "#A7B0BC",
     },
     fill_amount=0.15,
 )
@@ -157,6 +158,7 @@ LIGHT = Theme(
         ElementType.LOOP: "#B2525C",
         ElementType.COMMENT: "#6B727C",
         ElementType.JUNCTION: "#4A5059",
+        ElementType.CONNECTOR: "#5B6573",
     },
     fill_amount=0.09,
 )
@@ -202,6 +204,7 @@ LIGHT_UI = Theme(
         ElementType.LOOP: "#B2525C",
         ElementType.COMMENT: "#6B727C",
         ElementType.JUNCTION: "#565D68",
+        ElementType.CONNECTOR: "#5B6573",
     },
     fill_amount=0.11,
 )
@@ -595,7 +598,7 @@ QCheckBox::indicator:disabled {{
     border-color: {t.border};
     background: {t.panel_bg};
 }}
-QCheckBox#SettingSwitch {{
+QCheckBox#SettingSwitch, QLabel#SettingLabel {{
     font-weight: bold;
     font-size: 10.5pt;
 }}
