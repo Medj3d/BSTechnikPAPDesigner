@@ -1165,14 +1165,15 @@ class DiagramScene(QGraphicsScene):
                                                            text=tr("Verbindungspunkt aktualisieren")))
 
     def connect_endpoints(self, source: ConnectionEndpoint, target: ConnectionEndpoint,
-                          replaces: ConnectionItem | None = None) -> str | None:
+                          replaces: ConnectionItem | None = None, label: str | None = None) -> str | None:
         """Erstellt eine Verbindung zwischen zwei beliebigen Zielen (ein Undo-Schritt).
 
         Liegt ein Ende auf einem bestehenden Pfeil, wird dieser dort mit einem
         Verbindungsknoten aufgetrennt. Anschließend wird die fachliche
         Prüfung ausgeführt; eine problematische Verbindung wird nur rot oder
         gelb markiert, aber nicht verhindert. Mit ``replaces`` tritt die neue
-        Verbindung an die Stelle einer bestehenden (Pfeil umhängen).
+        Verbindung an die Stelle einer bestehenden (Pfeil umhängen). ``label``
+        ersetzt die vorgeschlagene Beschriftung (z. B. „nein“ statt „ja“).
         """
         source_port, target_port = self._resolve_ports(source, target)
         error = self._blocking_error(source, target, source_port, target_port)
@@ -1203,7 +1204,10 @@ class DiagramScene(QGraphicsScene):
             self.undo_stack.endMacro()
         else:
             annotation = rules.is_annotation(source.item.element_type, target.item.element_type)
+            chosen = label
             label = "" if annotation else self._suggest_label(source.item)
+            if chosen is not None and not annotation:
+                label = chosen
             if replaces is not None:
                 label = replaces.data.label
             data = ConnectionData(new_id(), source.item.element_id, target.item.element_id,
@@ -1220,6 +1224,59 @@ class DiagramScene(QGraphicsScene):
             self.status_message.emit(tr("Hinweis: {warning} Die Verbindung wurde trotzdem erstellt "
                                         "und ist markiert.", warning=conn.warning))
         return data.id
+
+    def keyboard_ports(self, source: FlowItem, target: FlowItem) -> tuple[str, str]:
+        """Passende freie Anschlüsse für einen Pfeil, der nicht gezogen, sondern über die Tastatur angelegt wird.
+
+        Gewählt wird das Paar mit dem kürzesten Weg, bei dem keine Linie „rückwärts“ aus ihrem Anschluss läuft:
+        Liegt das Ziel darunter, geht es von unten nach oben; ein Rückpfeil nach oben läuft seitlich. Anschlüsse,
+        an denen schon ein Pfeil hängt, werden gemieden (eingehende am Ziel dürfen sich teilen, wie beim Ziehen).
+        """
+        source_in, source_out = self._incoming_ports(source), self._outgoing_ports(source)
+        target_out = self._outgoing_ports(target)
+        annotation = rules.is_annotation(source.element_type, target.element_type)
+        order = {PORT_BOTTOM: 0, PORT_RIGHT: 1, PORT_LEFT: 2, PORT_TOP: 3}
+
+        def against(port: str, start: QPointF, goal: QPointF) -> bool:
+            dx, dy = PORT_DIRECTIONS.get(port, (0.0, 0.0))
+            return (goal.x() - start.x()) * dx + (goal.y() - start.y()) * dy < -1e-6
+
+        def cost(pair: tuple[str, str]) -> tuple:
+            source_port, target_port = pair
+            start, goal = source.port_scene_pos(source_port), target.port_scene_pos(target_port)
+            value = math.hypot(goal.x() - start.x(), goal.y() - start.y())
+            if not annotation:
+                if source_port in source_in:
+                    value += 2000.0
+                if source_port in source_out:
+                    value += 2000.0 if source.element_type is ElementType.DECISION else 500.0
+                if target_port in target_out:
+                    value += 2000.0
+            if against(source_port, start, goal):
+                value += 400.0
+            if against(target_port, goal, start):
+                value += 400.0
+            return value, order.get(source_port, 9), order.get(target_port, 9)
+
+        pairs = [(s, t) for s in source.ports for t in target.ports if source is not target or s != t]
+        return min(pairs, key=cost)
+
+    def connect_blocks(self, source: FlowItem, target: FlowItem, label: str | None = None) -> str | None:
+        """Tastatur („Verbinden mit …“): Pfeil von ``source`` zu ``target`` an passenden freien Anschlüssen.
+
+        Ein Undo-Schritt; der neue Pfeil wird ausgewählt. ``label`` gilt nur für den Ausgang einer Verzweigung
+        (``None``: der nächste freie wie beim Ziehen mit der Maus, also erst „ja“, dann „nein“).
+        """
+        if source.scene() is not self or target.scene() is not self or source is target:
+            return None
+        source_port, target_port = self.keyboard_ports(source, target)
+        connection_id = self.connect_endpoints(ConnectionEndpoint(item=source, port=source_port),
+                                               ConnectionEndpoint(item=target, port=target_port),
+                                               label=label if source.element_type is ElementType.DECISION else None)
+        conn = self.connection(connection_id) if connection_id is not None else None
+        if conn is not None:
+            self.select_items([conn])
+        return connection_id
 
     def _remove_replaced(self, conn: ConnectionItem, new_id_: str) -> None:
         """Entfernt den umgehängten Pfeil: Sein loses Ende fällt weg, ein aufgetrennter Pfeil wächst wieder zusammen."""

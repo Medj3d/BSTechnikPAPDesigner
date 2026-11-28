@@ -1,4 +1,4 @@
-"""Export (PNG, SVG, PDF) und Drucken.
+"""Export (PNG, JPG, SVG, PDF) und Drucken.
 
 Exportiert wird ausschließlich das Diagramm – ohne Raster, Auswahlrahmen,
 Anschlusspunkte oder sonstige UI-Elemente. Für Dokumente und Ausdrucke steht
@@ -147,6 +147,29 @@ def _image(scene, source: QRectF, options: ExportOptions) -> QImage:
 def export_png(scene, path: str, options: ExportOptions) -> None:
     image = _image(scene, _source_rect(scene, options.margin, options.stamp), options)
     if not image.save(path, "PNG"):
+        raise ExportError(_not_written(path))
+
+
+JPG_QUALITY = 92   # 0–100: kaum sichtbare Kompressionsspuren an Linien und Schrift, trotzdem kleine Dateien
+
+
+def export_jpg(scene, path: str, options: ExportOptions) -> None:
+    """Wie PNG, aber JPG kennt keine Transparenz: Der Plan liegt immer auf der Fläche des Farbschemas."""
+    import dataclasses
+
+    opaque = dataclasses.replace(options, transparent=False)
+    image = _image(scene, _source_rect(scene, opaque.margin, opaque.stamp), opaque)
+    # ohne Alphakanal speichern – sonst setzt Qt halbtransparente Kanten auf Schwarz
+    background = QImage(image.size(), QImage.Format.Format_RGB888)
+    background.setDotsPerMeterX(image.dotsPerMeterX())
+    background.setDotsPerMeterY(image.dotsPerMeterY())
+    background.fill(QColor(opaque.theme.canvas_bg))
+    painter = QPainter(background)
+    try:
+        painter.drawImage(0, 0, image)
+    finally:
+        painter.end()
+    if not background.save(path, "JPG", JPG_QUALITY):
         raise ExportError(_not_written(path))
 
 
@@ -312,5 +335,7 @@ def print_scene(scenes, printer, options: ExportOptions) -> None:
         painter.end()
 
 
-def ensure_extension(path: str, extension: str) -> str:
-    return path if path.lower().endswith(extension.lower()) else path + extension
+def ensure_extension(path: str, extension: str, also: tuple = ()) -> str:
+    """Hängt ``extension`` an, wenn der Name weder darauf noch auf eine der Endungen in ``also`` endet."""
+    endings = tuple(ending.lower() for ending in (extension, *also))
+    return path if path.lower().endswith(endings) else path + extension

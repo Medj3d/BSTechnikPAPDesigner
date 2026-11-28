@@ -389,10 +389,31 @@ class _TextConcat(ast.NodeTransformer):
         if isinstance(node.op, ast.Add) and static_type(node, self.types, self.dynamic) == STRING:
             for side in ("left", "right"):
                 operand = getattr(node, side)
-                if static_type(operand, self.types, self.dynamic) != STRING:
+                kind = static_type(operand, self.types, self.dynamic)
+                if kind == BOOLEAN:
+                    setattr(node, side, truth_text(operand))
+                    self.changed = True
+                elif kind != STRING:
                     setattr(node, side, ast.Call(func=ast.Name(id="str", ctx=ast.Load()), args=[operand], keywords=[]))
                     self.changed = True
         return node
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        if (isinstance(node.func, ast.Name) and node.func.id == "str" and len(node.args) == 1 and not node.keywords
+                and static_type(node.args[0], self.types, self.dynamic) == BOOLEAN):
+            # str(wahr) ist im Schreibtischtest „wahr“, nicht „True“
+            self.changed = True
+            return truth_text(node.args[0])
+        return node
+
+
+TRUE_TEXT, FALSE_TEXT = "wahr", "falsch"   # wie der Schreibtischtest Wahrheitswerte zeigt (evaluator.display)
+
+
+def truth_text(node) -> ast.IfExp:
+    """Wahrheitswert als Text wie im Schreibtischtest: ``"wahr" if x else "falsch"``."""
+    return ast.IfExp(test=node, body=ast.Constant(TRUE_TEXT), orelse=ast.Constant(FALSE_TEXT))
 
 
 class PythonGenerator:
@@ -810,18 +831,29 @@ class PythonGenerator:
                 self.uses_eingabe = True
                 self.emit(depth, f'{target} = {self.input_fn}("{name}: ")')
 
+    def printed(self, expr: str) -> str | None:
+        """Ausdruck für ``print``: Wahrheitswerte als „wahr“/„falsch“ wie im Schreibtischtest (nicht True/False)."""
+        code = self.expr(expr)
+        tree = T.parse_expression(expr)
+        if code is None or tree is None or static_type(tree, self.types, self.dynamic) != BOOLEAN:
+            return code
+        test = code if T.is_identifier(code) else f"({code})"
+        return f'"{TRUE_TEXT}" if {test} else "{FALSE_TEXT}"'
+
     def action_output(self, stmt: Action, depth: int) -> None:
         spec = T.output_spec(stmt.text, self.known)
         if spec.kind == "mixed" and all(kind == "string" or self.expr(value) for kind, value in spec.parts):
-            args = ", ".join(f'"{_escape(value)}"' if kind == "string" else self.expr(value)
+            args = ", ".join(f'"{_escape(value)}"' if kind == "string" else self.printed(value)
                              for kind, value in spec.parts)
             self.emit(depth, f"print({args})")
         elif spec.kind == "expression" and self.expr(spec.value):
-            self.emit(depth, f"print({self.expr(spec.value)})")
+            self.emit(depth, f"print({self.printed(spec.value)})")
         elif spec.kind == "variables" and len(spec.variables) == 1:
-            self.emit(depth, f'print("{_escape(spec.value)}:", {self.var(spec.variables[0])})')
+            name = spec.variables[0]
+            self.emit(depth, f'print("{_escape(spec.value)}:", {self.printed(name) or self.var(name)})')
         elif spec.kind == "variables":
-            values = ", ".join(self.var(name) for name in spec.variables)
+            values = ", ".join((self.printed(name) if self.types.get(name) == BOOLEAN else None) or self.var(name)
+                               for name in spec.variables)
             self.emit(depth, f'print("{_escape(spec.value)}:", ", ".join(str(wert) for wert in ({values})))')
         else:
             text = spec.value if spec.kind in ("string", "text") else _one_line(stmt.text)
@@ -1045,8 +1077,12 @@ class _JavaExpr:
 
     def as_text(self, node, level: int = 9) -> str:
         """Operand einer Textverkettung: Zahlen wie im Schreibtischtest (7 statt 7.0)."""
-        if self.type_of(node) == DOUBLE:
+        kind = self.type_of(node)
+        if kind == DOUBLE:
             self.helpers.add("text")
+            return f"text({self.convert(node)})"
+        if kind == BOOLEAN:
+            self.helpers.add("wahr")  # „wahr“/„falsch“ wie im Schreibtischtest (nicht true/false)
             return f"text({self.convert(node)})"
         return self.operand(node, level)
 
@@ -1177,6 +1213,9 @@ class _JavaExpr:
             if kinds[0] == DOUBLE:
                 self.helpers.add("text")  # 5 statt 5.0
                 return f"text({self.convert(node.args[0])})"
+            if kinds[0] == BOOLEAN:
+                self.helpers.add("wahr")  # „wahr“ statt „true“
+                return f"text({self.convert(node.args[0])})"
             return f"String.valueOf({self.convert(node.args[0])})"
         if name == "len" and count == 1 and kinds[0] == STRING:
             # Zeichen wie im Schreibtischtest und in Python zählen: ein Emoji ist ein Zeichen (nicht zwei)
@@ -1305,6 +1344,9 @@ class JavaGenerator:
         if self.types.get(name) == DOUBLE:
             self.helpers.add("text")
             return f"text({java_name(name)})"
+        if self.types.get(name) == BOOLEAN:
+            self.helpers.add("wahr")
+            return f"text({java_name(name)})"
         return java_name(name)
 
     # ------------------------------------------------------------ Programm
@@ -1400,6 +1442,11 @@ class JavaGenerator:
                         f"{three}return String.valueOf((long) x);",
                         f"{two}}}",
                         f"{two}return String.valueOf(x);",
+                        f"{one}}}", ""]
+        if "wahr" in self.helpers:
+            helpers += [f"{one}// " + tr_code("Wahrheitswert als Text: wahr oder falsch – wie im Schreibtischtest."),
+                        f"{one}static String text(boolean x) {{",
+                        f'{two}return x ? "{TRUE_TEXT}" : "{FALSE_TEXT}";',
                         f"{one}}}", ""]
         if "zahl" in self.helpers:
             helpers += [f"{one}// " + tr_code("Text als Zahl (auch mit Komma). Ist der Text keine Zahl, kommt NaN "
@@ -1643,7 +1690,7 @@ class JavaGenerator:
             return self.number(expr)  # wechselnde Eingabe als Zahl; reiner Text: nicht übersetzbar
         if wanted == BOOLEAN and found == DOUBLE:
             return self.truth(expr)
-        if wanted == STRING and found == DOUBLE:
+        if wanted == STRING and found in (DOUBLE, BOOLEAN):
             return self.printable(expr)
         if wanted == STRING:
             return f"String.valueOf({code})"
@@ -1730,9 +1777,11 @@ class JavaGenerator:
                 value, wanted = self.returns[program.start_id], self.types.get(target, DOUBLE)
                 if value != wanted:
                     call = {(DOUBLE, BOOLEAN): f"({call}) ? 1 : 0", (STRING, DOUBLE): f"text({call})",
-                            (STRING, BOOLEAN): f"String.valueOf({call})"}.get((wanted, value), "")
+                            (STRING, BOOLEAN): f"text({call})"}.get((wanted, value), "")
                     if wanted == STRING and value == DOUBLE:
                         self.helpers.add("text")
+                    if wanted == STRING and value == BOOLEAN:
+                        self.helpers.add("wahr")
                 if call:
                     self.emit(depth, f"{java_name(target)} = {call};{note}")
                 else:

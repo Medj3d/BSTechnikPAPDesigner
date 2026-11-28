@@ -29,24 +29,26 @@ Alle Versionen: [Veröffentlichungen auf GitHub](https://github.com/Medj3d/BSTec
 ### Funktionen auf einen Blick
 
 - **Alle PAP-Bausteine**: Start, Ende, Eingabe, Ausgabe, Vorgang, Unterprogramm, Verzweigung, Schleife und Kommentar in der üblichen Form (DIN 66001)
-- **Schnell einfügen**: aus der Palette ziehen, Tasten 1–9 oder auf einen Pfeil ziehen, dann landet der Baustein mitten im Ablauf
+- **Schnell einfügen**: aus dem Feld „Bausteine“ ziehen, Tasten 1–9 oder auf einen Pfeil ziehen, dann landet der Baustein mitten im Ablauf
+- **Schreibweisen im Plan** (Hilfe, Umschalt+F1): welche Texte der Schreibtischtest und die Code-Erzeugung verstehen – `x := x + 1`, `n einlesen`, `solange i < 10`, `für i = 1 bis 10`, `y := doppelt(x)` …; jedes Beispiel wird in den Tests wirklich ausgeführt. Auf einem leeren Plan (nur Start und Ende) steht ein leiser Tipp dazu
 - **Pfeile**: verbinden sich von selbst rechtwinklig um Bausteine herum, lassen sich frei verschieben und umhängen; ja/nein steht automatisch an Verzweigungen
 - **Prüfung beim Zeichnen**: falsche Pfeile werden rot, auffällige gelb markiert, mit dem Grund als Hinweis
+- **Ohne Maus bedienbar**: Pfeile per Tastatur anlegen (Bearbeiten → Verbinden mit …, Strg+Umschalt+V: Ziel aus einer Liste wählen) und die **Bausteinliste** (Ansicht, Strg+Umschalt+L), die den Plan mit allen Pfeilen als Liste vorliest – auch für Bildschirmleser
 - **Unterprogramme** auf eigenen Seiten, mit Aufruf per Doppelklick, Umbenennen samt aller Aufrufe und „Auswahl in Unterprogramm auslagern“
 - **Schreibtischtest**: Plan Schritt für Schritt ausführen, auch rückwärts oder automatisch, mit Haltepunkten (F9), Variablentabelle, Abdeckung in Prozent und Tabelle für Word/Excel
 - **Code erzeugen**: aus dem Plan wird Assembler für den PIC16F887 (wie im Unterricht, voreingestellt), Pseudocode, Python oder Java
 - **PIC-Assembler**: im Aufbau der Schulvorlage, mit Ports (`PORTD.0 = 1`, „Ausgabe x an PORTC“), Warten (`warte 100 ms`), Rechnen mit 8 Bit, Bitmasken und Unterprogrammen; als `.asm`-Datei für MPLAB speichern
-- **Code-Ansicht** neben dem Plan: Klick auf eine Codezeile markiert den passenden Baustein
+- **Code-Ansicht** neben dem Plan (F12): Klick auf eine Codezeile markiert den passenden Baustein
 - **Struktogramm** (Nassi-Shneiderman) aus demselben Plan, auch als Bild oder PDF
 - **Hinweisliste**: findet fehlenden Start oder fehlendes Ende, Sackgassen, unerreichbare Bausteine; ein Klick springt zur Stelle
 - **Automatisch anordnen**: räumt den Plan ordentlich auf, ohne den Ablauf zu ändern
-- **Lehrermodus**: Aufgabe in der Datei, Musterlösung mit Passwort geschützt
+- **Lehrermodus**: Aufgabe in der Datei, Musterlösung mit Passwort geschützt; eine Aufgabe öffnet sich immer als unbenannte Kopie („Aufgabe – Kopie“), Strg+S legt die Lösung als eigene Datei an – keine Lösung und kein anderes Projekt kann eine Aufgabendatei ersetzen. Die Lehrkraft ändert sie über Datei → Aufgabe bearbeiten … (mit Passwort); wer in einer Kopie über Extras → Aufgabe stellen die Aufgabe ändert, wählt beim Speichern den Namen (die alte Aufgabe wird nur ersetzt, wenn man ihren Namen wählt). Nur ansehen (Passwort, dann Abbrechen) ändert nichts. Lösungen aus Versionen vor 1.16 zu Aufgaben **ohne** Passwort sind von der Aufgabe nicht zu unterscheiden: Sie öffnen sich ebenfalls als Kopie und werden unter neuem Namen gespeichert
 - **Minikarte** zum schnellen Springen in großen Plänen
-- **Export und Druck**: PNG, SVG, PDF und Druck, mit Name, Klasse und Datum; Strg+C kopiert den Plan als Bild für Word oder OneNote
+- **Export und Druck**: PNG (Strg+Umschalt+E), JPG, SVG, PDF (Strg+E), Druckvorschau (Strg+Umschalt+P) und Druck, mit Name, Klasse und Datum; Strg+C kopiert den Plan als Bild für Word oder OneNote
 - **Suche** (Strg+K) nach Funktionen, Einstellungen und Bausteinen
 - **Einstellungen**: Farbschema, Sprache, Speichern, Schalter, eigene Tastenkürzel und frei wählbare Knöpfe in der Werkzeugleiste – alles, was man nur einmal einstellt, an einer Stelle
-- **Sicher speichern**: automatisches Speichern, Sicherung nach Absturz, Sicherungskopie `.pap-backup`
-- **Rückgängig/Wiederholen** für jede Änderung, mehrere Projekte in Reitern
+- **Sicher speichern**: automatisches Speichern, Sicherung nach Absturz, Sicherungskopie `.pap-backup`; unten in der Statusleiste zeigt ein Symbol mit farbigem Punkt „Auto-Speichern an/aus/pausiert“ bzw. „Nicht gespeichert“ (Kurzinfo: wohin bzw. warum; im schmalen Fenster nur das Symbol; Klick öffnet die Einstellungen). Auch ein fehlgeschlagenes automatisches Speichern (z. B. schreibgeschützt) zeigt „pausiert“
+- **Rückgängig/Wiederholen** für jede Änderung, mehrere Projekte in Reitern; Datei → Alle speichern (Strg+Alt+S) und Alle schließen (Strg+Umschalt+W); beim Schließen mehrerer geänderter Projekte (auch beim Beenden) gibt es „Alle Änderungen verwerfen“
 - **PapDesigner-Dateien** öffnen und so speichern, dass sie im alten PapDesigner wieder aufgehen
 - **9 Sprachen**: Deutsch, Englisch, Französisch, Spanisch, Portugiesisch, Russisch, Arabisch, Chinesisch, Japanisch
 - **Hell oder dunkel** (Knopf oben rechts in der Werkzeugleiste, vor dem Suchfeld), Präsentationsansicht (F11), fünf Lernbeispiele
@@ -62,6 +64,7 @@ die dritte Zahl kleine Nachbesserungen.
 
 | Version | Datum | Inhalt |
 |---|---|---|
+| 1.17.0 | 28.11.2026 | Neue Hilfe **Schreibweisen im Plan** (Umschalt+F1) mit geprüften Beispielen und Tipp auf leeren Plänen. Aufgabendateien öffnen sich immer als Kopie (Lehrkraft: Datei → Aufgabe bearbeiten). Anzeige „Auto-Speichern“ in der Statusleiste, Alle speichern / Alle schließen, JPG-Export, Sprung vom Pfeil zu Anfang/Ziel, Pfeile per Tastatur („Verbinden mit …“), Bausteinliste für Bildschirmleser. Neue Tastenkürzel (F12 Code-Ansicht, Strg+Umschalt+E PNG, Strg+B Bausteine). „Werkzeugpalette“ heißt jetzt „Bausteine“. Vergleichstests Schreibtischtest/Python/Java/PIC, vier Rechenfehler behoben |
 | 1.16.0 | 23.11.2026 | Neuer Baustein **Übergangsstelle** (Kreis mit Marke nach DIN 66001): Der Ablauf springt zur Übergangsstelle mit derselben Marke – Schreibtischtest, Code und Struktogramm folgen, die Prüfung meldet fehlende Gegenstücke. Menüs aufgeräumt: Was man einmal einstellt (automatisch speichern, Sicherungskopie, Pfeile, Prüfung, Updates, Farbschema, Sprache, Dateityp, Werkzeugleiste), steht jetzt in den Einstellungen; doppelte Menüeinträge entfernt. Werkzeugleiste: kleiner Hell/Dunkel-Knopf, ohne PDF-Knopf, Raster und Code erzeugen ab Werk an |
 | 1.15.6 | 23.11.2026 | Linux: Updates funktionieren auf allen Distributionen (Fedora, Arch, openSUSE …) – das AppImage findet jetzt die Zertifikate des Systems; bisher meldete es „keine Verbindung zum Update-Server“. Wer eine ältere Version auf einem solchen System hat, lädt das AppImage einmal von Hand neu |
 | 1.15.5 | 23.11.2026 | Verbindungspunkt als eigener Baustein (Palette, Menü „Einfügen“, Taste 0): auf einen Pfeil ziehen teilt ihn dort. Unterprogramme übergeben Werte und Ergebnis (`y := doppelt(x)`, `return n * 2`). Große Pläne werden lesbar auf mehrere Blätter gedruckt, sehr große PDFs bleiben gültig. Passt auf kleine Bildschirme (1366×768 bei 150 %). Raster und Einrasten werden mit dem Projekt gespeichert und lassen sich rückgängig machen. Palette per Tastatur und Bildschirmleser bedienbar, japanische Unterprogrammnamen, gesperrter Update-Schalter bei Schulrichtlinie, lange Tastenkürzel verdecken keine Namen, geschlossene Projekte werden ganz freigegeben |
@@ -105,13 +108,16 @@ die dritte Zahl kleine Nachbesserungen.
 | Formen | Start/Ende = abgerundet · Eingabe/Ausgabe = Parallelogramm · Vorgang = Rechteck · Unterprogramm = Rechteck mit doppelten Seitenlinien · Verzweigung = Raute · Schleife = Schleifenbegrenzung (Beginn oben / Ende unten abgeschrägt, DIN 66001) · Kommentar = Text mit offener Klammer |
 | Arbeitsfläche | praktisch unbegrenzt, dunkles Punktraster (adaptiv je Zoomstufe), präzises Einrasten |
 | Zoom / Schwenken | Mausrad zoomt am Mauszeiger (25 % – 400 %), rechte oder mittlere Maustaste bzw. Leertaste + linke Maustaste schwenkt |
-| Einfügen | Drag & Drop aus der Werkzeugpalette (mit eingerasteter Vorschau), Klick in der Palette, Menü „Einfügen“, Kontextmenü „Neu“, **Tasten 1–9** (in der Reihenfolge der Palette, dort angezeigt) |
+| Einfügen | Drag & Drop aus dem Feld **„Bausteine“** (mit eingerasteter Vorschau), Klick auf einen Baustein dort, Menü „Einfügen“, Kontextmenü „Neu“, **Tasten 1–9** (in der Reihenfolge im Feld „Bausteine“, dort angezeigt). **Ansicht → Bausteine** (Strg+B) blendet das Feld ein und aus |
 | Neue Projekte | beginnen mit Start → Ende; neue Bausteine kommen dazwischen (ohne Auswahl vor das Ende). Beides bleibt löschbar, abschaltbar in den Einstellungen |
 | Suchleiste | oben rechts (Strg+K): findet Funktionen, Einstellungen und Bausteine aller Seiten, unabhängig von Groß-/Kleinschreibung und Umlauten; Enter führt aus bzw. springt hin |
 | Einstellungen | **Extras → Einstellungen** (Strg+,): alles, was man nur einmal einstellt – **Allgemein**: Farbschema, Sprache, automatisch speichern, Sicherungskopie, Updates beim Start, Dateityp registrieren; **Zeichnen** und **Prüfung**: die Schalter für Pfeile und Prüfung; **Werkzeugleiste**: ein-/ausblenden und welche Knöpfe sie zeigt; **Tastenkürzel**: alle frei belegbar, je Funktion zwei Tasten. Ein Suchfeld durchsucht alle Bereiche; eine schon vergebene Taste wechselt zur neuen Funktion, „Alle Schalter zurücksetzen“ stellt die Schalter auf den Standard (Farbschema, Sprache und Tastenkürzel bleiben) |
 | Einfügen in den Ablauf | Baustein auf eine bestehende Verbindung ziehen → wird automatisch dazwischen eingefügt |
 | Schleifen | **Einfügen → Schleife mit Kopfbedingung** („solange …“) bzw. **mit Fußbedingung** („wiederhole … bis …“) legt beide Teile mit passenden Platzhaltern an; außerdem Zählschleifen („für i = 1 bis n“), „n mal“ und Schleifen aus Verzweigung und Pfeil zurück |
 | Verbindungspunkte | Rechtsklick auf eine Verbindung → **Verbindungspunkt hier einfügen** (als Eckpunkt zum Führen der Linie oder als Abzweig für weitere Pfeile) |
+| Pfeil mit der Tastatur | Baustein auswählen, dann **Bearbeiten → Verbinden mit …** (Strg+Umschalt+V, auch im Kontextmenü des Bausteins): eine durchsuchbare Liste zeigt alle anderen Bausteine der Seite in der Reihenfolge des Ablaufs (z. B. „Verzweigung „i >= 3““); Enter legt den Pfeil an – mit passenden freien Anschlüssen und der üblichen Linienführung, als ein Rückgängig-Schritt, danach ist der neue Pfeil ausgewählt. Schon verbundene Ziele (auch über Verbindungspunkte) tragen „– schon verbunden“. An einer Verzweigung wählt man die Beschriftung (vorgeschlagen wird wie beim Ziehen der nächste freie Ausgang: erst „ja“, dann „nein“; ein schon vergebener Ausgang steht als „ja – schon vergeben“ da) |
+| Bausteinliste | **Ansicht → Bausteinliste** (Strg+Umschalt+L, anfangs ausgeblendet, rechts in einer eigenen Spalte neben dem Feld „Bausteine“): alle Bausteine der angezeigten Seite in der Reihenfolge des Ablaufs, jeweils mit ihren Pfeilen (je Pfeil eine eingerückte Zeile; vorgelesen als „Verzweigung „i >= 3“ → Ausgabe „x“ (ja); → Ende (nein)“), „kein Pfeil heraus“ bei offenen Enden; Verbindungspunkte werden übersprungen. Für Bildschirmleser beschriftet und mit der Tastatur bedienbar: Enter oder Doppelklick wählt den Baustein im Plan aus und holt ihn in die Mitte, Esc geht zurück in den Plan. Die Liste folgt jeder Änderung, Rückgängig und dem Seitenwechsel |
+| Pfeil folgen | Rechtsklick auf einen Pfeil → **Zum Anfang des Pfeils** / **Zum Ziel des Pfeils** (auch **Ansicht**-Menü, Alt+Pos1 / Alt+Ende bei ausgewähltem Pfeil): wählt den Baustein an diesem Ende aus und holt ihn ins Bild; Verbindungspunkte unterwegs werden übersprungen |
 | Verbindungen | echte Objekte mit Quelle/Ziel, Anschlusspunkte je Bausteintyp, Pfeilspitzen, rechtwinklige Linienführung um Bausteine herum, Rückwärtsverbindungen/Zyklen, beschriftbar („ja“/„nein“ automatisch an Verzweigungen), abgerundete Ecken, mehr Abstand zu Bausteinen und anderen Linien |
 | Pfeile frei führen | jedes Linienstück und jede Ecke lässt sich ziehen, auch eine gerade Linie; Rechtsklick → **Knick hier einfügen**. Die Linie bleibt rechtwinklig, nur das Aussehen ändert sich, nie der Ablauf. **Linienführung zurücksetzen** führt sie wieder automatisch |
 | Pfeile umhängen | ausgewählten Pfeil am Punkt an seinem Ende auf einen anderen Baustein oder Pfeil ziehen; die Beschriftung bleibt |
@@ -125,10 +131,10 @@ die dritte Zahl kleine Nachbesserungen.
 | Anordnen | links/rechts/oben/unten, mittig (Spalte/Zeile), horizontal/vertikal verteilen, am Raster ausrichten, nach vorne/hinten |
 | Projekte | mehrere Projekte in Tabs, Änderungsmarkierung `*`, Nachfrage beim Schließen (Speichern / Verwerfen / Abbrechen), zuletzt geöffnete Dateien, Projekteigenschaften |
 | Dateiformat | ausschließlich `.pap` (XML im Aufbau des PapDesigners, ergänzt um genaue Positionen, Anschlüsse und Ansicht; atomares Speichern, saubere Ablehnung zukünftiger Versionen, Reparatur fehlerhafter Einträge mit Hinweis) |
-| Export / Druck | PNG (1×–4×), SVG, PDF, Drucken und Druckvorschau – ohne UI-Elemente, wahlweise hell (Druck) oder dunkel |
+| Export / Druck | PNG (1×–4×, Strg+Umschalt+E), JPG (1×–4×, immer mit festem Hintergrund), SVG, PDF (Strg+E), Drucken (Strg+P) und Druckvorschau (Strg+Umschalt+P) – ohne UI-Elemente, wahlweise hell (Druck) oder dunkel. Der nächste Export schlägt den zuletzt benutzten Exportordner vor (auch bei unbenannten Projekten) |
 | Als Bild kopieren | **Strg+C** legt die Auswahl zusätzlich als Bild in die Zwischenablage; **Bearbeiten → Als Bild kopieren** (Strg+Umschalt+B) kopiert nur das Bild – der Auswahl oder ohne Auswahl der ganzen Seite –, hell und ohne Raster, zum direkten Einfügen in Word, OneNote oder PowerPoint. Auch das Struktogramm lässt sich als Bild kopieren |
-| PIC-Assembler | voreingestellte Codevariante: Assembler für den **PIC16F887** (MPASM/gpasm, 4 MHz) im Aufbau der Schulvorlage (Kopf mit Beschaltung der Ports, `cblock` ab 0x20, Hardwarekonfiguration, Hauptprogramm, Unterprogramme). Übersetzt Zuweisungen mit 8 Bit ohne Vorzeichen (`+ - * / mod`, `& \| ^` als XOR, `<< >>`), Vergleiche und und/oder/nicht, alle Schleifen (Zählschleifen enden auch „bis 0“ und „bis 255“), Bits (`PORTD.0 = 1`, Bedingung `PORTA.0 = 1`, Bitmasken wie `(PORTB & 3) = 1`), „Eingabe x von PORTA“, „Ausgabe x an PORTC“, `warte 100 ms` / `warte 2 s` und Unterprogramme. Jeder benutzte Port wird passend als Ein- oder Ausgang eingestellt, Register anderer Bänke (z. B. `TRISB`, `OPTION_REG`) bekommen `BANKSEL`. Was der PIC nicht kann (Text, Kommazahlen), steht als `; TODO` im Code. Gespeichert wird in Windows-1252 mit Windows-Zeilenenden für MPLAB. Geprüft mit gpasm und dem Simulator gpsim |
-| Code erzeugen | **Extras → Code erzeugen** (Strg+Umschalt+C): PIC-Assembler, Pseudocode, Python oder Java aus dem Plan; erkannte Zuweisungen, Bedingungen und Schleifenköpfe werden übersetzt, der Rest als TODO übernommen; nicht auswertbare Bedingungen werden zur Laufzeit erfragt. Die Programme rechnen wie der Schreibtischtest: echte Division, `mod`/`div`, `x^2`, kaufmännisches Runden (`round(x, 2)`), Text- und Wahrheitswert-Variablen (Java: `String`/`boolean` werden automatisch erkannt). Erkannt werden auch Schleifen mit der Prüfung in der Mitte (Eingabe → Prüfung → Meldung → zurück), das Verlassen einer Schleife aus dem Rumpf, Menüschleifen und Bausteine, in die mehrere Zweige münden; lässt sich ein Sprung nicht darstellen, hält das erzeugte Programm dort mit einer klaren Meldung an |
+| PIC-Assembler | voreingestellte Codevariante: Assembler für den **PIC16F887** (MPASM/gpasm, 4 MHz) im Aufbau der Schulvorlage (Kopf mit Beschaltung der Ports, `cblock` ab 0x20, Hardwarekonfiguration, Hauptprogramm, Unterprogramme). Übersetzt Zuweisungen mit 8 Bit ohne Vorzeichen (`+ - * / mod`, `& \| ^` als XOR, `<< >>`), Vergleiche und und/oder/nicht, alle Schleifen (Zählschleifen enden auch „bis 0“ und „bis 255“; danach steht der Zähler wie im Schreibtischtest einen Schritt hinter dem Endwert), Bits (`PORTD.0 = 1`, Bedingung `PORTA.0 = 1`, Bitmasken wie `(PORTB & 3) = 1`), „Eingabe x von PORTA“, „Ausgabe x an PORTC“, `warte 100 ms` / `warte 2 s` und Unterprogramme. Jeder benutzte Port wird passend als Ein- oder Ausgang eingestellt, Register anderer Bänke (z. B. `TRISB`, `OPTION_REG`) bekommen `BANKSEL`. Was der PIC nicht kann (Text, Kommazahlen), steht als `; TODO` im Code. Gespeichert wird in Windows-1252 mit Windows-Zeilenenden für MPLAB. Geprüft mit gpasm und dem Simulator gpsim |
+| Code erzeugen | **Extras → Code erzeugen** (Strg+Umschalt+C): PIC-Assembler, Pseudocode, Python oder Java aus dem Plan; erkannte Zuweisungen, Bedingungen und Schleifenköpfe werden übersetzt, der Rest als TODO übernommen; nicht auswertbare Bedingungen werden zur Laufzeit erfragt. Die Programme rechnen wie der Schreibtischtest: echte Division, `mod`/`div`, `x^2`, kaufmännisches Runden (`round(x, 2)`), Text- und Wahrheitswert-Variablen (Java: `String`/`boolean` werden automatisch erkannt; Wahrheitswerte werden wie im Schreibtischtest als „wahr“/„falsch“ ausgegeben, eine Eingabe, die selbst als Bedingung dasteht – „wenn mitglied“ –, wird als Ja/Nein-Frage gestellt). Erkannt werden auch Schleifen mit der Prüfung in der Mitte (Eingabe → Prüfung → Meldung → zurück), das Verlassen einer Schleife aus dem Rumpf, Menüschleifen und Bausteine, in die mehrere Zweige münden; lässt sich ein Sprung nicht darstellen, hält das erzeugte Programm dort mit einer klaren Meldung an |
 | Struktogramm | **Extras → Struktogramm** (Strg+Umschalt+N): derselbe Ablauf als Nassi-Shneiderman-Diagramm, Export als PNG/SVG/PDF |
 | Schreibtischtest | **Ansicht → Schreibtischtest** (Strg+T): Plan Schritt für Schritt ausführen (F10), **Schritt zurück** (Strg+F10), **automatisch abspielen** mit einstellbarem Tempo (F6, hält bei Eingaben an) oder bis zur nächsten Eingabe laufen lassen (F5); aktueller Baustein wird hervorgehoben; Variablen, Ausgaben und Schreibtischtest-Tabelle mit den Spalten Bedingung (ja/nein bzw. gewählter Ausgang) und Ausgabe – kopierbar für Word/Excel und als CSV speicherbar; Unterprogramme werden mit ausgeführt, Verzweigungen mit mehreren Ausgängen („1“, „2“, „sonst“ oder „< 0“, „= 0“, „> 0“) ausgewertet |
 | Automatisch anordnen | **Anordnen → Automatisch anordnen** (Strg+L): Plan nach PAP-Konventionen ordnen (ja nach unten, nein nach rechts), ein Rückgängig-Schritt. Reine Eckpunkte fallen weg, Zusammenführungen stehen über ihrem Ziel, die Anschlüsse passen zur neuen Lage, Kommentare ohne Linie wandern mit dem nächsten Baustein; der Ablauf bleibt unverändert |
@@ -141,6 +147,7 @@ die dritte Zahl kleine Nachbesserungen.
 | Ladebildschirm / Über | beim Start erscheint als Erstes für 2,5 Sekunden das Schullogo mit Urheberzeile und Version; **Hilfe → Über das Programm** nennt Urheber, Version und Erscheinungsmonat |
 | Farbschema | **Einstellungen → Allgemein → Farbschema**: dunkel oder hell (z. B. für Beamer), wird gespeichert; schneller mit dem Knopf mit Mond bzw. Sonne rechts in der Werkzeugleiste, direkt vor dem Suchfeld |
 | Präsentationsansicht | **Ansicht → Präsentationsansicht** (F11): nur der Plan mit Seitenleiste im Vollbild, ohne Menüs und Fenster; Esc oder F11 beendet und stellt alles wieder her |
+| Schreibweisen | **Hilfe → Schreibweisen im Plan** (Umschalt+F1, auch als Knopf in der F1-Übersicht): kompakte, durchsuchbare Liste, was Schreibtischtest und Code-Erzeugung in den Bausteinen verstehen – Zuweisung (`x := x + 1`, `=`, `←`, mehrere mit `;`), Rechnen (`mod`, `div`, `x^2`, Dezimalkomma, `wurzel`, `runden` …), Text und wahr/falsch, Eingabe (`n einlesen`, `"Wie alt bist du?" alter`), Ausgabe (`"Summe: " summe`), Bedingungen (`=`, `≠`, `und`/`oder`/`nicht`, Mehrfachverzweigung mit „sonst“), Schleifen (`solange …`, `wiederhole … bis …`, `für i = 1 bis 10 schritt 2`, `3-mal`) und Unterprogramme mit Parametern und `return`. Jedes Beispiel wird in `tests/test_feature_notation_help.py` im Schreibtischtest, in Python und in Java ausgeführt – die Hilfe verspricht nichts, was das Programm nicht kann. Liegen auf einer Seite nur Start und Ende, steht unten auf der Arbeitsfläche ein leiser Tipp dazu; er verschwindet mit dem nächsten Baustein, bleibt in der Präsentationsansicht weg und erscheint nie in Bild, PDF oder Druck |
 | Lernbeispiele | **Hilfe → Lernbeispiele**: fünf aufeinander aufbauende Projekte wie die Tutorials des PapDesigners (Ablaufplan, Verzweigungen, Schleifen, Unterprogramme, Programmierung), mit erklärenden Kommentaren; sie öffnen sich als unbenannte Kopie und laufen im Schreibtischtest durch |
 | Sprachen | **Einstellungen → Allgemein → Sprache / Language**: Deutsch, English, Français, Español, Português (Brasil), Русский, العربية, 中文 und 日本語; „Automatisch“ richtet sich nach der Sprache von Windows. Die Sprache gilt nach einem Neustart, den das Programm gleich anbietet (gespeicherte Projekte werden danach wieder geöffnet). Arabisch wird von rechts nach links dargestellt. Pläne aus jeder Sprache lassen sich in jeder Sprache öffnen: Standardtexte und die Beschriftungen ja/nein/sonst werden in allen Sprachen erkannt |
 | Ein Fenster | wird eine weitere Datei geöffnet (Doppelklick im Explorer, „Öffnen mit“), erscheint sie als neuer Reiter im schon laufenden Programm statt in einem zweiten Fenster; das Fenster kommt dabei nach vorne |
@@ -187,10 +194,10 @@ Eine vollständige Übersicht gibt es im Programm unter **Hilfe → Tastenkürze
 
 | Aktion | Bedienung |
 |---|---|
-| Baustein einfügen | aus der Palette auf die Arbeitsfläche ziehen · Palette anklicken · Menü „Einfügen“ · Rechtsklick → Neu |
-| Nächsten Baustein anhängen | Baustein auswählen, dann in Palette/Menü einen Typ wählen → wird darunter eingefügt und verbunden. Bei einer Verzweigung wird der nächste freie Ausgang (unten, rechts, links) genutzt; ist der Ausgang schon belegt (z. B. Schleifenbeginn), wird in den bestehenden Ablauf eingefügt und die Nachfolger rücken auf |
-| In den Ablauf einfügen | Baustein aus der Palette auf eine Verbindung ziehen – nachfolgende Bausteine rücken bei Bedarf automatisch weiter |
-| Verbinden | Maus über einen Baustein → Anschlusspunkte erscheinen → von einem Punkt auf den Zielbaustein **oder auf einen bestehenden Pfeil** ziehen (Ziel wird hervorgehoben, der Anschlusspunkt auf dem Pfeil als Kreis markiert) |
+| Baustein einfügen | aus dem Feld „Bausteine“ auf die Arbeitsfläche ziehen · dort anklicken · Menü „Einfügen“ · Rechtsklick → Neu |
+| Nächsten Baustein anhängen | Baustein auswählen, dann im Feld „Bausteine“ oder im Menü einen Typ wählen → wird darunter eingefügt und verbunden. Bei einer Verzweigung wird der nächste freie Ausgang (unten, rechts, links) genutzt; ist der Ausgang schon belegt (z. B. Schleifenbeginn), wird in den bestehenden Ablauf eingefügt und die Nachfolger rücken auf |
+| In den Ablauf einfügen | Baustein aus dem Feld „Bausteine“ auf eine Verbindung ziehen – nachfolgende Bausteine rücken bei Bedarf automatisch weiter |
+| Verbinden | Maus über einen Baustein → Anschlusspunkte erscheinen → von einem Punkt auf den Zielbaustein **oder auf einen bestehenden Pfeil** ziehen (Ziel wird hervorgehoben, der Anschlusspunkt auf dem Pfeil als Kreis markiert) · ohne Maus: Baustein auswählen, Strg+Umschalt+V, Ziel wählen, Enter |
 | An einem Pfeil beginnen | **Umschalt** gedrückt halten und am Pfeil ziehen (beim Überfahren mit Umschalt zeigt ein Kreis die Ansatzstelle) · oder vom vorhandenen Verbindungspunkt ● ziehen |
 | Text bearbeiten | Doppelklick, F2, Enter oder einfach lostippen |
 | Zeilenumbruch | Umschalt+Enter oder Strg+Enter |
@@ -207,6 +214,9 @@ Eine vollständige Übersicht gibt es im Programm unter **Hilfe → Tastenkürze
 | Auswahl auslagern | Bausteine markieren → Strg+Alt+U (oder Rechtsklick → „Auswahl in Unterprogramm auslagern …“) |
 | Zurück / vorwärts | Alt+← / Alt+→ (z. B. vom geöffneten Unterprogramm zurück zum Aufruf) |
 | Präsentationsansicht | F11 (Esc beendet) |
+| Felder ein-/ausblenden | Strg+B Bausteine · F12 Code-Ansicht · Strg+T Schreibtischtest · Strg+Umschalt+H Hinweise · Strg+M Minikarte · Strg+Umschalt+L Bausteinliste |
+| Haltepunkte | F9 setzen/entfernen · Strg+Umschalt+F9 alle entfernen |
+| Was verstehen die Bausteine? | Umschalt+F1 (**Hilfe → Schreibweisen im Plan**) |
 
 ### PAP-Regeln und Warnungen
 
@@ -373,11 +383,14 @@ app/
   canvas.py                  Arbeitsfläche (QGraphicsView): Raster, Zoom, Schwenken, Drag & Drop
   scene.py                   Diagrammszene (QGraphicsScene): Registry, Snap, Verbinden, Inline-Editor
   document.py                ein Projekt: Seiten (je eine Szene), Undo-Stapel, Metadaten, Dateipfad
-  palette.py                 Werkzeugpalette mit Formvorschau
+  palette.py                 Feld „Bausteine“ mit Formvorschau
+  notation.py                Schreibweisen, die Schreibtischtest und Code verstehen (Hilfe; jedes Beispiel getestet)
+  canvas_hint.py             leiser Tipp zu den Schreibweisen auf einer Seite mit nur Start und Ende
+  block_list.py              Bausteinliste und „Verbinden mit …“ (Bedienung ohne Maus, Bildschirmleser)
   inline_editor.py           Inline-Texteditor
   clipboard.py               Kopieren/Einfügen/Duplizieren
   alignment.py               Ausrichten/Verteilen
-  export.py                  PNG/SVG/PDF-Export und Druck
+  export.py                  PNG/JPG/SVG/PDF-Export und Druck
   errors.py                  Fehlerbehandlung und Protokoll
   file_association.py        optionale Registrierung von .pap (Benutzerebene)
   settings_store.py          zuletzt geöffnete Dateien, Fensterzustand, Sprache
@@ -403,9 +416,11 @@ app/
   theme.py                   Umschalten des Farbschemas
   items/                     Bausteine (eine Klasse je Typ, inkl. Verbindungspunkt), Formen, Drop-Vorschau
   connections/               Verbindung, Beschriftung, Linienführung (routing.py),
-                             Verbindungsziele Block/Knoten/Pfeil (endpoints.py)
+                             Verbindungsziele Block/Knoten/Pfeil (endpoints.py),
+                             einem Pfeil zum Baustein folgen (follow.py)
   commands/                  Undo/Redo-Befehle (auch Seiten anlegen, löschen, umbenennen)
-  dialogs/                   Projekteigenschaften, Über, Tastenkürzel, Exportoptionen, Name eines Unterprogramms
+  dialogs/                   Projekteigenschaften, Über, Tastenkürzel, Exportoptionen, Name eines Unterprogramms,
+                             Schreibweisen im Plan (notation.py)
   fileformat/                Lesen und Schreiben von .pap (serializer.py), Kennungen und Version (project.py)
 assets/                      erzeugte Programm-/Dateisymbole (.ico/.png), Schullogo
 assets/translations/         Übersetzungen (eine JSON-Datei je Sprache: deutscher Text → Übersetzung)
@@ -469,6 +484,17 @@ Sind `gpasm` und `gpsim` (Paket `gputils`/`gpsim`, z. B. unter Linux oder WSL)
 installiert, übersetzt `tests/test_pic_asm.py` den erzeugten PIC-Assembler und
 führt ihn im Simulator aus; die Werte der Variablen und Ports müssen genau
 stimmen (geprüft mit gpsim 0.31 und 0.32). Der Linux-Workflow installiert beide.
+
+`tests/test_feature_reference_cases.py` enthält typische kleine Pläne aus dem
+Unterricht (Folge, wenn/sonst, Kopf-, Fuß- und Zählschleife, verschachtelte
+Schleifen, Unterprogramme mit Parametern und Rückgabewert, Text, `div`/`mod`,
+Vergleiche, und/oder/nicht, Eingaben). Jeder läuft mit denselben Eingaben im
+Schreibtischtest, in Python und in Java; verglichen werden die Ausgaben und die
+Werte aller Variablen am Ende. Für die Fälle mit ganzen Zahlen muss der
+PIC-Assembler ohne `TODO` entstehen, die Fälle ohne Eingabe laufen mit gputils
+zusätzlich in gpsim (Variablen modulo 256). Liegen gpasm/gpsim nicht im PATH,
+lassen sie sich über einen Befehlsvorsatz nutzen, z. B.
+`set PAP_TEST_GPUTILS_PREFIX=wsl -e` unter Windows mit WSL.
 
 `tests/test_papdesigner_corpus.py` erzeugt mit `tests/papdesigner_corpus.py`
 reproduzierbar viele komplexe Pläne im Dateiformat des PapDesigners

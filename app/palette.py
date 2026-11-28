@@ -1,4 +1,4 @@
-"""Werkzeugpalette mit den PAP-Bausteinen.
+"""Das Feld „Bausteine“ (früher „Werkzeugpalette“) mit den PAP-Bausteinen.
 
 Jeder Eintrag zeigt eine Vorschau der echten Bausteinform. Ein Baustein
 kann per Drag & Drop auf die Arbeitsfläche gezogen oder per Klick eingefügt
@@ -257,13 +257,13 @@ class ToolPalette(QWidget):
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 4, 0, 8)
         layout.setSpacing(0)
-        # Die Bedienhinweise stehen als Kurzinfo an der Überschrift (und unter Hilfe → Tastenkürzel und Bedienung),
-        # nicht mehr als Text unter den Bausteinen
-        heading = self._section(tr("BAUSTEINE"))
-        heading.setToolTip("\n".join((tr("Ziehen oder klicken zum Einfügen."),
-                                      tr("Verbinden: vom Anschlusspunkt auf Baustein oder Pfeil ziehen."),
-                                      tr("Rot = Fehler, gelb = auffällig. Das Zeichen auf dem Pfeil nennt den Grund."))))
-        layout.addWidget(heading)
+        # Keine eigene Überschrift „BAUSTEINE“ mehr: Das Feld heißt schon so (Titel des Docks). Die Bedienhinweise
+        # stehen als Kurzinfo am Feld – dort, wo kein Baustein liegt, und an seinem Titel (siehe MainWindow) – sowie
+        # unter Hilfe → Tastenkürzel und Bedienung
+        self.hints = "\n".join((tr("Ziehen oder klicken zum Einfügen."),
+                                tr("Verbinden: vom Anschlusspunkt auf Baustein oder Pfeil ziehen."),
+                                tr("Rot = Fehler, gelb = auffällig. Das Zeichen auf dem Pfeil nennt den Grund.")))
+        content.setToolTip(self.hints)
         for element_type in PALETTE_ORDER:
             layout.addWidget(self._entry(element_type))
         layout.addWidget(self._entry(ElementType.JUNCTION))   # auf einen Pfeil ziehen: teilt ihn dort

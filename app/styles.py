@@ -283,6 +283,9 @@ def apply_application_style(app: QApplication, theme: Theme = DARK) -> None:
     app.setFont(ui_font())
     app.setPalette(build_palette(theme))
     app.setStyleSheet(build_stylesheet(theme))
+    # Die Schrift noch einmal nach dem Stylesheet: Unter Windows stellt das erste Stylesheet die Systemschrift für
+    # Listen und Tabellen (Segoe UI 9 pt) wieder her – sonst wechselten sie erst nach dem Umschalten des Farbschemas
+    app.setFont(ui_font())
 
 
 def build_palette(t: Theme) -> QPalette:

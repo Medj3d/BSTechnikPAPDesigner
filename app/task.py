@@ -5,6 +5,13 @@ Musterlösung in das Projekt und vergibt ein Passwort. Die Schülerinnen und Sch
 Aufgabe oben über der Arbeitsfläche und zeichnen ihren Plan. Die Musterlösung steht nur verschlüsselt in der
 Datei; lesen kann sie nur, wer das Passwort kennt. Dasselbe Passwort schützt die Aufgabe vor Änderungen.
 
+Eine Aufgabendatei öffnet sich immer als unbenannte Kopie („Aufgabe – Kopie“, ``TASK_COPY`` gesetzt): Speichern
+legt die Lösung als eigene Datei an, und keine Lösung und kein anderes Projekt darf eine Aufgabendatei ersetzen.
+Die Lehrkraft ändert ihre Aufgabe über Datei → Aufgabe bearbeiten (mit Passwort; Speichern schreibt dann in die
+Datei). Ändert sie die Aufgabe in einer Kopie über Extras → Aufgabe stellen, wird das Projekt wieder eine Aufgabe
+(``TASK_COPY`` leer); beim Speichern wählt sie den Namen – die alte Aufgabe ersetzt sie nur, wenn sie deren Namen
+wählt. Nur ansehen (Passwort eingeben, dann Abbrechen) ändert nichts.
+
 Verschlüsselt wird nur mit der Standardbibliothek: Schlüssel aus dem Passwort mit PBKDF2-HMAC-SHA256
 (zufälliges Salz, viele Durchläufe), Schlüsselstrom aus SHA-256 im Zählerbetrieb, Prüfsumme mit HMAC-SHA256.
 Ohne Passwort lässt sich der Text nicht lesen, und ein falsches Passwort wird sicher erkannt.

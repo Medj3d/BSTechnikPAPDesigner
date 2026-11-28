@@ -56,7 +56,7 @@ class ExportOptionsDialog(QDialog):
 
         self.scale_combo = None
         self.transparent_check = None
-        if self._format == "PNG":
+        if self._format in ("PNG", "JPG"):
             self.scale_combo = QComboBox()
             for value, label in SCALE_CHOICES:
                 self.scale_combo.addItem(tr(label), value)
@@ -67,6 +67,12 @@ class ExportOptionsDialog(QDialog):
             self.transparent_check = QCheckBox(tr("Transparenter Hintergrund"))
             self.transparent_check.setChecked(options.transparent)
             form.addRow("", self.transparent_check)
+        if self._format == "JPG":
+            # JPG kennt keine Transparenz – deshalb kein Schalter, sondern ein kurzer Hinweis
+            opaque_note = QLabel(tr("JPG-Bilder haben immer einen festen Hintergrund (keine Transparenz)."))
+            opaque_note.setObjectName("Muted")
+            opaque_note.setWordWrap(True)
+            form.addRow("", opaque_note)
 
         # Name, Klasse und Datum klein unten rechts auf dem Plan (z. B. für die Abgabe)
         stamp = stamp or StampSettings()

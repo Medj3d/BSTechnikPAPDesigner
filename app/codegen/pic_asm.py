@@ -77,7 +77,7 @@ _OWN_NAMES = {
     "MUL_ERG", "DIV_A", "DIV_B", "DIV_Q", "WARTE_ZAEHLER", "WARTE_INNEN", "WARTE_SEK", "WARTE_VIERTEL",
 }
 _OWN_NUMBERED = re.compile(r"^(?:hilf|zaehler|weiter|sonst|endewenn|solange|endesolange|wiederhole|pruefe"
-                           r"|endewiederhole|schleife|endeschleife)_?\d+$", re.IGNORECASE)
+                           r"|endewiederhole|schleife|endeschleife|letzterschritt)_?\d+$", re.IGNORECASE)
 # Platzhalter, damit „^“ nicht zur Potenz („**“) wird
 _XOR = "\u2295"
 
@@ -684,14 +684,24 @@ class PicAsmGenerator:
                 rest = f"({header.end}) - {header.variable}"
             if step != "1":
                 last = f"{last} oder {rest} < ({step})"
-            self.condition_jump(last, True, end, last)
-            if step == "1":
-                self.emit(0, f"{'DECF' if descending else 'INCF'}\t{variable}, F")
-            else:
+            final = self.new_label("letzterschritt")
+            self.condition_jump(last, True, final, last)
+
+            def count(note: bool) -> None:
+                if step == "1":
+                    self.emit(0, f"{'DECF' if descending else 'INCF'}\t{variable}, F")
+                    return
                 op = "-" if descending else "+"
-                if not self.assign(header.variable, f"{header.variable} {op} ({step})"):
+                if not self.assign(header.variable, f"{header.variable} {op} ({step})") and note:
                     self.note("TODO: " + tr_code("Schrittweite {expr}", expr=header.step))
+
+            count(True)
             self.emit(0, f"GOTO\t{head}")
+            # Nach dem letzten Durchlauf zählt die Schleife noch einmal weiter: Wie im Schreibtischtest, in Python und
+            # in Java steht der Zähler danach einen Schritt hinter dem Endwert („Für i = 1 bis 5“: i = 6; mit 8 Bit
+            # modulo 256). „Schleife verlassen“ und die Bedingung am Schleifenende springen direkt hinter die Schleife.
+            self.label(final)
+            count(False)
             self.label(end)
             return
         if header.kind == "times":

@@ -18,15 +18,19 @@ SHORTCUTS = [
     (N_("Strg+K"), N_("Suchleiste: Funktionen, Einstellungen und Bausteine finden")),
     (N_("Strg+,"), N_("Einstellungen: Farbschema, Sprache, Speichern, Schalter und Tastenkürzel")),
     (N_("Knopf mit Mond/Sonne (Werkzeugleiste)"), N_("Zwischen dunklem und hellem Farbschema wechseln")),
-    (N_("1 bis 9"), N_("Baustein einfügen (Reihenfolge wie in der Werkzeugpalette)")),
+    (N_("1 bis 9"), N_("Baustein einfügen (Reihenfolge wie im Feld „Bausteine“)")),
     (N_("Datei"), ""),
     (N_("Strg+N"), N_("Neues Projekt")),
     (N_("Strg+O"), N_("Projekt öffnen")),
     (N_("Strg+S"), N_("Speichern")),
     (N_("Strg+Umschalt+S"), N_("Speichern unter")),
+    (N_("Strg+Alt+S"), N_("Alle geänderten Projekte speichern")),
     (N_("Strg+P"), N_("Drucken")),
+    (N_("Strg+Umschalt+P"), N_("Druckvorschau")),
     (N_("Strg+E"), N_("Als PDF exportieren (auf Wunsch mit Name, Klasse und Datum)")),
+    (N_("Strg+Umschalt+E"), N_("Als PNG-Bild exportieren")),
     (N_("Strg+W"), N_("Projekt schließen")),
+    (N_("Strg+Umschalt+W"), N_("Alle Projekte schließen (bei Änderungen wird gefragt)")),
     (N_("Bearbeiten"), ""),
     (N_("Strg+Z"), N_("Rückgängig")),
     (N_("Strg+Y"), N_("Wiederholen")),
@@ -38,6 +42,9 @@ SHORTCUTS = [
     (N_("Esc"), N_("Auswahl aufheben / Verschieben, Verbinden oder Eingabe abbrechen")),
     (N_("Kontextmenü-Taste / Umschalt+F10"), N_("Kontextmenü")),
     (N_("Pfeiltasten"), N_("Auswahl um ein Rasterfeld verschieben (mit Umschalt: 5 Felder)")),
+    (N_("Tab / Umschalt+Tab"), N_("Nächsten / vorherigen Baustein im Ablauf auswählen")),
+    (N_("Strg+Umschalt+V"),
+     N_("Verbinden mit: Pfeil vom ausgewählten Baustein zu einem anderen – Ziel aus einer Liste wählen (ohne Maus)")),
     (N_("Text"), ""),
     (N_("Doppelklick, F2 oder Enter"), N_("Text des ausgewählten Bausteins bearbeiten")),
     (N_("Tippen"), N_("Ausgewählten Baustein direkt neu beschriften")),
@@ -71,6 +78,7 @@ SHORTCUTS = [
     (N_("F6"), N_("Schreibtischtest automatisch abspielen bzw. anhalten (Tempo am Regler)")),
     (N_("Zusatzknöpfe (Einstellungen)"), ""),
     (N_("F9"), N_("Haltepunkt am ausgewählten Baustein setzen/entfernen")),
+    (N_("Strg+Umschalt+F9"), N_("Alle Haltepunkte entfernen")),
     (N_("Strg+M"), N_("Minikarte ein-/ausblenden")),
     (N_("Strg+Umschalt+A"), N_("Aufgabe ein-/ausblenden")),
     (N_("Ansicht"), ""),
@@ -81,8 +89,15 @@ SHORTCUTS = [
     (N_("Strg+0"), N_("Zoom 100 %")),
     (N_("Strg+1"), N_("Diagramm einpassen")),
     (N_("Strg+G"), N_("Raster ein/aus")),
+    (N_("Strg+B"), N_("Feld „Bausteine“ ein-/ausblenden")),
+    (N_("F12"), N_("Code-Ansicht neben dem Plan ein-/ausblenden")),
     (N_("F11"), N_("Präsentationsansicht (Esc beendet)")),
     (N_("Strg+Umschalt+H"), N_("Hinweisliste ein-/ausblenden")),
+    (N_("Strg+Umschalt+L"),
+     N_("Bausteinliste: alle Bausteine der Seite mit ihren Pfeilen, auch für Bildschirmleser (Enter zeigt den "
+        "Baustein, Esc zurück in den Plan)")),
+    (N_("Alt+Pos1 / Alt+Ende"),
+     N_("Ausgewählter Pfeil: zum Baustein am Anfang / am Ziel springen (Verbindungspunkte werden übersprungen)")),
     (N_("Maus"), ""),
     (N_("Linke Maustaste ziehen (frei)"), N_("Auswahlrechteck")),
     (N_("Strg+Klick"), N_("Mehrfachauswahl")),
@@ -102,7 +117,13 @@ SHORTCUTS = [
                                       "Einstellungen)")),
     (N_("Baustein auf eine Verbindung ziehen"), N_("Baustein in den Ablauf einfügen")),
     (N_("Rechtsklick auf eine Verbindung"), N_("Verbindungspunkt einfügen (Eckpunkt oder Abzweig)")),
+    (N_("Rechtsklick auf einen Pfeil → Zum Anfang / Zum Ziel"),
+     N_("Den Baustein zeigen und auswählen, an dem der Pfeil beginnt bzw. endet")),
     (N_("Rechtsklick"), N_("Kontextmenü")),
+    (N_("Hilfe"), ""),
+    (N_("F1"), N_("Diese Übersicht: Tastenkürzel und Bedienung")),
+    (N_("Umschalt+F1"),
+     N_("Schreibweisen im Plan: was Schreibtischtest und Code-Erzeugung in den Bausteinen verstehen")),
 ]
 
 
@@ -110,6 +131,7 @@ SHORTCUTS = [
 _LIVE_KEYS = {
     "Strg+K": ("search",), "Strg+,": ("settings",), "Strg+N": ("new",), "Strg+O": ("open",), "Strg+S": ("save",),
     "Strg+Umschalt+S": ("save_as",), "Strg+P": ("print",), "Strg+W": ("close",), "Strg+Z": ("undo",),
+    "Strg+Alt+S": ("save_all",), "Strg+Umschalt+W": ("close_all",),
     "Strg+Y": ("redo",), "Strg+X / Strg+C / Strg+V": ("cut", "copy", "paste"), "Strg+D": ("duplicate",),
     "Strg+Umschalt+B": ("copy_image",), "Entf": ("delete",), "Strg+A": ("select_all",),
     "Strg+Umschalt+U oder „+ Unterprogramm“": ("new_subprogram",), "Strg+Bild ab / Strg+Bild auf":
@@ -119,6 +141,11 @@ _LIVE_KEYS = {
     "Strg+Umschalt+A": ("toggle_task",), "Strg+E": ("export_pdf",), "F10 / F5": ("simulation_step", "simulation_run"), "Strg+F10": ("simulation_back",),
     "F6": ("simulation_play",), "Strg+Umschalt+H": ("toggle_diagnostics",), "Strg++ / Strg+-": ("zoom_in", "zoom_out"),
     "Strg+0": ("zoom_reset",), "Strg+1": ("zoom_fit",), "Strg+G": ("toggle_grid",), "F11": ("presentation",),
+    "Strg+Umschalt+P": ("print_preview",), "Strg+Umschalt+E": ("export_png",),
+    "Strg+Umschalt+F9": ("clear_breakpoints",), "Strg+B": ("toggle_palette",), "F12": ("toggle_code_view",),
+    "F1": ("shortcuts",), "Umschalt+F1": ("notation_help",),
+    "Strg+Umschalt+V": ("connect_to",), "Strg+Umschalt+L": ("toggle_block_list",),
+    "Alt+Pos1 / Alt+Ende": ("jump_to_source", "jump_to_target"),
     "1 bis 9": tuple(insert_action_name(element_type) for element_type in BLOCK_KEYS),
 }
 
@@ -170,6 +197,10 @@ class ShortcutsDialog(QDialog):
         self.change_button.setVisible(actions is not None and "settings" in actions.all())
         self.change_button.clicked.connect(self._change_keys)
         buttons.addButton(self.change_button, QDialogButtonBox.ButtonRole.ActionRole)
+        # die zweite Hilfeseite: was in den Bausteintexten verstanden wird
+        self.notation_button = QPushButton(tr("Schreibweisen im Plan …"))
+        self.notation_button.clicked.connect(self._show_notation)
+        buttons.addButton(self.notation_button, QDialogButtonBox.ButtonRole.HelpRole)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 16)
@@ -202,6 +233,15 @@ class ShortcutsDialog(QDialog):
             visible_below = visible_below or not hidden
         if heading is not None:
             self.table.setRowHidden(heading, not visible_below)
+
+    def _show_notation(self) -> None:
+        from app.dialogs.notation import NotationDialog
+
+        dialog = NotationDialog(self)
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()
 
     def _change_keys(self) -> None:
         self.accept()

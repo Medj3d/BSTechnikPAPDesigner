@@ -1,6 +1,6 @@
 """Das Hauptfenster.
 
-Aufbau: Menüleiste · kompakte Werkzeugleiste · Werkzeugpalette (rechts) ·
+Aufbau: Menüleiste · kompakte Werkzeugleiste · Feld „Bausteine“ (rechts) ·
 Arbeitsfläche mit Tabs (ein Projekt pro Tab) · Seitenleiste (Hauptprogramm
 und Unterprogramme des Projekts) · Statusleiste.
 """
@@ -15,7 +15,7 @@ import shiboken6
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QKeySequence, QUndoGroup
-from PySide6.QtWidgets import (QApplication, QDockWidget, QFileDialog, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QApplication, QDialog, QDockWidget, QFileDialog, QHBoxLayout, QLabel,
                                QSizePolicy,
                                QMainWindow, QMenu, QMessageBox, QPushButton, QStackedWidget,
                                QTabBar, QTabWidget, QToolBar, QToolButton, QVBoxLayout, QWidget)
@@ -25,6 +25,8 @@ from app import (alignment, clipboard, config, examples, export, file_associatio
 from app import theme as theme_module
 from app.actions import ALIGN_ACTIONS, ActionRegistry, INSERTABLE_BLOCKS, clean_text, insert_action_name, sequence_text
 from app.autosave import AutosaveManager
+from app.block_list import BlockListPanel, ConnectDialog, can_connect, can_start_line, connect_targets
+from app.block_list import item_title as block_title
 from app.canvas import DiagramView
 from app.codegen.dialog import CodeDialog
 from app.codegen.live_panel import CodePanel
@@ -38,16 +40,19 @@ from app.nsd.dialog import StructogramDialog
 from app.simulation.panel import SimulationPanel
 from app.commands import ProjectPropertiesCommand, ViewSettingCommand
 from app.connections.connection import ConnectionItem
+from app.connections.follow import line_end
 from app.connections.label import ConnectionLabel
 from app.dialogs.about import AboutDialog
 from app.dialogs.export_options import ExportOptionsDialog, StampSettings
 from app.dialogs.project_properties import ProjectPropertiesDialog
 from app.dialogs import settings as settings_dialog
+from app.dialogs.notation import NotationDialog
 from app.dialogs.shortcuts import ShortcutsDialog
 from app.dialogs.subprogram_name import SubprogramNameDialog
 from app.inline_editor import add_special_characters
-from app.document import DiagramDocument
+from app.document import DiagramDocument, display_name_for_path
 from app.fileformat.project import ProjectFileError
+from app.fileformat.serializer import load_diagram
 from app.items.base_item import FlowItem
 from app.model.element_types import FLOW_TERMINALS, PALETTE_ORDER, ElementType, display_name_for
 from app.page_bar import PageBar
@@ -65,6 +70,32 @@ CHANGEABLE_TYPES = (ElementType.PROCESS, ElementType.INPUT, ElementType.OUTPUT, 
 
 # Version des gespeicherten Fensterlayouts (bei neuen Docks erhöhen)
 WINDOW_STATE_VERSION = 2
+
+# Anzeige „Auto-Speichern“ in der Statusleiste: Symbol mit Zustandspunkt; schmaler als das nur als Symbol
+SAVE_STATE_ICON_SIZE = QSize(20, 18)
+SAVE_STATE_COMPACT_WIDTH = 1400
+BLOCK_LIST_WIDTH = 300   # Breite der Bausteinliste beim ersten Zeigen
+
+
+def save_state_icon(state: str):
+    """Speichern-Symbol mit einem farbigen Punkt: an (Akzentfarbe), aus (grau), sonst (orange)."""
+    from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+
+    theme = styles.current_theme()
+    color = {"auto": theme.accent, "off": theme.text_disabled}.get(state, theme.connection_caution)
+    ratio = 3.0
+    pixmap = QPixmap(int(SAVE_STATE_ICON_SIZE.width() * ratio), int(SAVE_STATE_ICON_SIZE.height() * ratio))
+    pixmap.setDevicePixelRatio(ratio)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+    painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+    painter.drawPixmap(0, 1, icons.icon("save").pixmap(QSize(16, 16), ratio))
+    painter.setPen(QPen(QColor(theme.window_bg), 1.5))
+    painter.setBrush(QColor(color))
+    painter.drawEllipse(QRectF(11.5, 9.5, 8, 8))
+    painter.end()
+    return QIcon(pixmap)
 
 
 def language_label() -> str:
@@ -169,6 +200,7 @@ class MainWindow(QMainWindow):
         self._build_toolbar()
         self._build_palette()
         self._build_tool_docks()
+        self._build_block_list()
         self._build_statusbar()
         self._connect_actions()
         self._sync_theme_actions()
@@ -226,13 +258,14 @@ class MainWindow(QMainWindow):
         for name in ("new", "open"):
             file_menu.addAction(a[name])
         self.recent_menu = file_menu.addMenu(tr("&Zuletzt geöffnet"))
+        file_menu.addAction(a["edit_task_file"])   # Lehrkraft: Aufgabendatei selbst ändern (sonst Kopie)
         file_menu.addSeparator()
         # „Automatisch speichern“ und „Sicherungskopie anlegen“ stellt man einmal ein: Einstellungen → Allgemein
-        for name in ("save", "save_as"):
+        for name in ("save", "save_as", "save_all"):
             file_menu.addAction(a[name])
         file_menu.addSeparator()
         export_menu = file_menu.addMenu(icons.icon("export"), tr("E&xportieren"))
-        for name in ("export_png", "export_svg", "export_pdf"):
+        for name in ("export_png", "export_jpg", "export_svg", "export_pdf"):
             export_menu.addAction(a[name])
         self.export_menu = export_menu
         file_menu.addAction(a["print_preview"])
@@ -241,11 +274,12 @@ class MainWindow(QMainWindow):
         file_menu.addAction(a["properties"])
         file_menu.addSeparator()
         file_menu.addAction(a["close"])
+        file_menu.addAction(a["close_all"])
         file_menu.addAction(a["quit"])
 
         edit_menu = bar.addMenu(tr("&Bearbeiten"))
         for name in ("undo", "redo", None, "cut", "copy", "copy_image", "paste", "duplicate", "delete", None,
-                     "select_all", "deselect", None, "edit_text"):
+                     "select_all", "deselect", None, "edit_text", "connect_to"):
             if name is None:
                 edit_menu.addSeparator()
             else:
@@ -273,6 +307,10 @@ class MainWindow(QMainWindow):
         # Farbschema, Sprache und Werkzeugleiste stehen in den Einstellungen (Hell/Dunkel auch als Knopf oben rechts)
         view_menu.addSeparator()
         for name in ("open_subprogram", "next_page", "previous_page", "go_back", "go_forward"):
+            view_menu.addAction(a[name])
+        view_menu.addSeparator()
+        # einem ausgewählten Pfeil folgen (auch im Kontextmenü des Pfeils)
+        for name in ("jump_to_source", "jump_to_target"):
             view_menu.addAction(a[name])
         view_menu.addSeparator()
         self.view_menu = view_menu
@@ -319,6 +357,7 @@ class MainWindow(QMainWindow):
 
         help_menu = bar.addMenu(tr("&Hilfe"))
         help_menu.addAction(a["shortcuts"])
+        help_menu.addAction(a["notation_help"])   # was Schreibtischtest und Code in den Texten verstehen
         examples_menu = help_menu.addMenu(tr("&Lernbeispiele"))
         for path, title in examples.example_files():
             action = examples_menu.addAction(icons.icon("open"), tr(title))
@@ -403,8 +442,12 @@ class MainWindow(QMainWindow):
         dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
         self.palette_dock = dock
+        # Die Bedienhinweise stehen am Titel „Bausteine“ (eine zweite Überschrift im Feld gibt es nicht mehr)
+        dock.setToolTip(self.palette.hints)
         toggle = dock.toggleViewAction()
-        toggle.setText(tr("Werkzeug&palette"))
+        toggle.setText(tr("&Bausteine"))   # heißt wie das Feld selbst (früher „Werkzeugpalette“)
+        toggle.setStatusTip(tr("Das Feld „Bausteine“ am Rand ein- oder ausblenden"))
+        self.actions.adopt("toggle_palette", toggle, ["Ctrl+B"])
         self.view_menu.addAction(toggle)
 
     def _build_tool_docks(self) -> None:
@@ -448,7 +491,7 @@ class MainWindow(QMainWindow):
         self.task_dock.show()
         for name, dock, text, shortcut, icon_name in (
                 ("toggle_task", self.task_dock, tr("A&ufgabe anzeigen"), "Ctrl+Shift+A", "task"),
-                ("toggle_code_view", self.code_dock, tr("&Code-Ansicht"), "", "code_view")):
+                ("toggle_code_view", self.code_dock, tr("&Code-Ansicht"), "F12", "code_view")):
             toggle = dock.toggleViewAction()
             toggle.setText(text)
             toggle.setIcon(icons.icon(icon_name))
@@ -469,6 +512,104 @@ class MainWindow(QMainWindow):
         # Standardmäßig ausgeblendet: die Arbeitsfläche behält den meisten Platz.
         self.simulation_dock.hide()
         self.diagnostics_dock.hide()
+
+    def _build_block_list(self) -> None:
+        """Bausteinliste (für Bildschirmleser und Tastatur): rechts in einer eigenen Spalte neben dem Feld „Bausteine“,
+        anfangs verborgen."""
+        self.block_list_panel = BlockListPanel()
+        self.block_list_panel.element_activated.connect(self._show_listed_element)
+        self.block_list_panel.back_requested.connect(lambda: self._with_view(lambda v: v.setFocus()))
+        dock = QDockWidget(tr("Bausteinliste"), self)
+        dock.setObjectName("BlockListDock")
+        dock.setWidget(self.block_list_panel)
+        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable
+                         | QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        dock.setAllowedAreas(Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+                             | Qt.DockWidgetArea.BottomDockWidgetArea)
+        dock.setAccessibleName(tr("Bausteinliste"))
+        # Eigene Spalte neben dem Feld „Bausteine“: Dessen Einträge (auch Start und Ende) bleiben ganz zu sehen, und
+        # die Zeilen der Liste haben Platz. Verborgen nimmt sie der Arbeitsfläche nichts weg.
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self.splitDockWidget(self.palette_dock, dock, Qt.Orientation.Horizontal)
+        self.block_list_dock = dock
+        self._block_list_sized = False
+        dock.visibilityChanged.connect(self._on_block_list_visibility)
+        toggle = dock.toggleViewAction()
+        toggle.setText(tr("Baus&teinliste"))
+        toggle.setStatusTip(tr("Alle Bausteine der Seite mit ihren Pfeilen als Liste – auch für Bildschirmleser; "
+                               "Enter zeigt den Baustein im Plan"))
+        self.actions.adopt("toggle_block_list", toggle, ["Ctrl+Shift+L"])
+        # Wer die Liste mit der Tastatur öffnet, ist gleich in ihr
+        toggle.triggered.connect(lambda checked: checked and QTimer.singleShot(0, self._focus_block_list))
+        self.view_menu.addAction(toggle)
+        self._show_checkmarks()   # der neue Schalter zeigt im Menü ein Häkchen wie alle anderen
+        dock.hide()
+
+    def _on_block_list_visibility(self, visible: bool) -> None:
+        if visible and not self._block_list_sized and not self.block_list_dock.isFloating():
+            # beim ersten Zeigen breit genug für „Verzweigung „i >= 3“ → …“ (danach bleibt, was man zieht)
+            self._block_list_sized = True
+            self.resizeDocks([self.block_list_dock], [BLOCK_LIST_WIDTH], Qt.Orientation.Horizontal)
+
+    def _focus_block_list(self) -> None:
+        if self.block_list_dock.isVisible():
+            self.block_list_dock.raise_()
+            self.block_list_panel.list.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
+    def _show_listed_element(self, element_id: str) -> None:
+        """Bausteinliste: Enter/Doppelklick wählt den Baustein im Plan aus und holt ihn in die Mitte."""
+        view = self.current_view()
+        item = view.document.scene.element(element_id) if view is not None and element_id else None
+        if item is None:
+            return
+        scene = view.document.scene
+        scene.commit_edit()
+        scene.select_items([item])
+        view.centerOn(item.scene_rect().center())
+        view.setFocus()
+
+    def _sync_block_list_selection(self) -> None:
+        """Die Bausteinliste markiert den Baustein, der im Plan ausgewählt ist."""
+        if not hasattr(self, "block_list_panel") or not self.block_list_dock.isVisible():
+            return
+        scene = self.current_scene()
+        item = scene.single_selected if scene is not None and self.sender() is scene else None
+        if item is not None:
+            self.block_list_panel.show_element(item.element_id)
+
+    def connect_selected_to(self, source: FlowItem | None = None, dialog_class=ConnectDialog) -> str | None:
+        """„Verbinden mit …“: Pfeil vom ausgewählten Baustein zu einem Baustein aus einer Liste (ohne Maus)."""
+        view = self.current_view()
+        if view is None:
+            return None
+        scene = view.document.scene
+        scene.commit_edit()
+        source = source if source is not None else scene.single_selected
+        if not can_start_line(source) or source.scene() is not scene:
+            return None
+        targets = connect_targets(scene, source)
+        if not targets:
+            self.statusBar().showMessage(tr("Auf dieser Seite gibt es keinen anderen Baustein, zu dem ein Pfeil "
+                                            "führen kann."), 5000)
+            return None
+        dialog = dialog_class(source, targets, self)
+        accepted = dialog.exec() == QDialog.DialogCode.Accepted
+        target = dialog.target() if accepted else None
+        label = dialog.label()
+        dialog.deleteLater()
+        if target is None or not shiboken6.isValid(source) or source.scene() is not scene \
+                or target.scene() is not scene:
+            view.setFocus()
+            return None
+        connection_id = scene.connect_blocks(source, target, label=label)
+        conn = scene.connection(connection_id) if connection_id is not None else None
+        if conn is not None:
+            view.ensureVisible(conn.sceneBoundingRect(), 40, 40)
+            if not conn.warning:
+                self.statusBar().showMessage(tr("Pfeil von {source} zu {target} angelegt.",
+                                                source=block_title(source), target=block_title(target)), 5000)
+        view.setFocus()
+        return connection_id
 
     def _make_dock(self, title: str, name: str, widget: QWidget) -> QDockWidget:
         dock = QDockWidget(title, self)
@@ -561,10 +702,19 @@ class MainWindow(QMainWindow):
         self.issues_button.setIconSize(COUNT_ICON_SIZE)
         self.issues_button.setAutoRaise(True)
         self.issues_button.clicked.connect(self._toggle_diagnostics)
+        # Wird das Projekt automatisch gespeichert – und wohin? Ein Klick öffnet Einstellungen → Allgemein → Speichern
+        self.save_state_button = QToolButton()
+        self.save_state_button.setObjectName("SaveStateButton")
+        self.save_state_button.setAutoRaise(True)
+        self.save_state_button.setIconSize(SAVE_STATE_ICON_SIZE)
+        self.save_state_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.save_state_button.clicked.connect(lambda: self.show_settings(focus="auto_save"))
+        status.addPermanentWidget(self.save_state_button)
         status.addPermanentWidget(self.issues_button)
         for label in (self.count_label, self.selection_label, self.position_label, self.grid_label,
                       self.zoom_label):
             status.addPermanentWidget(label)
+        self.position_label.hide()   # erscheint mit der ersten Mausbewegung über dem Plan
         self._update_diagnostics_title(0, 0)
 
     def _connect_actions(self) -> None:
@@ -573,13 +723,17 @@ class MainWindow(QMainWindow):
         a["open"].triggered.connect(self.open_file_dialog)
         a["save"].triggered.connect(lambda: self._with_document(self.save_document))
         a["save_as"].triggered.connect(lambda: self._with_document(self.save_document_as))
+        a["save_all"].triggered.connect(self.save_all)
+        a["edit_task_file"].triggered.connect(self.edit_task_file_dialog)
         a["export_png"].triggered.connect(lambda: self.export_diagram("PNG"))
+        a["export_jpg"].triggered.connect(lambda: self.export_diagram("JPG"))
         a["export_svg"].triggered.connect(lambda: self.export_diagram("SVG"))
         a["export_pdf"].triggered.connect(lambda: self.export_diagram("PDF"))
         a["print"].triggered.connect(self.print_diagram)
         a["print_preview"].triggered.connect(self.print_preview)
         a["properties"].triggered.connect(self.edit_properties)
         a["close"].triggered.connect(lambda: self.close_tab(self.tabs.currentIndex()))
+        a["close_all"].triggered.connect(self.close_all)
         a["quit"].triggered.connect(self.close)
 
         a["undo"].triggered.connect(self._undo)
@@ -597,6 +751,7 @@ class MainWindow(QMainWindow):
         a["select_all"].triggered.connect(lambda: self._with_scene(lambda s: s.select_all()))
         a["deselect"].triggered.connect(self._on_escape)
         a["edit_text"].triggered.connect(self.edit_selected_text)
+        a["connect_to"].triggered.connect(lambda: self.connect_selected_to())
 
         a["zoom_in"].triggered.connect(lambda: self._with_view(lambda v: v.zoom_in()))
         a["zoom_out"].triggered.connect(lambda: self._with_view(lambda v: v.zoom_out()))
@@ -618,6 +773,8 @@ class MainWindow(QMainWindow):
         a["toggle_loop_part"].triggered.connect(self.toggle_loop_part)
         a["reset_routing"].triggered.connect(self.reset_routing)
         a["add_bend"].triggered.connect(self.add_bend)
+        a["jump_to_source"].triggered.connect(lambda: self.jump_along_line(forward=False))
+        a["jump_to_target"].triggered.connect(lambda: self.jump_along_line(forward=True))
         a["new_subprogram"].triggered.connect(lambda: self.new_subprogram())
         a["open_subprogram"].triggered.connect(self.open_selected_subprogram)
         a["next_page"].triggered.connect(lambda: self._step_page(1))
@@ -643,6 +800,7 @@ class MainWindow(QMainWindow):
         a["toggle_theme"].triggered.connect(self.toggle_theme)
 
         a["shortcuts"].triggered.connect(lambda: ShortcutsDialog(self, self.actions).exec())
+        a["notation_help"].triggered.connect(self.show_notation_help)
         a["register_filetype"].triggered.connect(self.register_file_type)
         a["about"].triggered.connect(lambda: AboutDialog(self).exec())
         a["settings"].triggered.connect(lambda: self.show_settings())
@@ -877,16 +1035,30 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, tr("Aufgabe stellen"), tr("Das Passwort ist falsch."))
                 return
             password = entered
-            document.task_unlocked = True
         dialog = TaskDialog(current, solution, self)
         dialog.set_previous_password(password)
-        if dialog.exec() != TaskDialog.DialogCode.Accepted:
-            return
+        try:
+            if dialog.exec() != TaskDialog.DialogCode.Accepted:
+                # nur angesehen (z. B. die Musterlösung): Am Projekt und an seiner Datei ändert sich nichts
+                return
+            task = dialog.result_task()
+        finally:
+            dialog.deleteLater()
         new_meta = document.meta.copy()
-        T.apply_task(new_meta, dialog.result_task())
+        T.apply_task(new_meta, task)
+        if task.present or task.locked:
+            # Wer die Aufgabe eben gestellt hat, ist die Lehrkraft: Das Projekt ist jetzt eine Aufgabe, keine
+            # Schülerlösung mehr. Gespeichert wird in die eigene Datei; eine Kopie fragt nach dem Namen.
+            new_meta.task_copy = ""
+            document.task_unlocked = True
         grid = document.settings.grid_size
         document.undo_stack.push(ProjectPropertiesCommand(document, document.meta, new_meta, grid, grid))
         self.task_panel.refresh()
+        self._update_save_state()
+        if not document.file_path and document.task_source and not new_meta.task_copy:
+            self.statusBar().showMessage(tr("Aufgabe geändert – beim Speichern wählen Sie den Dateinamen. Die "
+                                            "Aufgabe „{name}“ wird nur ersetzt, wenn Sie ihren Namen wählen.",
+                                            name=os.path.basename(document.task_source)), 10000)
         if new_meta.task_title or new_meta.task_text:
             self.task_dock.show()
             self.task_dock.raise_()
@@ -907,9 +1079,21 @@ class MainWindow(QMainWindow):
             for page in view.document.pages:
                 page.scene.preferences_changed()
 
-    def show_settings(self, show_shortcuts: bool = False) -> None:
+    def show_notation_help(self) -> None:
+        """Hilfe → Schreibweisen im Plan (auch über den Tipp auf der leeren Arbeitsfläche erreichbar)."""
+        dialog = NotationDialog(self)
+        try:
+            dialog.exec()
+        finally:
+            dialog.deleteLater()   # sonst bliebe jedes geöffnete Fenster samt Tabelle im Speicher
+
+    def show_settings(self, show_shortcuts: bool = False, focus: str | None = None) -> None:
+        """Einstellungen öffnen; ``focus``: dieser Schalter bekommt gleich den Fokus (z. B. „auto_save“)."""
         dialog = settings_dialog.SettingsDialog(self.actions, self, show_shortcuts, options=self.settings_options())
         dialog.shortcuts_changed.connect(self._on_shortcuts_changed)
+        switch = dialog.switches.get(focus) if focus else None
+        if switch is not None:
+            QTimer.singleShot(0, switch, switch.setFocus)   # erst, wenn das Fenster zu sehen ist
         try:
             dialog.exec()
         finally:
@@ -984,6 +1168,7 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._schedule_search_place()
+        self._update_save_state()   # schmales Fenster: die Speicher-Anzeige nur als Symbol
 
     def search_entries(self) -> list:
         """Alles, was die Suchleiste finden kann: Funktionen, Einstellungen und Bausteine aller Seiten."""
@@ -1095,6 +1280,7 @@ class MainWindow(QMainWindow):
         scene.selection_state_changed.connect(self._update_status)
         scene.selection_state_changed.connect(self._sync_code_selection)
         scene.selection_state_changed.connect(self._sync_breakpoint_action)
+        scene.selection_state_changed.connect(self._sync_block_list_selection)
         scene.content_changed.connect(self._schedule_status_update)
         scene.editing_changed.connect(lambda _e: self._update_actions())
         scene.status_message.connect(self._show_scene_message)
@@ -1119,6 +1305,8 @@ class MainWindow(QMainWindow):
             self.diagnostics_panel.set_document(document)
             self.code_panel.set_document(document)
             self.task_panel.set_document(document)
+        if hasattr(self, "block_list_panel"):
+            self.block_list_panel.set_document(document)
         self.page_bar.set_document(document)
 
     def _update_document_title(self, document: DiagramDocument) -> None:
@@ -1131,6 +1319,7 @@ class MainWindow(QMainWindow):
         self._update_window_title()
 
     def _update_window_title(self) -> None:
+        self._update_save_state()
         document = self.current_document()
         if document is None:
             self.setWindowTitle(config.APP_NAME)
@@ -1139,14 +1328,81 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"{document.display_name}[*] – {config.APP_NAME}")
         self.setWindowModified(document.is_modified)
 
-    def close_tab(self, index: int) -> bool:
+    def save_state(self, document: DiagramDocument | None) -> tuple[str, str, str]:
+        """Wie das Projekt gespeichert wird: (Zustand, kurzer Text, Kurzinfo) für die Anzeige in der Statusleiste.
+
+        Zustand: ``"auto"`` (speichert automatisch), ``"off"`` (ausgeschaltet), ``"paused"`` (diese Datei nicht
+        automatisch), ``"untitled"`` (noch ohne Dateinamen) oder ``""`` (kein Projekt offen).
+        """
+        if document is None:
+            return "", "", ""
+        keys = self.actions["save"].shortcuts()
+        key = sequence_text(keys[0]) if keys else tr("Speichern")
+        click = tr("Klicken öffnet die Einstellungen (Allgemein → Speichern).")
+        path = document.file_path
+        if not path:
+            tip = tr("Dieses Projekt hat noch keinen Dateinamen. Automatisch gespeichert wird erst, wenn Sie es "
+                     "einmal selbst gespeichert haben ({key}).", key=key)
+            if document.task_source:
+                tip = "\n".join((tr("Kopie der Aufgabe „{name}“ – die Aufgabendatei bleibt unverändert.",
+                                     name=os.path.basename(document.task_source)), tip))
+            return "untitled", tr("Nicht gespeichert"), "\n\n".join((tip, click))
+        if not self._auto_save_enabled:
+            tip = tr("Automatisches Speichern ist ausgeschaltet – gespeichert wird nur mit {key}:", key=key)
+            return "off", tr("Auto-Speichern aus"), "\n".join((tip, path, "", click))
+        reason = ""
+        if not document.native_file:
+            reason = tr("Die Datei stammt aus einem anderen Programm – speichern Sie sie einmal selbst ({key}).",
+                        key=key)
+        elif getattr(document, "restored_from_backup", False):
+            reason = tr("Aus einer Sicherung wiederhergestellt – speichern Sie einmal selbst ({key}).", key=key)
+        elif self._is_task_original(document):
+            reason = tr("Aufgabe der Lehrkraft – sie wird nie automatisch überschrieben.")
+        elif not _has_project_extension(path):
+            reason = tr("Automatisch gespeichert werden nur {ext}-Dateien.", ext=config.FILE_EXTENSION)
+        elif (document.disk_stamp is not None and not os.path.exists(path)) or document.changed_on_disk():
+            reason = tr("Die Datei wurde außerhalb des Programms geändert, verschoben oder gelöscht – speichern Sie "
+                        "selbst ({key}).", key=key)
+        elif document.auto_save_failed:
+            reason = tr("Das letzte automatische Speichern ist fehlgeschlagen (z. B. keine Schreibrechte) – "
+                        "speichern Sie selbst ({key}).", key=key)
+        if reason:
+            return "paused", tr("Auto-Speichern pausiert"), "\n".join((reason, path, "", click))
+        tip = tr("Jede Änderung wird kurz danach automatisch gespeichert:")
+        return "auto", tr("Auto-Speichern an"), "\n".join((tip, path, "", click))
+
+    def _update_save_state(self) -> None:
+        """Anzeige in der Statusleiste: nach Reiterwechsel, Speichern, Änderung und Umschalten der Einstellung.
+
+        Ein farbiger Punkt am Symbol zeigt den Zustand; in einem schmalen Fenster steht nur das Symbol da (der Text
+        bleibt Kurzinfo und Name für Bildschirmleser), damit Meldungen in der Statusleiste Platz behalten."""
+        button = getattr(self, "save_state_button", None)
+        if button is None:
+            return
+        state, text, tip = self.save_state(self.current_document())
+        button.setVisible(bool(state))
+        compact = self.width() < SAVE_STATE_COMPACT_WIDTH
+        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly if compact
+                                  else Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        if state and button.property("save_state_icon") != f"{state}/{styles.current_theme().name}":
+            button.setIcon(save_state_icon(state))
+            button.setProperty("save_state_icon", f"{state}/{styles.current_theme().name}")
+        button.setText(text)
+        button.setToolTip("\n\n".join((text, tip)) if compact else tip)
+        button.setAccessibleName(text)
+        button.setAccessibleDescription(tip)
+        button.setProperty("save_state", state)
+
+    def close_tab(self, index: int, ask: bool = True) -> bool:
+        """Schließt einen Reiter; ``ask=False``: ohne Nachfrage (die Frage ist schon beantwortet, z. B. bei
+        „Alle schließen“)."""
         if index < 0 or index >= self.tabs.count():
             return False
         view = self.tabs.widget(index)
         if not isinstance(view, DiagramView):
             return False
         self.tabs.setCurrentIndex(index)
-        if not self.maybe_save(view.document):
+        if ask and not self.maybe_save(view.document):
             return False
         document = view.document
         document.scene.cancel_edit()
@@ -1209,7 +1465,13 @@ class MainWindow(QMainWindow):
         if path:
             self.open_file(path)
 
-    def open_file(self, path: str) -> bool:
+    def open_file(self, path: str, task_original: bool = False) -> bool:
+        """Öffnet eine Projektdatei in einem eigenen Reiter.
+
+        Eine Aufgabe der Lehrkraft öffnet sich immer als unbenannte Kopie: „Speichern“ fragt nach einem neuen
+        Namen, die Aufgabendatei bleibt unverändert. ``task_original``: die Aufgabendatei selbst (Datei → Aufgabe
+        bearbeiten, das Passwort ist schon geprüft).
+        """
         path = os.path.abspath(path)
         backup = path.lower().endswith(config.BACKUP_EXTENSION)
         if not _has_project_extension(path) and not backup:
@@ -1222,6 +1484,14 @@ class MainWindow(QMainWindow):
         existing = self._find_document_by_path(path)
         if existing >= 0:
             self.tabs.setCurrentIndex(existing)
+            if task_original:
+                self.views()[existing].document.task_unlocked = True
+            return True
+        copy = -1 if task_original else self._find_task_copy(path)
+        if copy >= 0:
+            # dieselbe Aufgabe noch einmal: zur schon offenen, noch nicht gespeicherten Kopie
+            self.tabs.setCurrentIndex(copy)
+            self.statusBar().showMessage(tr("Diese Aufgabe ist schon als Kopie geöffnet."), 5000)
             return True
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -1230,6 +1500,10 @@ class MainWindow(QMainWindow):
                 if backup:
                     # eine Sicherungskopie wird nicht überschrieben: „Speichern“ fragt nach dem Ort
                     document.file_path = None
+                elif task_original:
+                    document.task_unlocked = True
+                elif self._is_task_file(document.meta):
+                    self._make_task_copy(document, path)
             finally:
                 QApplication.restoreOverrideCursor()
         except ProjectFileError as exc:
@@ -1246,11 +1520,7 @@ class MainWindow(QMainWindow):
             return False
 
         # Ein unberührtes, leeres neues Projekt wird ersetzt
-        current = self.current_document()
-        replace_index = -1
-        if current is not None and current.file_path is None and not current.is_modified \
-                and current.is_blank():
-            replace_index = self.tabs.currentIndex()
+        replace_index = self.tabs.currentIndex() if self._replaceable(self.current_document()) else -1
         view = self.add_document(document)
         if replace_index >= 0:
             self.close_tab(replace_index)
@@ -1270,10 +1540,15 @@ class MainWindow(QMainWindow):
                                        "wurden:\n\n{text}", text=text))
         if backup:
             self.statusBar().showMessage(tr("Sicherungskopie geöffnet – „Speichern“ legt eine neue Datei an."), 6000)
-        elif self._is_task_original(document):
-            self.statusBar().showMessage(tr("Aufgabe „{name}“ geöffnet – Ihre Lösung wird beim Speichern als eigene "
-                                            "Datei angelegt, die Aufgabe bleibt unverändert.",
-                                            name=document.display_name), 8000)
+        elif document.task_source:
+            keys = self.actions["save"].shortcuts()
+            self.statusBar().showMessage(tr("Aufgabe „{name}“ als Kopie geöffnet – {key} speichert Ihre Lösung als "
+                                            "eigene Datei, die Aufgabe bleibt unverändert.",
+                                            name=display_name_for_path(path),
+                                            key=sequence_text(keys[0]) if keys else "Strg+S"), 8000)
+        elif task_original:
+            self.statusBar().showMessage(tr("Aufgabe „{name}“ zum Bearbeiten geöffnet – „Speichern“ ändert die "
+                                            "Aufgabendatei.", name=document.display_name), 8000)
         elif document.native_file:
             self.statusBar().showMessage(tr("„{name}“ geöffnet.", name=document.display_name), 4000)
         else:
@@ -1294,9 +1569,7 @@ class MainWindow(QMainWindow):
         document.file_path = None
         for page in document.pages[1:]:
             page.fit_on_show = True
-        current = self.current_document()
-        replace = current is not None and current.file_path is None and not current.is_modified \
-            and current.is_blank()
+        replace = self._replaceable(self.current_document())
         replace_index = self.tabs.currentIndex()
         view = self.add_document(document)
         if replace:
@@ -1392,6 +1665,90 @@ class MainWindow(QMainWindow):
         meta = document.meta
         return bool(meta.task_lock) and not meta.task_copy and not getattr(document, "task_unlocked", False)
 
+    @staticmethod
+    def _is_task_file(meta) -> bool:
+        """Aufgabendatei der Lehrkraft („Aufgabe stellen“), nicht die gespeicherte Lösung eines Schülers."""
+        return bool(meta.task_lock or meta.task_title.strip() or meta.task_text.strip()) and not meta.task_copy
+
+    @staticmethod
+    def _make_task_copy(document: DiagramDocument, source: str) -> None:
+        """Aus der geöffneten Aufgabe wird eine unbenannte Kopie („Aufgabe – Kopie“): Speichern fragt nach einem
+        neuen Namen, automatisch gespeichert wird erst danach – die Aufgabendatei bleibt immer unverändert."""
+        document.task_source = os.path.abspath(source)
+        document.file_path = None
+        document.meta.task_copy = "1"   # gespeichert ist es die Lösung eines Schülers, keine Aufgabe mehr
+        document.title_changed.emit()
+
+    @staticmethod
+    def _replaceable(document: DiagramDocument | None) -> bool:
+        """Ein unberührtes, leeres neues Projekt, das beim Öffnen einer Datei Platz machen darf (keine Aufgabe)."""
+        return document is not None and document.file_path is None and not document.task_source \
+            and not document.is_modified and document.is_blank()
+
+    def _find_task_copy(self, path: str) -> int:
+        """Reiter mit einer noch nicht gespeicherten Kopie dieser Aufgabe (-1: keiner)."""
+        target = _path_key(path)
+        for i, view in enumerate(self.views()):
+            source = view.document.task_source
+            if source and not view.document.file_path and _path_key(source) == target:
+                return i
+        return -1
+
+    def _would_overwrite_task(self, document: DiagramDocument, path: str) -> bool:
+        """Würde das Speichern eine Aufgabendatei der Lehrkraft ersetzen? Das wird nicht erlaubt – weder für die
+        Lösung eines Schülers noch für ein ganz anderes Projekt.
+
+        Ausnahme: die Lehrkraft und ihre eigene Aufgabe. Das Projekt ist selbst eine Aufgabe (keine Schülerlösung),
+        freigegeben (Datei → Aufgabe bearbeiten mit Passwort, oder eben mit „Aufgabe stellen“ geändert), und das Ziel
+        ist seine eigene Datei bzw. die Aufgabe, aus der die Kopie stammt."""
+        if not os.path.exists(path):
+            return False
+        own = [p for p in (document.file_path, document.task_source) if p]
+        if document.task_unlocked and not document.meta.task_copy \
+                and any(_path_key(p) == _path_key(path) for p in own):
+            return False
+        try:
+            meta = load_diagram(path).diagram.meta
+        except Exception:
+            return False   # keine lesbare Aufgabe: wie bisher (der Dialog hat schon nach dem Ersetzen gefragt)
+        return self._is_task_file(meta)
+
+    def edit_task_file_dialog(self) -> None:
+        """Datei → Aufgabe bearbeiten: die Aufgabendatei selbst öffnen (Lehrkraft, mit Passwort)."""
+        path, _ = QFileDialog.getOpenFileName(self, tr("Aufgabe bearbeiten"), self.settings_store.last_directory(),
+                                              config.file_dialog_filter())
+        if path:
+            self.edit_task_file(path)
+
+    def edit_task_file(self, path: str) -> bool:
+        """Öffnet eine Aufgabendatei zum Ändern: Nach dem Passwort schreibt „Speichern“ in diese Datei."""
+        from app import task as T
+
+        path = os.path.abspath(path)
+        if not _has_project_extension(path):
+            return self.open_file(path)   # meldet den falschen Dateityp wie sonst auch
+        try:
+            meta = load_diagram(path).diagram.meta
+        except ProjectFileError:
+            return self.open_file(path)   # meldet den Fehler wie sonst auch
+        except Exception:  # pragma: no cover - Absicherung
+            return self.open_file(path)
+        if not self._is_task_file(meta):
+            if not self.open_file(path):
+                return False
+            if not meta.task_copy:   # die gespeicherte Lösung eines Schülers öffnet sich ohne Hinweis
+                self.statusBar().showMessage(tr("„{name}“ enthält keine Aufgabe – normal geöffnet.",
+                                                name=os.path.basename(path)), 6000)
+            return True
+        if meta.task_lock:
+            entered = ask_password(self, tr("Aufgabe bearbeiten"), tr("Passwort der Lehrkraft:"))
+            if entered is None:
+                return False
+            if not T.check_lock(meta.task_lock, entered):
+                QMessageBox.warning(self, tr("Aufgabe bearbeiten"), tr("Das Passwort ist falsch."))
+                return False
+        return self.open_file(path, task_original=True)
+
     def _save_task_copy(self, document: DiagramDocument) -> bool:
         """Lösung zu einer Aufgabe als eigene Datei speichern (das Original der Lehrkraft bleibt unverändert)."""
         self.statusBar().showMessage(tr("Das ist eine Aufgabe der Lehrkraft – Ihre Lösung wird als eigene Datei "
@@ -1408,6 +1765,15 @@ class MainWindow(QMainWindow):
         if document.file_path and task_copy:
             stem = os.path.splitext(document.file_path)[0]
             suggestion = tr("{name} – Lösung", name=stem) + config.FILE_EXTENSION
+        elif not document.file_path and document.task_source and not document.meta.task_copy:
+            # Die Lehrkraft hat die Aufgabe in der Kopie geändert: vorgeschlagen wird die Aufgabendatei selbst (das
+            # Ersetzen bestätigt sie im Dialog) – ein anderer Name legt eine neue Aufgabe an
+            suggestion = document.task_source
+        elif not document.file_path and document.task_source:
+            # Kopie einer Aufgabe: eigener Name für die Lösung, nie der Name der Aufgabendatei
+            name = tr("{name} – Lösung", name=display_name_for_path(document.task_source))
+            suggestion = os.path.join(self.settings_store.last_directory(),
+                                      _safe_filename(name) + config.FILE_EXTENSION)
         elif document.file_path:
             suggestion = export.ensure_extension(document.file_path, config.FILE_EXTENSION)
         else:
@@ -1425,6 +1791,11 @@ class MainWindow(QMainWindow):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             if answer != QMessageBox.StandardButton.Yes:
                 return False
+        if self._would_overwrite_task(document, path):
+            self._error(tr("Speichern nicht möglich"),
+                        tr("„{name}“ ist eine Aufgabe der Lehrkraft und wird nicht überschrieben. Bitte wählen Sie "
+                           "einen anderen Namen für Ihre Lösung.", name=os.path.basename(path)))
+            return False
         other = self._find_document_by_path(path)
         if other >= 0 and self.views()[other].document is not document:
             self._error(tr("Speichern nicht möglich"),
@@ -1439,29 +1810,37 @@ class MainWindow(QMainWindow):
             # außerhalb gelöscht oder verschoben: nicht still neu anlegen – beim Speichern von Hand entscheidet man selbst
             self.statusBar().showMessage(tr("„{name}“ wurde gelöscht oder verschoben – automatisches Speichern ist "
                                             "angehalten. Bitte selbst speichern.", name=os.path.basename(path)), 8000)
+            self._update_save_state()
             return False
         if automatic and path == document.file_path and document.changed_on_disk():
             # nicht still über fremde Änderungen schreiben – beim Speichern von Hand wird gefragt
             self.statusBar().showMessage(tr("„{name}“ wurde außerhalb des Programms geändert – automatisches "
                                             "Speichern ist angehalten. Bitte selbst speichern.",
                                             name=os.path.basename(path)), 8000)
+            self._update_save_state()
             return False
         try:
             document.save(path, backup=self.actions["backup_on_save"].isChecked())
         except ProjectFileError as exc:
             log.warning("Speichern fehlgeschlagen: %s (%s)", path, exc.details)
             if automatic:
+                document.auto_save_failed = True   # Anzeige in der Statusleiste: „angehalten“
                 self.statusBar().showMessage(tr("Automatisches Speichern nicht möglich: {reason}",
                                                 reason=exc.message), 8000)
+                self._update_save_state()
             else:
                 self._error(tr("Speichern nicht möglich"), exc.message)
             return False
         except Exception:  # pragma: no cover - Absicherung
             log.exception("Unerwarteter Fehler beim Speichern")
-            if not automatic:
+            if automatic:
+                document.auto_save_failed = True
+                self._update_save_state()
+            else:
                 self._error(tr("Speichern nicht möglich"),
                             tr("Beim Speichern ist ein unerwarteter Fehler aufgetreten."))
             return False
+        document.auto_save_failed = False
         if not automatic:
             self.settings_store.add_recent_file(path)
             self.settings_store.set_last_directory(path)
@@ -1479,6 +1858,7 @@ class MainWindow(QMainWindow):
         """Schaltet das automatische Speichern für dieses Fenster ein oder aus."""
         self._auto_save_enabled = bool(enabled)
         self.actions["auto_save"].setChecked(self._auto_save_enabled)
+        self._update_save_state()
         if not self._auto_save_enabled:
             self._auto_save_timer.stop()
             self._auto_save_pending.clear()
@@ -1534,6 +1914,7 @@ class MainWindow(QMainWindow):
             view = self.current_view()
             if view is not None:
                 view.setFocus()
+            self._refresh_notation_hints()
             return
         state, window_state = self._presentation
         self._presentation = None
@@ -1542,6 +1923,12 @@ class MainWindow(QMainWindow):
         self.tabs.tabBar().show()
         self.restoreState(state, WINDOW_STATE_VERSION)
         self.setWindowState(window_state)
+        self._refresh_notation_hints()
+
+    def _refresh_notation_hints(self) -> None:
+        """Der Tipp auf leeren Seiten bleibt in der Präsentationsansicht weg."""
+        for view in self.views():
+            view.notation_hint.refresh()
 
     def _on_escape(self) -> None:
         """Esc: in der Präsentationsansicht schrittweise abbrechen und zuletzt die Ansicht beenden, sonst wie bisher
@@ -1610,11 +1997,19 @@ class MainWindow(QMainWindow):
 
     def maybe_save(self, document: DiagramDocument) -> bool:
         """Fragt bei ungespeicherten Änderungen nach. False = Abbrechen."""
+        return self._settle_changes(document) != "cancel"
+
+    def _settle_changes(self, document: DiagramDocument, more_to_come: bool = False) -> str:
+        """Ungespeicherte Änderungen vor dem Schließen: speichern (automatisch oder nach Nachfrage) oder verwerfen.
+
+        Ergebnis: ``"kept"`` (nichts geändert oder gespeichert), ``"discard"``, ``"discard_all"`` (nur mit
+        ``more_to_come``: auch alle weiteren Projekte verwerfen) oder ``"cancel"``.
+        """
         document.scene.commit_edit()
         if not document.is_modified:
-            return True
+            return "kept"
         if self._auto_save_applies(document) and self._save_to(document, document.file_path, automatic=True):
-            return True  # automatisches Speichern: keine Nachfrage nötig
+            return "kept"  # automatisches Speichern: keine Nachfrage nötig
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Question)
         box.setWindowTitle(config.APP_NAME)
@@ -1622,29 +2017,96 @@ class MainWindow(QMainWindow):
         box.setInformativeText(tr("Möchten Sie die Änderungen speichern?"))
         save = box.addButton(tr("Speichern"), QMessageBox.ButtonRole.AcceptRole)
         discard = box.addButton(tr("Verwerfen"), QMessageBox.ButtonRole.DestructiveRole)
+        discard_all = box.addButton(tr("Alle Änderungen verwerfen"), QMessageBox.ButtonRole.DestructiveRole) \
+            if more_to_come else None
         cancel = box.addButton(tr("Abbrechen"), QMessageBox.ButtonRole.RejectRole)
         box.setDefaultButton(save)
         box.setEscapeButton(cancel)
         box.exec()
         clicked = box.clickedButton()
         if clicked is save:
-            return self.save_document(document)
-        return clicked is discard
+            return "kept" if self.save_document(document) else "cancel"
+        if clicked is discard:
+            return "discard"
+        if discard_all is not None and clicked is discard_all:
+            return "discard_all"
+        return "cancel"
+
+    # ------------------------------------------------ Alle speichern / Alle schließen
+    def save_all(self) -> bool:
+        """Datei → Alle speichern: jedes geänderte Projekt; noch unbenannte fragen nacheinander nach einem Namen.
+
+        „Abbrechen“ im Dialog hört auf. True, wenn danach alles gespeichert ist.
+        """
+        views = self.views()
+        for view in views:
+            view.document.scene.prepare_for_command()   # offene Texteingaben übernehmen
+        start = self.current_view()
+        saved = 0
+        for view in views:
+            document = view.document
+            if not document.is_modified:
+                continue
+            self.tabs.setCurrentWidget(view)   # man sieht, welches Projekt gerade gespeichert wird
+            if not self.save_document(document):
+                self.statusBar().showMessage(tr("„Alle speichern“ abgebrochen – {n} Projekt(e) gespeichert.",
+                                                n=saved), 6000)
+                return False
+            saved += 1
+        if start is not None and self.tabs.indexOf(start) >= 0:
+            self.tabs.setCurrentWidget(start)
+        self.statusBar().showMessage(tr("{n} Projekt(e) gespeichert.", n=saved) if saved
+                                     else tr("Alle Projekte sind schon gespeichert."), 4000)
+        return True
+
+    def close_all(self) -> bool:
+        """Datei → Alle schließen: Bei Änderungen wird für jedes Projekt wie beim Schließen gefragt (mit „Alle
+        verwerfen“). „Abbrechen“ lässt alle Reiter offen. Danach ist das Fenster leer – wie nach dem letzten Reiter."""
+        views = self.views()
+        for view in views:
+            view.document.scene.prepare_for_command()
+        if not self._settle_all(views):
+            return False
+        while self.tabs.count():
+            if not self.close_tab(self.tabs.count() - 1, ask=False):
+                return False   # pragma: no cover - kein Projekt-Reiter
+        self.statusBar().showMessage(tr("Alle Projekte geschlossen."), 4000)
+        return True
+
+    def _settle_all(self, views: list) -> bool:
+        """Vor dem Schließen mehrerer Projekte (Alle schließen, Beenden): ungespeicherte Änderungen klären.
+
+        Erst wird still gespeichert, was ohnehin automatisch gespeichert wird; danach wird nur bei den übrigen
+        gefragt – mit „Alle Änderungen verwerfen“, solange danach noch ein Projekt fragen würde. False = Abbrechen.
+        """
+        pending = [view for view in views if view.document.is_modified
+                   and view.document not in self.close_without_asking]
+        for view in pending:
+            if self._auto_save_applies(view.document):
+                self._save_to(view.document, view.document.file_path, automatic=True)
+        asking = [view for view in pending if view.document.is_modified]
+        for number, view in enumerate(asking):
+            if not view.document.is_modified:
+                continue   # inzwischen gespeichert
+            self.tabs.setCurrentWidget(view)
+            if number == len(asking) - 1:
+                return self.maybe_save(view.document)   # das letzte: nichts mehr für „alle“
+            answer = self._settle_changes(view.document, more_to_come=True)
+            if answer == "cancel":
+                return False
+            if answer == "discard_all":
+                return True
+        return True
 
     def closeEvent(self, event) -> None:
         # Offene Texteingaben zuerst übernehmen – sonst gälte ein Projekt als
         # unverändert und der eingegebene Text ginge beim Beenden verloren.
         for view in self.views():
             view.document.scene.prepare_for_command()
-        for i in range(self.tabs.count()):
-            view = self.tabs.widget(i)
-            if isinstance(view, DiagramView) and view.document.is_modified \
-                    and view.document not in self.close_without_asking:
-                self.tabs.setCurrentIndex(i)
-                if not self.maybe_save(view.document):
-                    self._restart_files = None  # Schließen abgebrochen: auch kein Neustart
-                    event.ignore()
-                    return
+        if not self._settle_all(self.views()):
+            self._restart_files = None  # Schließen abgebrochen: auch kein Neustart
+            event.ignore()
+            return
         self.set_presentation(False)  # Fensteraufteilung ohne die ausgeblendeten Leisten merken
         self.settings_store.save_window(self.saveGeometry(), self.saveState(WINDOW_STATE_VERSION))
         self.simulation_panel.stop(silent=True)
@@ -1688,6 +2150,11 @@ class MainWindow(QMainWindow):
                         "Die Sicherung wurde aufbewahrt: {path}", path=kept)
                     self._error(tr("Wiederherstellung nicht möglich"), message)
                     continue
+                if document.file_path and self._is_task_file(document.meta) and not document.task_unlocked:
+                    # Aufgabendatei, die niemand freigegeben hatte: auch wiederhergestellt nur als Kopie. Hatte die
+                    # Lehrkraft sie über Datei → Aufgabe bearbeiten geöffnet, kommt sie wieder in ihre Datei
+                    # (gespeichert wird wie nach jeder Wiederherstellung erst nach einem bewussten Speichern).
+                    self._make_task_copy(document, document.file_path)
                 self.add_document(document)
                 self.autosave.adopt(document, entry)
                 restored += 1
@@ -1777,6 +2244,7 @@ class MainWindow(QMainWindow):
         self.diagnostics_panel.refresh()
         self.page_bar.refresh_theme()
         self._sync_theme_actions()
+        self._update_save_state()   # Symbol der Speicher-Anzeige im neuen Farbschema
         self.theme_changed.emit(self.current_theme_name())
 
     def _refresh_recent_menu(self) -> None:
@@ -1968,7 +2436,7 @@ class MainWindow(QMainWindow):
                            if c.source is scene.single_selected and not c.is_annotation]
         if len(connections) != 1:
             self.statusBar().showMessage(tr("Verbindungspunkt: zuerst einen Pfeil auswählen – oder den Verbindungspunkt "
-                                            "aus der Palette auf einen Pfeil ziehen."), 6000)
+                                            "aus dem Feld „Bausteine“ auf einen Pfeil ziehen."), 6000)
             return
         points = connections[0].points()
         if len(points) < 2:
@@ -2013,6 +2481,33 @@ class MainWindow(QMainWindow):
         for conn in scene.selected_connections():
             scene.reset_routing(conn)
 
+    def jump_along_line(self, forward: bool, connection: ConnectionItem | None = None) -> None:
+        """Wählt den Baustein am Ziel (``forward``) bzw. Anfang des Pfeils aus und holt ihn ins Bild.
+
+        Ohne ``connection`` gilt der einzige ausgewählte Pfeil. Verbindungspunkte unterwegs werden übersprungen.
+        """
+        view = self.current_view()
+        if view is None:
+            return
+        scene = view.document.scene
+        if connection is None:
+            connections = scene.selected_connections()
+            if len(connections) != 1:
+                return
+            connection = connections[0]
+        if not shiboken6.isValid(connection) or connection.scene() is not scene:
+            return
+        scene.commit_edit()
+        item = line_end(connection, forward)
+        if item is None:
+            return
+        scene.select_items([item])
+        rect = item.scene_rect()
+        # Liegt der Baustein schon ganz im Bild, bleibt die Ansicht stehen – sonst kommt er in die Mitte
+        if not view.visible_scene_rect().adjusted(20, 20, -20, -20).contains(rect):
+            view.centerOn(rect.center())
+        view.setFocus()
+
     def _set_grid_visible(self, visible: bool) -> None:
         self._change_view_setting("grid_visible", visible, tr("Raster anzeigen") if visible else tr("Raster ausblenden"))
 
@@ -2050,6 +2545,8 @@ class MainWindow(QMainWindow):
         menu = QMenu(self)
         if isinstance(item, FlowItem):
             menu.addAction(a["edit_text"])
+            if can_start_line(item):
+                menu.addAction(a["connect_to"])   # Pfeil ohne Ziehen: Ziel aus einer Liste
             menu.addSeparator()
             for name in ("cut", "copy", "copy_image", "duplicate", "delete"):
                 menu.addAction(a[name])
@@ -2115,6 +2612,13 @@ class MainWindow(QMainWindow):
                                    "anschließen"))
             junction.setEnabled(not item.is_annotation)
             junction.triggered.connect(lambda _=False, p=QPointF(scene_pos): scene.insert_junction(item, p))
+            menu.addSeparator()
+            # dem Pfeil folgen: eigene Einträge, damit sie genau für diesen Pfeil gelten
+            for name, forward in (("jump_to_source", False), ("jump_to_target", True)):
+                jump = menu.addAction(a[name].text())
+                jump.setShortcuts(a[name].shortcuts())
+                jump.setStatusTip(a[name].statusTip())
+                jump.triggered.connect(lambda _=False, f=forward: self.jump_along_line(f, item))
             menu.addSeparator()
             menu.addAction(a["delete"])
         else:
@@ -2463,11 +2967,16 @@ class MainWindow(QMainWindow):
         options = self._export_options(fmt)
         if options is None:
             return
-        extension = {"PNG": ".png", "SVG": ".svg", "PDF": ".pdf"}[fmt]
+        extension = {"PNG": ".png", "JPG": ".jpg", "SVG": ".svg", "PDF": ".pdf"}[fmt]
         filters = {"PNG": tr("PNG-Bild ({pattern})", pattern="*.png"),
+                   "JPG": tr("JPG-Bild ({pattern})", pattern="*.jpg *.jpeg"),
                    "SVG": tr("SVG-Grafik ({pattern})", pattern="*.svg"),
                    "PDF": tr("PDF-Dokument ({pattern})", pattern="*.pdf")}
-        base_dir = os.path.dirname(document.file_path) if document.file_path else self.settings_store.last_directory()
+        # Ordner: wohin dieses Projekt zuletzt exportiert wurde, sonst der Ordner der Projektdatei, sonst der des
+        # letzten Exports überhaupt (z. B. bei einem unbenannten Projekt), sonst der zuletzt benutzte Ordner
+        base_dir = (getattr(document, "last_export_directory", None)
+                    or (os.path.dirname(document.file_path) if document.file_path else None)
+                    or self.settings_store.last_export_directory() or self.settings_store.last_directory())
         # Bilder zeigen die angezeigte Seite, ein PDF enthält alle Seiten des Projekts
         base_name = document.display_name
         if fmt != "PDF" and not document.current_page.is_main:
@@ -2478,7 +2987,7 @@ class MainWindow(QMainWindow):
         if not path:
             return
         chosen = path
-        path = export.ensure_extension(path, extension)
+        path = export.ensure_extension(path, extension, also=(".jpeg",) if fmt == "JPG" else ())
         if path != chosen and os.path.exists(path):
             # Der Dialog hat nur den eingegebenen Namen geprüft, nicht den mit angehängter Endung
             answer = QMessageBox.question(
@@ -2487,7 +2996,8 @@ class MainWindow(QMainWindow):
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             if answer != QMessageBox.StandardButton.Yes:
                 return
-        exporter = {"PNG": export.export_png, "SVG": export.export_svg, "PDF": export.export_pdf}[fmt]
+        exporter = {"PNG": export.export_png, "JPG": export.export_jpg, "SVG": export.export_svg,
+                    "PDF": export.export_pdf}[fmt]
         source = _printable_scenes(document) if fmt == "PDF" else document.scene
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -2502,6 +3012,8 @@ class MainWindow(QMainWindow):
             log.exception("Export fehlgeschlagen")
             self._error(tr("Export nicht möglich"), tr("Beim Export ist ein unerwarteter Fehler aufgetreten."))
             return
+        document.last_export_directory = os.path.dirname(os.path.abspath(path))
+        self.settings_store.set_last_export_directory(path)
         self.statusBar().showMessage(tr("Exportiert: {path}", path=path), 5000)
 
     def _create_printer(self, document: DiagramDocument):
@@ -2623,8 +3135,8 @@ class MainWindow(QMainWindow):
         has_doc = scene is not None
         elements = scene.selected_elements() if has_doc else []
         connections = scene.selected_connections() if has_doc else []
-        for name in ("save", "save_as", "export_png", "export_svg", "export_pdf", "print", "print_preview",
-                     "properties", "close", "select_all", "deselect", "zoom_in", "zoom_out", "zoom_reset",
+        for name in ("save", "save_as", "save_all", "export_png", "export_jpg", "export_svg", "export_pdf", "print",
+                     "print_preview", "properties", "close", "close_all", "select_all", "deselect", "zoom_in", "zoom_out", "zoom_reset",
                      "zoom_fit", "toggle_grid", "toggle_snap", "generate_code", "structogram", "auto_layout"):
             a[name].setEnabled(has_doc)
         a["undo"].setEnabled(has_doc and self.undo_group.canUndo())
@@ -2638,6 +3150,8 @@ class MainWindow(QMainWindow):
         a["delete"].setEnabled(bool(elements or connections))
         a["paste"].setEnabled(has_doc and clipboard.can_paste())
         a["edit_text"].setEnabled(has_doc and (scene.single_selected is not None or len(connections) == 1))
+        source = scene.single_selected if has_doc else None
+        a["connect_to"].setEnabled(has_doc and can_connect(scene, source))
         for name in ALIGN_ACTIONS:
             a[name].setEnabled(len(elements) >= alignment.MIN_ITEMS[name])
         a[alignment.SNAP_TO_GRID].setEnabled(bool(elements))
@@ -2647,6 +3161,8 @@ class MainWindow(QMainWindow):
         a["toggle_loop_part"].setEnabled(single is not None and single.element_type is ElementType.LOOP)
         a["reset_routing"].setEnabled(any(c.has_manual_routing() for c in connections))
         a["add_bend"].setEnabled(len(connections) == 1)
+        for name in ("jump_to_source", "jump_to_target"):
+            a[name].setEnabled(len(connections) == 1 and not elements)
         a["new_subprogram"].setEnabled(has_doc)
         a["open_subprogram"].setEnabled(single is not None and single.element_type is ElementType.SUBPROGRAM)
         pages = len(document.pages) if has_doc else 0
@@ -2671,6 +3187,8 @@ class MainWindow(QMainWindow):
             for label in (self.count_label, self.selection_label, self.position_label, self.grid_label,
                           self.zoom_label):
                 label.setText("")
+            for label in (self.selection_label, self.position_label):
+                label.hide()   # leere Felder nehmen Meldungen in der Statusleiste keinen Platz weg
             self.zoom_button.setText("100 %")
             return
         scene = view.document.scene
@@ -2682,6 +3200,7 @@ class MainWindow(QMainWindow):
         self.count_label.setText(f"{element_text} · {connection_text}")
         selected = len(scene.selectedItems())
         self.selection_label.setText(tr("{n} ausgewählt", n=selected) if selected else "")
+        self.selection_label.setVisible(bool(selected))
         size = settings.grid_size
         if settings.grid_visible and settings.snap_to_grid:
             grid_state = tr("Raster {size} · Einrasten an", size=size)
@@ -2698,6 +3217,7 @@ class MainWindow(QMainWindow):
 
     def _update_position(self, pos: QPointF) -> None:
         self.position_label.setText(f"X {pos.x():.0f}  Y {pos.y():.0f}")
+        self.position_label.show()
 
 
 def _interactive_item_at(scene, pos: QPointF):

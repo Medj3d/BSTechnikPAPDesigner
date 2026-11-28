@@ -115,6 +115,7 @@ class Variables:
         self._counters: set[str] = set()          # Zählvariablen: sicher Zahlen
         self._trees: list[ast.AST] = []           # alle gelesenen Ausdrücke
         self._numeric_trees: list[ast.AST] = []   # Schleifengrenzen und Anzahlen
+        self._condition_trees: list[ast.AST] = []  # Bedingungen (Verzweigungen, Schleifen)
         # Abläufe mit Rückgabewert (Start-Kennung → Typ des Ergebnisses)
         self.returns: dict[str, str] = {}
         self._returned = {program.start_id: [tree for expr in return_expressions(program)
@@ -177,10 +178,12 @@ class Variables:
             for tree in self._returned[program.start_id]:
                 self._assignments.append((target, tree))
 
-    def _read(self, expr: str | None, numeric: bool = False) -> None:
+    def _read(self, expr: str | None, numeric: bool = False, condition: bool = False) -> None:
         tree = T.parse_expression(expr) if expr else None
         if tree is not None:
             (self._numeric_trees if numeric else self._trees).append(tree)
+            if condition:
+                self._condition_trees.append(tree)
 
     def _collect_expressions(self, stmt, known: set) -> None:
         if isinstance(stmt, Action) and stmt.kind == "process":
@@ -195,19 +198,19 @@ class Variables:
                 if kind == "expression":
                     self._read(value)
         elif isinstance(stmt, (If, WhileLoop, DoWhileLoop)):
-            self._read(T.condition_expression(stmt.condition))
+            self._read(T.condition_expression(stmt.condition), condition=True)
         elif isinstance(stmt, LimitLoop):
             header = T.parse_loop_header(stmt.header)
             if header.kind == "for":
                 for expr in (header.start, header.end, header.step):
                     self._read(expr, numeric=True)
             elif header.kind == "while":
-                self._read(header.condition)
+                self._read(header.condition, condition=True)
             elif header.kind == "times":
                 self._read(header.count, numeric=True)
             footer = T.loop_footer(stmt.header, stmt.footer)
             if footer is not None:
-                self._read(footer[1])
+                self._read(footer[1], condition=True)
 
     # ------------------------------------------------------------ Typen
     def _infer(self) -> None:
@@ -218,10 +221,13 @@ class Variables:
         self._links: set[tuple[str, str]] = set()
         trees = self._trees + self._numeric_trees + [tree for _, tree in self._assignments]
         self._fixpoint(trees)
-        # Eingaben ohne jeden Hinweis bleiben Text – samt allem, was nur aus ihnen entsteht
+        # Eingaben ohne jeden Hinweis bleiben Text – samt allem, was nur aus ihnen entsteht. Steht eine solche Eingabe
+        # selbst als Bedingung da („wenn mitglied“, „alter < 18 und mitglied“, „nicht fertig“), ist sie eine
+        # Ja/Nein-Frage: Sonst gälte jede Antwort – auch „n“ – als wahr, weil der Text nicht leer ist.
+        truth = self._truth_names(trees)
         for name in self.names:
             if name in self.inputs and not self._flags[name]:
-                self._flags[name].add(_TXT)
+                self._flags[name].add(_BOOL if name in truth else _TXT)
         self._fixpoint(trees)
         for name in self.names:
             flags = self._flags[name]
@@ -240,6 +246,18 @@ class Variables:
             else:
                 kind = DOUBLE
             self.types[name] = kind
+
+    def _truth_names(self, trees: list) -> set[str]:
+        """Variablen, die als Wahrheitswert dastehen: ganze Bedingung, Teil von und/oder, hinter „nicht“."""
+        names = {tree.id for tree in self._condition_trees if isinstance(tree, ast.Name)}
+        for tree in trees:
+            for node in ast.walk(tree):
+                if isinstance(node, ast.BoolOp):
+                    names.update(value.id for value in node.values if isinstance(value, ast.Name))
+                elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not) and isinstance(node.operand,
+                                                                                                  ast.Name):
+                    names.add(node.operand.id)
+        return names
 
     def _kind(self, node) -> set:
         """Mögliche Arten eines Ausdrucks nach dem bisherigen Wissen (leer = unbekannt)."""

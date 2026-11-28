@@ -126,6 +126,16 @@ class SettingsStore:
         if directory:
             self._settings.setValue("last_directory", directory)
 
+    def last_export_directory(self) -> str | None:
+        """Ordner des letzten Exports (Bild, PDF) – ``None``, wenn es keinen (mehr) gibt."""
+        value = self._settings.value("last_export_directory", "")
+        return value if isinstance(value, str) and value and os.path.isdir(value) else None
+
+    def set_last_export_directory(self, path: str) -> None:
+        directory = path if os.path.isdir(path) else os.path.dirname(path)
+        if directory:
+            self._settings.setValue("last_export_directory", directory)
+
     # ---------------------------------------------------------- Fenster
     def window_geometry(self) -> QByteArray | None:
         value = self._settings.value("window/geometry")

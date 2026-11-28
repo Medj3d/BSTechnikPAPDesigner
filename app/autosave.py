@@ -132,6 +132,10 @@ class RecoveryEntry:
     original_path: str | None
     saved_at: str
     session_id: str
+    # Kopie einer Aufgabe: Pfad der Aufgabendatei (sie bleibt unverändert, gespeichert wird als eigene Datei)
+    task_source: str | None = None
+    # Die Lehrkraft hatte ihre Aufgabe freigegeben (Datei → Aufgabe bearbeiten): kommt wieder in die eigene Datei
+    task_unlocked: bool = False
 
 
 def _read_json(path: str) -> dict:
@@ -235,6 +239,8 @@ class AutosaveManager(QObject):
                 save_diagram(diagram, path, payload=payload)   # derselbe Inhalt, nicht noch einmal umwandeln
                 _write_json(path + META_SUFFIX, {
                     "original_path": document.file_path,
+                    "task_source": getattr(document, "task_source", None),
+                    "task_unlocked": bool(getattr(document, "task_unlocked", False)),
                     "display_name": document.display_name,
                     "saved_at": now_iso(),
                     "session_id": self.session_id,
@@ -312,6 +318,7 @@ class AutosaveManager(QObject):
             backup = os.path.join(self.directory, name)
             meta = _read_json(backup + META_SUFFIX)
             original = meta.get("original_path") if isinstance(meta.get("original_path"), str) else None
+            task_source = meta.get("task_source") if isinstance(meta.get("task_source"), str) else None
             entries.append(RecoveryEntry(
                 backup_path=backup,
                 meta_path=backup + META_SUFFIX,
@@ -319,6 +326,8 @@ class AutosaveManager(QObject):
                 original_path=original,
                 saved_at=str(meta.get("saved_at") or ""),
                 session_id=session_id,
+                task_source=task_source,
+                task_unlocked=meta.get("task_unlocked") is True,
             ))
         return entries
 
@@ -328,7 +337,10 @@ class AutosaveManager(QObject):
 
         document = DiagramDocument.open_file(entry.backup_path)
         document.file_path = entry.original_path or None
-        if entry.original_path is None:
+        document.task_unlocked = entry.task_unlocked
+        if entry.original_path is None and entry.task_source:
+            document.task_source = entry.task_source   # wieder „Aufgabe – Kopie“; der Projektname bleibt
+        elif entry.original_path is None:
             document.meta.name = entry.display_name
         # als ungespeichert markieren, damit der Benutzer bewusst speichert
         document.undo_stack.resetClean()

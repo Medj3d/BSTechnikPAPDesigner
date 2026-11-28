@@ -257,11 +257,14 @@ _RETURN = re.compile(r"^\s*(?:return|rückgabe|rueckgabe)\b(?!\s*(?::=|=|←|<-)
 
 
 def return_statement(text: str) -> str | None:
-    """„return n * 2“, „Rückgabe: n * 2“ → Ausdruck (Python-Schreibweise), „return“ allein → „“, sonst ``None``."""
+    """„return n * 2“, „Rückgabe: n * 2“ → Ausdruck (Python-Schreibweise), „return“ allein → „“, sonst ``None``.
+
+    Eine Rückgabe weist nichts zu: Ein einzelnes „=“ ist – wie in einer Bedingung – ein Vergleich
+    („return zahl mod 2 = 0“ → ``zahl % 2 == 0``)."""
     match = _RETURN.match(str(text or ""))
     if not match:
         return None
-    return normalize_expression(match.group(1)) if match.group(1).strip() else ""
+    return normalize_expression(match.group(1), condition=True) if match.group(1).strip() else ""
 
 
 def process_return(text: str) -> str | None:

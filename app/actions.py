@@ -30,19 +30,29 @@ _DEFINITIONS = {
     "open": (N_("Ö&ffnen …"), "open", [K.Open], N_("Projektdatei öffnen")),
     "save": (N_("&Speichern"), "save", [K.Save], N_("Projekt speichern")),
     "save_as": (N_("Speichern &unter …"), "save_as", ["Ctrl+Shift+S"], N_("Projekt unter neuem Namen speichern")),
+    "save_all": (N_("Alle s&peichern"), None, ["Ctrl+Alt+S"],
+                 N_("Alle geänderten Projekte speichern – noch unbenannte fragen nacheinander nach einem Namen")),
+    # Lehrkraft: Eine Aufgabendatei öffnet sich sonst immer als unbenannte Kopie
+    "edit_task_file": (N_("&Aufgabe bearbeiten …"), None, [],
+                       N_("Lehrkraft: eine Aufgabendatei selbst öffnen und ändern (mit Passwort) – sonst öffnet "
+                          "sie sich als Kopie")),
     "auto_save": (N_("&Automatisch speichern"), None, [],
                   N_("Bereits gespeicherte Projekte nach jeder Änderung von selbst speichern")),
     "backup_on_save": (N_("Sicherungs&kopie anlegen"), None, [],
                        N_("Vor dem ersten Speichern den Stand beim Öffnen als „.pap-backup“ neben der Datei "
                           "aufheben")),
-    "export_png": (N_("Als &PNG-Bild …"), None, [], N_("Diagramm als PNG-Bild exportieren")),
+    "export_png": (N_("Als &PNG-Bild …"), None, ["Ctrl+Shift+E"], N_("Diagramm als PNG-Bild exportieren")),
+    "export_jpg": (N_("Als &JPG-Bild …"), None, [],
+                   N_("Diagramm als JPG-Bild exportieren (kleinere Datei, immer mit festem Hintergrund)")),
     "export_svg": (N_("Als &SVG-Grafik …"), None, [], N_("Diagramm als SVG-Vektorgrafik exportieren")),
     "export_pdf": (N_("Als P&DF-Dokument …"), "export", ["Ctrl+E"], N_("Diagramm als PDF exportieren")),
     "print": (N_("&Drucken …"), "print", [K.Print], N_("Diagramm drucken")),
-    "print_preview": (N_("Druck&vorschau …"), None, [], N_("Druckvorschau anzeigen")),
+    "print_preview": (N_("Druck&vorschau …"), None, ["Ctrl+Shift+P"], N_("Druckvorschau anzeigen")),
     "properties": (N_("Projekt&eigenschaften …"), "properties", [],
                    N_("Projektname, Autor, Beschreibung und Raster")),
     "close": (N_("S&chließen"), "close", [K.Close], N_("Aktuelles Projekt schließen")),
+    "close_all": (N_("Alle sch&ließen"), None, ["Ctrl+Shift+W"],
+                  N_("Alle Projekte schließen – bei Änderungen wird wie beim Schließen gefragt")),
     "quit": (N_("&Beenden"), None, ["Ctrl+Q"], N_("Programm beenden")),
     # Bearbeiten
     "undo": (N_("&Rückgängig"), "undo", [K.Undo], N_("Letzte Aktion rückgängig machen")),
@@ -57,6 +67,10 @@ _DEFINITIONS = {
     "select_all": (N_("Alles au&swählen"), "select_all", [K.SelectAll], N_("Alle Elemente auswählen")),
     "deselect": (N_("Auswahl au&fheben"), None, ["Esc"], N_("Auswahl aufheben bzw. Aktion abbrechen")),
     "edit_text": (N_("&Text bearbeiten"), None, ["F2"], N_("Text des ausgewählten Bausteins bearbeiten")),
+    # Pfeil ohne Maus: Ziel aus einer Liste wählen (auch für Bildschirmleser)
+    "connect_to": (N_("Verbinden &mit …"), None, ["Ctrl+Shift+V"],
+                   N_("Vom ausgewählten Baustein einen Pfeil zu einem anderen Baustein anlegen – das Ziel aus einer "
+                      "Liste wählen")),
     # Ansicht
     "zoom_in": (N_("Zoom &+"), "zoom_in", [K.ZoomIn, "Ctrl+="], N_("Hineinzoomen")),
     "zoom_out": (N_("Zoom &−"), "zoom_out", [K.ZoomOut], N_("Herauszoomen")),
@@ -132,11 +146,20 @@ _DEFINITIONS = {
                        N_("Kleine Übersicht des ganzen Plans am rechten Rand ein-/ausblenden")),
     "toggle_breakpoint": (N_("&Haltepunkt setzen/entfernen"), "breakpoint", ["F9"],
                           N_("Der Schreibtischtest hält vor dem ausgewählten Baustein an")),
-    "clear_breakpoints": (N_("Alle Haltepunkte &entfernen"), None, [], N_("Alle Haltepunkte des Projekts entfernen")),
+    "clear_breakpoints": (N_("Alle Haltepunkte &entfernen"), None, ["Ctrl+Shift+F9"],
+                          N_("Alle Haltepunkte des Projekts entfernen")),
     "add_bend": (N_("&Knick einfügen"), None, [],
                  N_("In die ausgewählte Verbindung eine Stufe einfügen (ändert nur das Aussehen)")),
+    # einer ausgewählten Verbindung folgen (Verbindungspunkte dazwischen werden übersprungen)
+    "jump_to_source": (N_("Zum &Anfang des Pfeils"), None, ["Alt+Home"],
+                       N_("Den Baustein auswählen und zeigen, an dem der ausgewählte Pfeil beginnt")),
+    "jump_to_target": (N_("Zum Z&iel des Pfeils"), None, ["Alt+End"],
+                       N_("Den Baustein auswählen und zeigen, auf den der ausgewählte Pfeil zeigt")),
     # Hilfe
     "shortcuts": (N_("&Tastenkürzel und Bedienung"), "keyboard", [K.HelpContents], N_("Übersicht der Bedienung")),
+    "notation_help": (N_("&Schreibweisen im Plan"), None, ["Shift+F1"],
+                      N_("Welche Texte der Schreibtischtest und die Code-Erzeugung verstehen (Rechnen, Bedingungen, "
+                         "Schleifen …)")),
     "register_filetype": (N_("Dateityp registrieren …"), "register", [],
                           N_("Projektdateien mit diesem Programm öffnen")),
     "check_updates_on_start": (N_("Beim &Start nach Updates suchen"), None, [],
@@ -151,7 +174,7 @@ _DEFINITIONS = {
     "simulation_play": (N_("Schreibtischtest: Abspielen"), None, ["F6"], N_("Automatisch abspielen bzw. anhalten")),
 }
 
-# Bausteine liegen auf den Zifferntasten, in der Reihenfolge der Werkzeugpalette
+# Bausteine liegen auf den Zifferntasten, in der Reihenfolge im Feld „Bausteine“
 # Verbindungspunkt (zum Teilen eines Pfeils) liegt auf der 0
 # Übergangsstelle ohne eigene Taste (die Ziffern sind vergeben)
 INSERTABLE_BLOCKS = PALETTE_ORDER + FLOW_TERMINALS + (ElementType.JUNCTION, ElementType.CONNECTOR)

@@ -4,7 +4,8 @@
 * Zoom mit dem Mausrad, am Mauszeiger orientiert (25 % … 400 %)
 * Schwenken mit gedrückter rechter (oder mittlerer) Maustaste bzw. Leertaste
 * Rechtsklick ohne Bewegung öffnet das Kontextmenü
-* Drag & Drop von Bausteinen aus der Werkzeugpalette mit Vorschau
+* Drag & Drop von Bausteinen aus dem Feld „Bausteine“ mit Vorschau
+* leiser Tipp zu den Schreibweisen, solange nur Start und Ende auf der Seite liegen (``app/canvas_hint.py``)
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import QFrame, QGraphicsView, QMenu
 
 from app.i18n import tr
 from app import config, icons, styles
+from app.canvas_hint import NotationHint
 from app.document import DiagramDocument
 from app.model.element_types import ElementType, display_name_for, is_valid_type
 
@@ -89,6 +91,10 @@ class DiagramView(QGraphicsView):
         document.settings_changed.connect(self.refresh_background)
         document.current_page_changed.connect(self._show_current_page)
         self.restore_view_state()
+        # Tipp auf der (fast) leeren Arbeitsfläche; verschwindet mit dem ersten Baustein außer Start/Ende
+        self.notation_hint = NotationHint(self)
+        document.content_changed.connect(self.notation_hint.refresh)
+        self.notation_hint.refresh()
 
     # ================================================================ Zoom
     @property
@@ -198,6 +204,7 @@ class DiagramView(QGraphicsView):
             self.fit_diagram()
         self.resetCachedContent()
         self.viewport().update()
+        self.notation_hint.refresh()
         self.zoom_changed.emit(self._zoom)
 
     def _end_view_interaction(self) -> None:

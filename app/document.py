@@ -152,6 +152,15 @@ class DiagramDocument(QObject):
         self.native_file = True
         # aus einer Sicherung nach einem Absturz: erst nach einem bewussten Speichern automatisch speichern
         self.restored_from_backup = False
+        # Aufgabe der Lehrkraft, als unbenannte Kopie geöffnet: Pfad der Aufgabendatei (sie wird nie überschrieben)
+        self.task_source: str | None = None
+        # Die Lehrkraft hat die Aufgabe in diesem Projekt freigegeben (Passwort bei Datei → Aufgabe bearbeiten,
+        # oder die Aufgabe eben selbst gestellt): Speichern darf dann in ihre eigene Aufgabendatei schreiben
+        self.task_unlocked = False
+        # Das letzte automatische Speichern ist fehlgeschlagen (z. B. schreibgeschützt): Anzeige „angehalten“
+        self.auto_save_failed = False
+        # Ordner des letzten Exports dieses Projekts (Bild, PDF): der nächste Export schlägt ihn wieder vor
+        self.last_export_directory: str | None = None
         # Stand der Datei beim Öffnen bzw. letzten Speichern (Zeitstempel, Größe): Hat ihn jemand anderes geändert
         # (zweites Programm, Synchronisieren, Netzlaufwerk), wird nicht still überschrieben
         self.disk_stamp: tuple | None = None
@@ -435,6 +444,8 @@ class DiagramDocument(QObject):
     def display_name(self) -> str:
         if self.file_path:
             return display_name_for_path(self.file_path)
+        if self.task_source:
+            return tr("{name} – Kopie", name=display_name_for_path(self.task_source))
         return self.meta.name
 
     def _on_clean_changed(self, clean: bool) -> None:
